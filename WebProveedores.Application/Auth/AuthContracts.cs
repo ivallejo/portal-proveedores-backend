@@ -3,12 +3,19 @@ using WebProveedores.Domain.Entities;
 
 namespace WebProveedores.Application.Auth;
 
-public sealed record RegisterRequest(
-    [property: Required, MaxLength(20)] string Ruc,
-    [property: Required, MaxLength(200)] string CompanyName,
-    [property: Required, EmailAddress] string Email,
-    [property: Required, MinLength(8)] string Password);
-public sealed record LoginRequest([property: Required, EmailAddress] string Email, [property: Required] string Password);
+public sealed class RegisterRequest
+{
+    [Required, MaxLength(20)] public string Ruc { get; init; } = string.Empty;
+    [Required, MaxLength(200)] public string CompanyName { get; init; } = string.Empty;
+    [Required, EmailAddress] public string Email { get; init; } = string.Empty;
+    [Required, MinLength(8)] public string Password { get; init; } = string.Empty;
+}
+
+public sealed class LoginRequest
+{
+    [Required, EmailAddress] public string Email { get; init; } = string.Empty;
+    [Required] public string Password { get; init; } = string.Empty;
+}
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAtUtc, UserResponse User);
 public sealed record UserResponse(Guid Id, string Email, string CompanyName, string Ruc, string Role);
 

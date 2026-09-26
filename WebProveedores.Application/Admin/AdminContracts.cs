@@ -2,13 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WebProveedores.Application.Admin;
 
-public sealed record CreateUserRequest(
-    [property: Required, EmailAddress] string Email,
-    [property: Required, MaxLength(200)] string CompanyName,
-    [property: Required, MaxLength(20)] string Ruc,
-    [property: Required, MinLength(8)] string Password,
-    [property: Required] string Role);
-public sealed record AssignRoleRequest([property: Required] string Role);
+public sealed class CreateUserRequest
+{
+    [Required, EmailAddress] public string Email { get; init; } = string.Empty;
+    [Required, MaxLength(200)] public string CompanyName { get; init; } = string.Empty;
+    [Required, MaxLength(20)] public string Ruc { get; init; } = string.Empty;
+    [Required, MinLength(8)] public string Password { get; init; } = string.Empty;
+    [Required] public string Role { get; init; } = string.Empty;
+}
+
+public sealed class AssignRoleRequest
+{
+    [Required] public string Role { get; init; } = string.Empty;
+}
 public sealed record UpdateUserStatusRequest(bool IsActive);
 public sealed record AdminUserResponse(Guid Id, string Email, string CompanyName, string Ruc, string Role, bool IsActive, DateTime CreatedAtUtc);
 
