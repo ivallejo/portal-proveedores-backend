@@ -21,7 +21,7 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var response = await auth.LoginAsync(request, cancellationToken);
-        return response is null ? Unauthorized(new { message = "Correo o contraseña inválidos." }) : Ok(response);
+        return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
     }
 
     [HttpGet("me")]

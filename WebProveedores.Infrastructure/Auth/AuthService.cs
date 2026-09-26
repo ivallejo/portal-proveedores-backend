@@ -30,7 +30,11 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await db.Users.SingleOrDefaultAsync(item => item.Email == request.Email.Trim().ToLowerInvariant(), cancellationToken);
+        var identifier = request.Identifier.Trim();
+        var normalizedEmail = identifier.ToLowerInvariant();
+        var user = await db.Users.SingleOrDefaultAsync(
+            item => item.Email == normalizedEmail || item.Ruc == identifier,
+            cancellationToken);
         if (user is null || !user.IsActive || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed) return null;
 
         var expires = DateTime.UtcNow.AddMinutes(configuration.GetValue("Jwt:AccessTokenMinutes", 30));
