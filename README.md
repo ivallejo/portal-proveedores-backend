@@ -20,6 +20,17 @@ cp .env.example .env
 
 Revisar en `.env` la conexión SQL, la llave JWT y las credenciales del administrador inicial. El archivo `.env` es local y no debe versionarse.
 
+Para habilitar el envío de claves por Gmail, configurar una contraseña de aplicación (no la contraseña normal de Gmail) en estas variables del `.env`:
+
+```env
+Smtp__Host=smtp.gmail.com
+Smtp__Port=587
+Smtp__Username=tu-cuenta@gmail.com
+Smtp__Password=tu-app-password-de-gmail
+Smtp__From=tu-cuenta@gmail.com
+Smtp__EnableSsl=true
+```
+
 ## Levantar SQL Server
 
 ```bash
@@ -42,6 +53,8 @@ Aplicar migraciones:
 ```bash
 dotnet ef database update --project WebProveedores.Infrastructure --startup-project WebProveedores.Api
 ```
+
+El registro online valida los RUC contra `WebProveedores.Infrastructure/Mocks/providers.json`. Después de aceptar los términos, `POST /api/auth/request-access-key` crea o actualiza el proveedor en SQL Server y envía una clave temporal por SMTP.
 
 La conexión se toma de `ConnectionStrings__DefaultConnection`. En Windows PowerShell se puede definir con `$env:ConnectionStrings__DefaultConnection = '...'`.
 

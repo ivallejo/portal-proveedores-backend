@@ -18,10 +18,29 @@ public sealed class LoginRequest
 }
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAtUtc, UserResponse User);
 public sealed record UserResponse(Guid Id, string Email, string CompanyName, string Ruc, string Role);
+public sealed class ValidateRucRequest
+{
+    [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
+}
+
+public sealed class RequestAccessKeyRequest
+{
+    [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
+    [Range(typeof(bool), "true", "true")] public bool TermsAccepted { get; init; }
+}
+
+public sealed record ProviderLookupResponse(string Ruc, string CompanyName, string MaskedEmail);
+public sealed record AccessKeyResponse(bool Sent, string MaskedEmail);
 
 public interface IAuthService
 {
     Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
     UserResponse? GetCurrentUser(System.Security.Claims.ClaimsPrincipal principal);
+}
+
+public interface IOnlineRegistrationService
+{
+    ProviderLookupResponse ValidateRuc(string ruc);
+    Task<AccessKeyResponse> RequestAccessKeyAsync(string ruc, CancellationToken cancellationToken);
 }

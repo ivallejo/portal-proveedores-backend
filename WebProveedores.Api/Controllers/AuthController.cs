@@ -6,7 +6,7 @@ namespace WebProveedores.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService auth) : ControllerBase
+public sealed class AuthController(IAuthService auth, IOnlineRegistrationService onlineRegistration) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -22,6 +22,22 @@ public sealed class AuthController(IAuthService auth) : ControllerBase
     {
         var response = await auth.LoginAsync(request, cancellationToken);
         return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
+    }
+
+    [HttpPost("validate-ruc")]
+    [AllowAnonymous]
+    public ActionResult<ProviderLookupResponse> ValidateRuc(ValidateRucRequest request)
+    {
+        try { return Ok(onlineRegistration.ValidateRuc(request.Ruc)); }
+        catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
+    }
+
+    [HttpPost("request-access-key")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AccessKeyResponse>> RequestAccessKey(RequestAccessKeyRequest request, CancellationToken cancellationToken)
+    {
+        try { return Ok(await onlineRegistration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
+        catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
     }
 
     [HttpGet("me")]

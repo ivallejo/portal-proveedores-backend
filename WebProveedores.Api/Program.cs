@@ -21,6 +21,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"]).AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<AdminBootstrapper>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
