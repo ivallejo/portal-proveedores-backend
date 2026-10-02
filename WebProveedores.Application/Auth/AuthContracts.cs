@@ -31,11 +31,26 @@ public sealed class RequestAccessKeyRequest
 
 public sealed record ProviderLookupResponse(string Ruc, string CompanyName, string MaskedEmail);
 public sealed record AccessKeyResponse(bool Sent, string MaskedEmail);
+public sealed class PasswordResetRequest
+{
+    [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
+}
+
+public sealed class PasswordResetConfirmRequest
+{
+    [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
+    [Required] public string Token { get; init; } = string.Empty;
+    [Required, MinLength(6)] public string NewPassword { get; init; } = string.Empty;
+}
+
+public sealed record PasswordResetResponse(bool Sent, string MaskedEmail, string DemoToken);
 
 public interface IAuthService
 {
     Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
+    Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
+    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, CancellationToken cancellationToken);
     UserResponse? GetCurrentUser(System.Security.Claims.ClaimsPrincipal principal);
 }
 

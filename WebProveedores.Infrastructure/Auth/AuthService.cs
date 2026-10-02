@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Infrastructure.Auth;
 
-public sealed class AuthService(AppDbContext db, IConfiguration configuration) : IAuthService
+public sealed class AuthService(AppDbContext db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 
@@ -48,6 +49,36 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
         return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToResponse(user));
     }
 
+    public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
+    {
+        var ruc = request.Ruc.Trim();
+        var user = await db.Users.SingleOrDefaultAsync(item => item.Ruc == ruc, cancellationToken);
+        if (user is null || !user.IsActive) return null;
+
+        var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+        user.PasswordResetTokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+        user.PasswordResetTokenExpiresAtUtc = DateTime.UtcNow.AddHours(24);
+        await db.SaveChangesAsync(cancellationToken);
+        await emailSender.SendAsync(user.Email, "Recuperación de contraseña - Portal de Proveedores", $"Usa este token para cambiar tu contraseña: {token}", cancellationToken);
+        return new PasswordResetResponse(true, MaskEmail(user.Email), token);
+    }
+
+    public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(item => item.Ruc == request.Ruc.Trim(), cancellationToken);
+        if (user is null || string.IsNullOrWhiteSpace(user.PasswordResetTokenHash) || user.PasswordResetTokenExpiresAtUtc <= DateTime.UtcNow) return false;
+        var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
+        if (!CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(user.PasswordResetTokenHash), Encoding.UTF8.GetBytes(tokenHash))) return false;
+        user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiresAtUtc = null;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public UserResponse? GetCurrentUser(ClaimsPrincipal principal)
     {
         var id = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -56,4 +87,11 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
 
     private static UserResponse ToResponse(AppUser user) => new(user.Id, user.Username ?? user.Ruc, user.Email, user.CompanyName, user.Ruc, user.Area, user.Role, RolesFor(user));
     private static IReadOnlyList<string> RolesFor(AppUser user) => [user.Role];
+    private static string MaskEmail(string email)
+    {
+        var parts = email.Split('@', 2);
+        if (parts.Length != 2) return email;
+        var local = parts[0];
+        return $"{local[..Math.Min(3, local.Length)]}*****{parts[1]}";
+    }
 }

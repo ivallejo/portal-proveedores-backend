@@ -9,6 +9,8 @@ public sealed class AppUser
     public string Ruc { get; set; } = string.Empty;
     public string? Area { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetTokenExpiresAtUtc { get; set; }
     public string Role { get; set; } = "Proveedor";
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

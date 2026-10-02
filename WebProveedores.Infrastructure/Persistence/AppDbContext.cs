@@ -22,6 +22,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(user => user.Ruc).HasMaxLength(20).IsRequired();
             entity.Property(user => user.Area).HasMaxLength(100);
             entity.Property(user => user.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.Property(user => user.PasswordResetTokenHash).HasMaxLength(128);
             entity.Property(user => user.Role).HasMaxLength(40).IsRequired();
         });
     }

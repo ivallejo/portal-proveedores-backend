@@ -40,6 +40,22 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
     }
 
+    [HttpPost("password-reset/request")]
+    [AllowAnonymous]
+    public async Task<ActionResult<PasswordResetResponse>> RequestPasswordReset(PasswordResetRequest request, CancellationToken cancellationToken)
+    {
+        var response = await auth.RequestPasswordResetAsync(request, cancellationToken);
+        return response is null ? NotFound(new { message = "No encontramos información para el RUC indicado." }) : Ok(response);
+    }
+
+    [HttpPost("password-reset/confirm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmPasswordReset(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
+    {
+        var confirmed = await auth.ConfirmPasswordResetAsync(request, cancellationToken);
+        return confirmed ? NoContent() : BadRequest(new { message = "El enlace de recuperación es inválido o ya venció." });
+    }
+
     [HttpGet("me")]
     [Authorize]
     public ActionResult<UserResponse> Me() => auth.GetCurrentUser(User) is { } user ? Ok(user) : Unauthorized();
