@@ -14,9 +14,19 @@ public sealed class AdminBootstrapper(AppDbContext db, IConfiguration configurat
         var password = configuration["BootstrapAdmin:Password"];
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
 
-        if (await db.Users.AnyAsync(user => user.Email == email, cancellationToken)) return;
+        var existingAdmin = await db.Users.SingleOrDefaultAsync(user => user.Email == email, cancellationToken);
+        if (existingAdmin is not null)
+        {
+            if (string.IsNullOrWhiteSpace(existingAdmin.Username))
+            {
+                existingAdmin.Username = "admin";
+                await db.SaveChangesAsync(cancellationToken);
+            }
 
-        var admin = new AppUser { Email = email, CompanyName = configuration["BootstrapAdmin:CompanyName"]?.Trim() ?? "Administrador del sistema", Ruc = "ADMIN-SYSTEM", Role = "Administrador" };
+            return;
+        }
+
+        var admin = new AppUser { Username = "admin", Email = email, CompanyName = configuration["BootstrapAdmin:CompanyName"]?.Trim() ?? "Administrador del sistema", Ruc = "ADMIN-SYSTEM", Role = "Administrador" };
         admin.PasswordHash = new PasswordHasher<AppUser>().HashPassword(admin, password);
         db.Users.Add(admin);
         await db.SaveChangesAsync(cancellationToken);

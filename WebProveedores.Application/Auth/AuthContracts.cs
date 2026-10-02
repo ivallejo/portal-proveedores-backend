@@ -17,7 +17,7 @@ public sealed class LoginRequest
     [Required] public string Password { get; init; } = string.Empty;
 }
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAtUtc, UserResponse User);
-public sealed record UserResponse(Guid Id, string Email, string CompanyName, string Ruc, string Role);
+public sealed record UserResponse(Guid Id, string Username, string Email, string CompanyName, string Ruc, string? Area, string Role, IReadOnlyList<string> Roles);
 public sealed class ValidateRucRequest
 {
     [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;

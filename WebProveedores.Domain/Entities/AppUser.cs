@@ -3,9 +3,11 @@ namespace WebProveedores.Domain.Entities;
 public sealed class AppUser
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public string? Username { get; set; }
     public string Email { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string Ruc { get; set; } = string.Empty;
+    public string? Area { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
     public string Role { get; set; } = "Proveedor";
     public bool IsActive { get; set; } = true;

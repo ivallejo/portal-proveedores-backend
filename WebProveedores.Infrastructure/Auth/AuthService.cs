@@ -21,7 +21,8 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
         if (await db.Users.AnyAsync(user => user.Email == email || user.Ruc == request.Ruc.Trim(), cancellationToken))
             throw new InvalidOperationException("Ya existe un usuario registrado con ese correo o RUC.");
 
-        var user = new AppUser { Email = email, CompanyName = request.CompanyName.Trim(), Ruc = request.Ruc.Trim() };
+        var ruc = request.Ruc.Trim();
+        var user = new AppUser { Username = ruc, Email = email, CompanyName = request.CompanyName.Trim(), Ruc = ruc, Role = "Proveedor" };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
@@ -33,13 +34,15 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
         var identifier = request.Identifier.Trim();
         var normalizedEmail = identifier.ToLowerInvariant();
         var user = await db.Users.SingleOrDefaultAsync(
-            item => item.Email == normalizedEmail || item.Ruc == identifier,
+            item => item.Email == normalizedEmail || item.Ruc == identifier || item.Username == identifier,
             cancellationToken);
         if (user is null || !user.IsActive || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed) return null;
 
         var expires = DateTime.UtcNow.AddMinutes(configuration.GetValue("Jwt:AccessTokenMinutes", 30));
         var key = configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
-        var claims = new[] { new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new Claim(ClaimTypes.Email, user.Email), new Claim(ClaimTypes.Role, user.Role), new Claim("ruc", user.Ruc) };
+        var roles = RolesFor(user);
+        var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new(ClaimTypes.Email, user.Email), new("username", user.Username ?? user.Ruc), new("ruc", user.Ruc) };
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"], claims, expires: expires, signingCredentials: credentials);
         return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToResponse(user));
@@ -48,8 +51,9 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration) :
     public UserResponse? GetCurrentUser(ClaimsPrincipal principal)
     {
         var id = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return id is not null && Guid.TryParse(id, out var userId) ? db.Users.AsNoTracking().Where(user => user.Id == userId).Select(user => new UserResponse(user.Id, user.Email, user.CompanyName, user.Ruc, user.Role)).SingleOrDefault() : null;
+        return id is not null && Guid.TryParse(id, out var userId) ? db.Users.AsNoTracking().Where(user => user.Id == userId).Select(user => new UserResponse(user.Id, user.Username ?? user.Ruc, user.Email, user.CompanyName, user.Ruc, user.Area, user.Role, new[] { user.Role })).SingleOrDefault() : null;
     }
 
-    private static UserResponse ToResponse(AppUser user) => new(user.Id, user.Email, user.CompanyName, user.Ruc, user.Role);
+    private static UserResponse ToResponse(AppUser user) => new(user.Id, user.Username ?? user.Ruc, user.Email, user.CompanyName, user.Ruc, user.Area, user.Role, RolesFor(user));
+    private static IReadOnlyList<string> RolesFor(AppUser user) => [user.Role];
 }

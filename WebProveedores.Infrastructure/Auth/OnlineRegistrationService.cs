@@ -34,6 +34,7 @@ public sealed class OnlineRegistrationService(
         {
             user = new AppUser
             {
+                Username = normalizedRuc,
                 Ruc = normalizedRuc,
                 Email = provider.Email.Trim().ToLowerInvariant(),
                 CompanyName = provider.CompanyName.Trim(),
