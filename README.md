@@ -29,7 +29,11 @@ Smtp__Username=tu-cuenta@gmail.com
 Smtp__Password=tu-app-password-de-gmail
 Smtp__From=tu-cuenta@gmail.com
 Smtp__EnableSsl=true
+Smtp__RedirectEnabled=true
+Smtp__TestRecipient=tu-correo-de-pruebas@gmail.com
 ```
+
+Mientras `Smtp__RedirectEnabled=true`, ningún correo se envía al destinatario real: todos se redirigen a `Smtp__TestRecipient`. El asunto se marca como `[PRUEBA SMTP]` y el cuerpo conserva el destinatario original para facilitar las pruebas. Antes de pasar a un ambiente real, cambiar el flag a `false` o eliminarlo.
 
 Para consultar la información del proveedor durante el registro online, configurar también el servicio SAP:
 
