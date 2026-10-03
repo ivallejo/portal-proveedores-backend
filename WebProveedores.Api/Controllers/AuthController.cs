@@ -26,10 +26,11 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
 
     [HttpPost("validate-ruc")]
     [AllowAnonymous]
-    public ActionResult<ProviderLookupResponse> ValidateRuc(ValidateRucRequest request)
+    public async Task<ActionResult<ProviderLookupResponse>> ValidateRuc(ValidateRucRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(onlineRegistration.ValidateRuc(request.Ruc)); }
+        try { return Ok(await onlineRegistration.ValidateRucAsync(request.Ruc, cancellationToken)); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
+        catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
     }
 
     [HttpPost("request-access-key")]
@@ -38,6 +39,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     {
         try { return Ok(await onlineRegistration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
+        catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
     }
 
     [HttpPost("password-reset/request")]

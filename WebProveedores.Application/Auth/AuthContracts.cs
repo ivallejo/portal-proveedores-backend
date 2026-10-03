@@ -56,6 +56,6 @@ public interface IAuthService
 
 public interface IOnlineRegistrationService
 {
-    ProviderLookupResponse ValidateRuc(string ruc);
+    Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken);
     Task<AccessKeyResponse> RequestAccessKeyAsync(string ruc, CancellationToken cancellationToken);
 }

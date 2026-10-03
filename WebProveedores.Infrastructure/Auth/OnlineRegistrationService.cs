@@ -1,32 +1,31 @@
 using System.Security.Cryptography;
-using System.Text.Json;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Providers;
 
 namespace WebProveedores.Infrastructure.Auth;
 
 public sealed class OnlineRegistrationService(
     AppDbContext db,
     IEmailSender emailSender,
-    IWebHostEnvironment environment) : IOnlineRegistrationService
+    SapProviderClient sapProvider) : IOnlineRegistrationService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 
-    public ProviderLookupResponse ValidateRuc(string ruc)
+    public async Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken)
     {
-        var provider = FindProvider(ruc);
-        return new(provider.Ruc, provider.CompanyName, ObfuscateEmail(provider.Email));
+        var normalizedRuc = NormalizeRuc(ruc);
+        var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
+        return new(normalizedRuc, provider.CompanyName, ObfuscateEmail(provider.Correo!));
     }
 
     public async Task<AccessKeyResponse> RequestAccessKeyAsync(string ruc, CancellationToken cancellationToken)
     {
-        var provider = FindProvider(ruc);
-        var normalizedRuc = provider.Ruc;
+        var normalizedRuc = NormalizeRuc(ruc);
+        var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
         var user = await db.Users.SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
         var temporaryPassword = GenerateTemporaryPassword();
 
@@ -36,7 +35,7 @@ public sealed class OnlineRegistrationService(
             {
                 Username = normalizedRuc,
                 Ruc = normalizedRuc,
-                Email = provider.Email.Trim().ToLowerInvariant(),
+                Email = provider.Correo!.Trim().ToLowerInvariant(),
                 CompanyName = provider.CompanyName.Trim(),
                 Role = "Proveedor",
             };
@@ -44,32 +43,30 @@ public sealed class OnlineRegistrationService(
         }
         else
         {
-            user.Email = provider.Email.Trim().ToLowerInvariant();
+            user.Email = provider.Correo!.Trim().ToLowerInvariant();
             user.CompanyName = provider.CompanyName.Trim();
             user.IsActive = true;
         }
 
         user.PasswordHash = passwordHasher.HashPassword(user, temporaryPassword);
         await db.SaveChangesAsync(cancellationToken);
-        await emailSender.SendAsync(provider.Email, "Clave de acceso - Portal de Proveedores", $"Tu clave temporal de acceso es: {temporaryPassword}", cancellationToken);
+        await emailSender.SendAsync(provider.Correo!, "Clave de acceso - Portal de Proveedores", $"Tu clave temporal de acceso es: {temporaryPassword}", cancellationToken);
 
-        return new(true, ObfuscateEmail(provider.Email));
+        return new(true, ObfuscateEmail(provider.Correo!));
     }
 
-    private MockProvider FindProvider(string ruc)
+    private async Task<SapProviderRecord> FindProviderAsync(string ruc, CancellationToken cancellationToken)
     {
-        var normalizedRuc = ruc.Trim();
-        if (!System.Text.RegularExpressions.Regex.IsMatch(normalizedRuc, "^\\d{11}$"))
-            throw new KeyNotFoundException("Ingresa un RUC válido de 11 dígitos.");
-
-        var filePath = Path.Combine(environment.ContentRootPath, "..", "WebProveedores.Infrastructure", "Mocks", "providers.json");
-        if (!File.Exists(filePath)) filePath = Path.Combine(AppContext.BaseDirectory, "Mocks", "providers.json");
-        var providers = JsonSerializer.Deserialize<List<MockProvider>>(
-            File.ReadAllText(filePath),
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
-        return providers.SingleOrDefault(item => item.Ruc == normalizedRuc)
-            ?? throw new KeyNotFoundException("No encontramos información para el RUC indicado.");
+        var provider = await sapProvider.FindByRucAsync(ruc, cancellationToken);
+        if (provider is null || string.IsNullOrWhiteSpace(provider.Correo) || string.IsNullOrWhiteSpace(provider.CompanyName))
+            throw new KeyNotFoundException("No encontramos información para el RUC indicado.");
+        return provider;
     }
+
+    private static string NormalizeRuc(string ruc) =>
+        System.Text.RegularExpressions.Regex.IsMatch(ruc.Trim(), "^\\d{11}$")
+            ? ruc.Trim()
+            : throw new KeyNotFoundException("Ingresa un RUC válido de 11 dígitos.");
 
     private static string ObfuscateEmail(string email)
     {
@@ -83,5 +80,4 @@ public sealed class OnlineRegistrationService(
 
     private static string GenerateTemporaryPassword() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(9)).Replace("/", "A").Replace("+", "B")[..12] + "!a1";
 
-    private sealed record MockProvider(string Ruc, string CompanyName, string Email);
 }

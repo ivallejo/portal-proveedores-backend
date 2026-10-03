@@ -31,6 +31,16 @@ Smtp__From=tu-cuenta@gmail.com
 Smtp__EnableSsl=true
 ```
 
+Para consultar la información del proveedor durante el registro online, configurar también el servicio SAP:
+
+```env
+Sap__BaseUrl=http://vhnzsps4ci.sap.navitranso.com:8000
+Sap__Client=200
+Sap__BasicToken=tu-token-base64-de-sap
+```
+
+`Sap__BasicToken` debe contener únicamente el valor Base64 de la credencial Basic. No debe incluirse en el repositorio ni en el frontend.
+
 ## Levantar SQL Server
 
 ```bash
@@ -54,7 +64,7 @@ Aplicar migraciones:
 dotnet ef database update --project WebProveedores.Infrastructure --startup-project WebProveedores.Api
 ```
 
-El registro online valida los RUC contra `WebProveedores.Infrastructure/Mocks/providers.json`. Después de aceptar los términos, `POST /api/auth/request-access-key` crea o actualiza el proveedor en SQL Server y envía una clave temporal por SMTP.
+El registro online consulta el RUC en SAP mediante `GET /sap/bc/zconsruc`. La API devuelve la razón social y el correo ofuscado para la pantalla de registro. Después de aceptar los términos, `POST /api/auth/request-access-key` vuelve a consultar SAP, crea o actualiza el proveedor en SQL Server y envía una clave temporal por SMTP.
 
 La conexión se toma de `ConnectionStrings__DefaultConnection`. En Windows PowerShell se puede definir con `$env:ConnectionStrings__DefaultConnection = '...'`.
 

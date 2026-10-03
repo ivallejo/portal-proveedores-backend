@@ -7,6 +7,7 @@ using WebProveedores.Application.Admin;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Admin;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Providers;
 using WebProveedores.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"]).AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
