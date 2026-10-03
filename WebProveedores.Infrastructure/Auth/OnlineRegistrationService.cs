@@ -26,7 +26,7 @@ public sealed class OnlineRegistrationService(
     {
         var normalizedRuc = NormalizeRuc(ruc);
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
-        var user = await db.Users.SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
+        var user = await db.Users.Include(item => item.Emails).Include(item => item.UserRoles).SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
         var temporaryPassword = GenerateTemporaryPassword();
 
         if (user is null)
@@ -35,17 +35,20 @@ public sealed class OnlineRegistrationService(
             {
                 Username = normalizedRuc,
                 Ruc = normalizedRuc,
-                Email = provider.Correo!.Trim().ToLowerInvariant(),
                 CompanyName = provider.CompanyName.Trim(),
-                Role = "Proveedor",
             };
+            user.Emails.Add(new UserEmail { Email = provider.Correo!.Trim().ToLowerInvariant(), IsPrimary = true });
+            user.UserRoles.Add(new UserRole { Role = await db.Roles.SingleAsync(role => role.Code == SecurityCatalog.ProviderRole, cancellationToken) });
             db.Users.Add(user);
         }
         else
         {
-            user.Email = provider.Correo!.Trim().ToLowerInvariant();
+            var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive) ?? user.Emails.FirstOrDefault(item => item.IsActive);
+            if (email is null) user.Emails.Add(new UserEmail { Email = provider.Correo!.Trim().ToLowerInvariant(), IsPrimary = true });
+            else email.Email = provider.Correo!.Trim().ToLowerInvariant();
             user.CompanyName = provider.CompanyName.Trim();
             user.IsActive = true;
+            user.UpdatedAtUtc = DateTime.UtcNow;
         }
 
         user.PasswordHash = passwordHasher.HashPassword(user, temporaryPassword);

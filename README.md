@@ -118,6 +118,19 @@ docker compose logs -f sqlserver
 docker compose down
 ```
 
+## Modelo de datos inicial
+
+La primera migración crea un modelo de seguridad normalizado:
+
+- `Users`: identidad, username, empresa, RUC, área y estado.
+- `UserEmails`: correos asociados a un usuario, con correo principal y soporte para múltiples correos.
+- `Roles`: catálogo de roles del sistema.
+- `UserRoles`: relación muchos-a-muchos entre usuarios y roles.
+- `Areas`: áreas organizacionales a las que pueden pertenecer los usuarios internos.
+- `PasswordResetTokens`: tokens de recuperación con expiración y uso controlado.
+
+Los roles iniciales son `Proveedor`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`. Los datos de documentos, archivos y aprobaciones se incorporarán en migraciones posteriores cuando se implemente ese módulo en backend.
+
 ## Estructura
 
 ```text
