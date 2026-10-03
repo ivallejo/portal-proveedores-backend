@@ -68,7 +68,9 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
             ExpiresAtUtc = DateTime.UtcNow.AddHours(24),
         });
         await db.SaveChangesAsync(cancellationToken);
-        await emailSender.SendAsync(email, "Recuperación de contraseña - Portal de Proveedores", EmailTemplates.PasswordReset(user.CompanyName, token), cancellationToken, isHtml: true);
+        var frontendUrl = configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
+        var resetUrl = $"{frontendUrl}/?ruc={Uri.EscapeDataString(user.Ruc!)}&activationToken={Uri.EscapeDataString(token)}";
+        await emailSender.SendAsync(email, "Cambia tu contraseña - Portal de Proveedores", EmailTemplates.PasswordReset(user.CompanyName, resetUrl), cancellationToken, isHtml: true);
         return new PasswordResetResponse(true, MaskEmail(email), token);
     }
 

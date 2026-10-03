@@ -14,15 +14,18 @@ public static class EmailTemplates
         activationUrl,
         showValue: false);
 
-    public static string PasswordReset(string companyName, string token) => Layout(
-        "Recuperación de contraseña",
+    public static string PasswordReset(string companyName, string resetUrl) => Layout(
         $"Hola, {Encode(companyName)}",
-        "Recibimos una solicitud para cambiar la contraseña de tu cuenta en el Portal de Proveedores.",
-        "Código de recuperación",
-        token,
-        "Este código vence en 24 horas y solo puede utilizarse una vez.");
+        string.Empty,
+        "Recibimos una solicitud para cambiar la contraseña de tu cuenta en el Portal de Proveedores. Para continuar, usa el siguiente botón.",
+        string.Empty,
+        string.Empty,
+        "Este enlace vence en 24 horas y solo puede utilizarse una vez.",
+        resetUrl,
+        showValue: false,
+        actionLabel: "Cambiar mi contraseña");
 
-    private static string Layout(string title, string greeting, string description, string valueLabel, string value, string note, string? actionUrl = null, bool showValue = true) => $"""
+    private static string Layout(string title, string greeting, string description, string valueLabel, string value, string note, string? actionUrl = null, bool showValue = true, string actionLabel = "Crear mi contraseña") => $"""
         <!doctype html>
         <html lang="es">
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"></head>
@@ -30,14 +33,14 @@ public static class EmailTemplates
           <div style="padding:32px 16px;">
             <table role="presentation" align="center" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;margin:0 auto;">
               <tr><td style="background:#1558c0;padding:28px 36px;border-radius:18px 18px 0 0;color:#fff;">
-                <div style="font-size:22px;font-weight:600;letter-spacing:-.3px;"><span style="display:inline-block;margin-right:10px;vertical-align:-5px;">{PortalIcon()}</span>Portal de Proveedores</div>
+                <div style="font-size:22px;font-weight:600;letter-spacing:-.3px;"><img src="cid:portal-logo" width="28" height="28" alt="" style="display:inline-block;margin-right:10px;vertical-align:-8px;border:0;">Portal de Proveedores</div>
               </td></tr>
               <tr><td style="background:#fff;padding:38px 40px 34px;border-radius:0 0 18px 18px;">
                 <h1 style="margin:0 0 20px;font-size:27px;line-height:1.2;color:#17386f;">{title}</h1>
                 {(string.IsNullOrWhiteSpace(greeting) ? "" : $"<p style=\"margin:0 0 14px;font-size:18px;line-height:1.5;color:#253c6d;\">{greeting}</p>")}
                 <p style="margin:0 0 26px;font-size:16px;line-height:1.65;color:#405477;">{description}</p>
                 {(showValue ? $"<div style=\"margin:0 0 22px;padding:20px 22px;background:#f2f6fc;border:1px solid #d5e0f0;border-radius:12px;\"><div style=\"margin-bottom:8px;font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:#536784;\">{valueLabel}</div><div style=\"font-size:18px;line-height:1.45;font-weight:600;color:#1558c0;word-break:break-word;\">{Encode(value)}</div></div>" : "")}
-                {(actionUrl is null ? "" : $"<a href=\"{Encode(actionUrl)}\" style=\"display:inline-block;margin:0 0 22px;padding:14px 24px;background:#1768e5;color:#fff;text-decoration:none;border-radius:9px;font-size:16px;font-weight:600;\">{LockIcon()}&nbsp;&nbsp;Crear mi contraseña</a>")}
+                {(actionUrl is null ? "" : $"<a href=\"{Encode(actionUrl)}\" style=\"display:inline-block;margin:0 0 22px;padding:14px 24px;background:#1768e5;color:#fff;text-decoration:none;border-radius:9px;font-size:16px;font-weight:600;\"><img src=\"cid:lock-icon\" width=\"16\" height=\"16\" alt=\"\" style=\"display:inline-block;margin-right:8px;vertical-align:-3px;border:0;\">{actionLabel}</a>")}
                 <p style="margin:0;font-size:14px;line-height:1.6;color:#536784;">{note}</p>
                 <div style="height:1px;margin:26px 0 18px;background:#dbe3ef;"></div>
                 <p style="margin:0;font-size:13px;line-height:1.6;color:#6a7890;">Si no solicitaste este correo, puedes ignorarlo. Tu cuenta seguirá segura.</p>
@@ -50,9 +53,5 @@ public static class EmailTemplates
         """;
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
-
-    private static string PortalIcon() => "<span style=\"display:inline-block;width:28px;height:28px;background:#fff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);vertical-align:-8px;\"><span style=\"display:block;width:14px;height:14px;margin:7px;background:#1558c0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);\"></span></span>";
-
-    private static string LockIcon() => "<span style=\"display:inline-block;position:relative;width:14px;height:11px;border:1.5px solid #fff;border-radius:2px;vertical-align:-2px;margin-right:2px;\"><span style=\"position:absolute;left:2px;top:-7px;width:7px;height:7px;border:1.5px solid #fff;border-bottom:0;border-radius:6px 6px 0 0;\"></span></span>";
 
 }
