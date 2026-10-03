@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
@@ -11,7 +12,8 @@ namespace WebProveedores.Infrastructure.Auth;
 public sealed class OnlineRegistrationService(
     AppDbContext db,
     IEmailSender emailSender,
-    SapProviderClient sapProvider) : IOnlineRegistrationService
+    SapProviderClient sapProvider,
+    IConfiguration configuration) : IOnlineRegistrationService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 
@@ -27,7 +29,7 @@ public sealed class OnlineRegistrationService(
         var normalizedRuc = NormalizeRuc(ruc);
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
         var user = await db.Users.Include(item => item.Emails).Include(item => item.UserRoles).SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
-        var temporaryPassword = GenerateTemporaryPassword();
+        var activationToken = GenerateToken();
 
         if (user is null)
         {
@@ -51,9 +53,18 @@ public sealed class OnlineRegistrationService(
             user.UpdatedAtUtc = DateTime.UtcNow;
         }
 
-        user.PasswordHash = passwordHasher.HashPassword(user, temporaryPassword);
+        if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();
+        if (string.IsNullOrWhiteSpace(user.PasswordHash)) user.PasswordHash = passwordHasher.HashPassword(user, GenerateToken());
+        db.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(activationToken))),
+            ExpiresAtUtc = DateTime.UtcNow.AddHours(24),
+        });
         await db.SaveChangesAsync(cancellationToken);
-        await emailSender.SendAsync(provider.Correo!, "Tu cuenta está lista - Portal de Proveedores", EmailTemplates.AccessKey(provider.CompanyName, temporaryPassword), cancellationToken, isHtml: true);
+        var frontendUrl = configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
+        var activationUrl = $"{frontendUrl}/?ruc={Uri.EscapeDataString(normalizedRuc)}&activationToken={Uri.EscapeDataString(activationToken)}";
+        await emailSender.SendAsync(provider.Correo!, "Completa tu registro - Portal de Proveedores", EmailTemplates.AccountActivation(provider.CompanyName, activationUrl), cancellationToken, isHtml: true);
 
         return new(true, ObfuscateEmail(provider.Correo!));
     }
@@ -81,6 +92,6 @@ public sealed class OnlineRegistrationService(
         return $"{parts[0][..Math.Min(3, parts[0].Length)]}*****{domainName[^Math.Min(3, domainName.Length)..]}{suffix}";
     }
 
-    private static string GenerateTemporaryPassword() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(9)).Replace("/", "A").Replace("+", "B")[..12] + "!a1";
+    private static string GenerateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
 }

@@ -4,13 +4,14 @@ namespace WebProveedores.Infrastructure.Auth;
 
 public static class EmailTemplates
 {
-    public static string AccessKey(string companyName, string temporaryPassword) => Layout(
-        "Tu cuenta está lista",
+    public static string AccountActivation(string companyName, string activationUrl) => Layout(
+        "Completa tu registro",
         $"Hola, {Encode(companyName)}",
-        "Tu empresa fue registrada en el Portal de Proveedores. Usa la siguiente clave temporal para ingresar por primera vez.",
-        "Clave temporal",
-        temporaryPassword,
-        "Por seguridad, cambia tu contraseña después de iniciar sesión.");
+        "Tu empresa fue registrada en el Portal de Proveedores. Para activar tu cuenta, crea tu contraseña con el siguiente botón.",
+        "Activación segura",
+        "Enlace para crear tu contraseña",
+        "Este enlace vence en 24 horas y solo puede utilizarse una vez.",
+        activationUrl);
 
     public static string PasswordReset(string companyName, string token) => Layout(
         "Recuperación de contraseña",
@@ -20,7 +21,7 @@ public static class EmailTemplates
         token,
         "Este código vence en 24 horas y solo puede utilizarse una vez.");
 
-    private static string Layout(string title, string greeting, string description, string valueLabel, string value, string note) => $"""
+    private static string Layout(string title, string greeting, string description, string valueLabel, string value, string note, string? actionUrl = null) => $"""
         <!doctype html>
         <html lang="es">
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -37,8 +38,9 @@ public static class EmailTemplates
                 <p style="margin:0 0 26px;font-size:16px;line-height:1.65;color:#405477;">{description}</p>
                 <div style="margin:0 0 22px;padding:20px 22px;background:#f2f6fc;border:1px solid #d5e0f0;border-radius:12px;">
                   <div style="margin-bottom:8px;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#536784;">{valueLabel}</div>
-                  <div style="font-size:24px;line-height:1.3;font-weight:700;letter-spacing:1px;color:#1558c0;word-break:break-word;">{Encode(value)}</div>
+                  <div style="font-size:18px;line-height:1.45;font-weight:700;color:#1558c0;word-break:break-word;">{Encode(value)}</div>
                 </div>
+                {(actionUrl is null ? "" : $"<a href=\"{Encode(actionUrl)}\" style=\"display:inline-block;margin:0 0 22px;padding:14px 24px;background:#1768e5;color:#fff;text-decoration:none;border-radius:9px;font-size:16px;font-weight:700;\">🔒&nbsp;&nbsp;Crear mi contraseña</a>")}
                 <p style="margin:0;font-size:14px;line-height:1.6;color:#536784;">{note}</p>
                 <div style="height:1px;margin:26px 0 18px;background:#dbe3ef;"></div>
                 <p style="margin:0;font-size:13px;line-height:1.6;color:#6a7890;">Si no solicitaste este correo, puedes ignorarlo. Tu cuenta seguirá segura.</p>
