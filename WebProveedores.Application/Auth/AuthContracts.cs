@@ -51,7 +51,7 @@ public interface IAuthService
     Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
     Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
     Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
-    UserResponse? GetCurrentUser(System.Security.Claims.ClaimsPrincipal principal);
+    Task<UserResponse?> GetCurrentUserAsync(System.Security.Claims.ClaimsPrincipal principal, CancellationToken cancellationToken);
 }
 
 public interface IOnlineRegistrationService

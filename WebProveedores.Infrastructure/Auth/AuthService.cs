@@ -90,11 +90,11 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         return true;
     }
 
-    public UserResponse? GetCurrentUser(ClaimsPrincipal principal)
+    public async Task<UserResponse?> GetCurrentUserAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var id = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (id is null || !Guid.TryParse(id, out var userId)) return null;
-        var user = db.Users.AsNoTracking().Include(item => item.Emails).Include(item => item.Area).Include(item => item.UserRoles).ThenInclude(item => item.Role).SingleOrDefault(item => item.Id == userId);
+        var user = await db.Users.AsNoTracking().Include(item => item.Emails).Include(item => item.Area).Include(item => item.UserRoles).ThenInclude(item => item.Role).SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
         return user is null ? null : ToResponse(user);
     }
 

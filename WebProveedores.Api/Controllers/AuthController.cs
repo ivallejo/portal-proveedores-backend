@@ -69,5 +69,6 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
 
     [HttpGet("me")]
     [Authorize]
-    public ActionResult<UserResponse> Me() => auth.GetCurrentUser(User) is { } user ? Ok(user) : Unauthorized();
+    public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) =>
+        await auth.GetCurrentUserAsync(User, cancellationToken) is { } user ? Ok(user) : Unauthorized();
 }

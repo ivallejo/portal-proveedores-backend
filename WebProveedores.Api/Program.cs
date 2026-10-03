@@ -28,6 +28,7 @@ builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<AdminBootstrapper>();
+builder.Services.AddScoped<DatabaseInitializer>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     var key = builder.Configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
@@ -42,7 +43,7 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    await scope.ServiceProvider.GetRequiredService<AdminBootstrapper>().EnsureAdminAsync();
+    await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -54,8 +55,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-app.UseAuthentication();
 app.UseCors("Frontend");
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
