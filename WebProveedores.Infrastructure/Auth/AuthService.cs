@@ -71,7 +71,7 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         var frontendUrl = configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
         var resetUrl = $"{frontendUrl}/?ruc={Uri.EscapeDataString(user.Ruc!)}&activationToken={Uri.EscapeDataString(token)}";
         await emailSender.SendAsync(email, "Cambia tu contraseña - Portal de Proveedores", EmailTemplates.PasswordReset(user.CompanyName, resetUrl), cancellationToken, isHtml: true);
-        return new PasswordResetResponse(true, MaskEmail(email), token);
+        return new PasswordResetResponse(true, MaskEmail(email));
     }
 
     public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, CancellationToken cancellationToken)

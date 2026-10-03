@@ -43,7 +43,7 @@ public sealed class PasswordResetConfirmRequest
     [Required, MinLength(6)] public string NewPassword { get; init; } = string.Empty;
 }
 
-public sealed record PasswordResetResponse(bool Sent, string MaskedEmail, string DemoToken);
+public sealed record PasswordResetResponse(bool Sent, string MaskedEmail);
 
 public interface IAuthService
 {
