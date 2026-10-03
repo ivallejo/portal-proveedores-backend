@@ -25,7 +25,7 @@ public sealed class AdminBootstrapper(AppDbContext db, IConfiguration configurat
             return;
         }
 
-        var admin = new AppUser { Username = "admin", CompanyName = configuration["BootstrapAdmin:CompanyName"]?.Trim() ?? "Administrador del sistema" };
+        var admin = new AppUser { Username = "admin", CompanyName = configuration["BootstrapAdmin:CompanyName"]?.Trim() ?? "Administrador del sistema", PasswordSetAtUtc = DateTime.UtcNow };
         admin.PasswordHash = new PasswordHasher<AppUser>().HashPassword(admin, password);
         admin.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         admin.UserRoles.Add(new UserRole { RoleId = adminRole.Id });

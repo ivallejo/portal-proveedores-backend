@@ -51,8 +51,8 @@ public static class EmailTemplates
 
     private static string Encode(string value) => WebUtility.HtmlEncode(value);
 
-    private static string PortalIcon() => "<svg width=\"28\" height=\"28\" viewBox=\"0 0 28 28\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\"><path d=\"M14 2.5 24 8v12l-10 5.5L4 20V8l10-5.5Z\" stroke=\"#fff\" stroke-width=\"2.2\"/><path d=\"m14 7 5.5 3v6L14 19l-5.5-3v-6L14 7Z\" fill=\"#fff\"/></svg>";
+    private static string PortalIcon() => "<span style=\"display:inline-block;width:28px;height:28px;background:#fff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);vertical-align:-8px;\"><span style=\"display:block;width:14px;height:14px;margin:7px;background:#1558c0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);\"></span></span>";
 
-    private static string LockIcon() => "<svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\" style=\"vertical-align:-2px\" aria-hidden=\"true\"><rect x=\"3\" y=\"7\" width=\"10\" height=\"7\" rx=\"1.5\" stroke=\"#fff\" stroke-width=\"1.4\"/><path d=\"M5 7V5.5a3 3 0 0 1 6 0V7\" stroke=\"#fff\" stroke-width=\"1.4\" stroke-linecap=\"round\"/></svg>";
+    private static string LockIcon() => "<span style=\"display:inline-block;position:relative;width:14px;height:11px;border:1.5px solid #fff;border-radius:2px;vertical-align:-2px;margin-right:2px;\"><span style=\"position:absolute;left:2px;top:-7px;width:7px;height:7px;border:1.5px solid #fff;border-bottom:0;border-radius:6px 6px 0 0;\"></span></span>";
 
 }

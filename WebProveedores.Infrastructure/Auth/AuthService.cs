@@ -23,7 +23,7 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         if (await db.UserEmails.AnyAsync(item => item.Email == email, cancellationToken) || await db.Users.AnyAsync(item => item.Ruc == ruc, cancellationToken))
             throw new InvalidOperationException("Ya existe un usuario registrado con ese correo o RUC.");
 
-        var user = new AppUser { Username = ruc, CompanyName = request.CompanyName.Trim(), Ruc = ruc };
+        var user = new AppUser { Username = ruc, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = DateTime.UtcNow };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         user.UserRoles.Add(new UserRole { Role = await GetRoleAsync(SecurityCatalog.ProviderRole, cancellationToken) });
@@ -83,6 +83,7 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         resetToken.User.PasswordHash = passwordHasher.HashPassword(resetToken.User, request.NewPassword);
         resetToken.UsedAtUtc = DateTime.UtcNow;
         resetToken.User.UpdatedAtUtc = DateTime.UtcNow;
+        resetToken.User.PasswordSetAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }

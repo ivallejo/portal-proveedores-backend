@@ -25,6 +25,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(user => user.CompanyName).HasMaxLength(200).IsRequired();
             entity.Property(user => user.Ruc).HasMaxLength(20);
             entity.Property(user => user.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.HasIndex(user => user.PasswordSetAtUtc);
             entity.HasOne(user => user.Area).WithMany(area => area.Users).HasForeignKey(user => user.AreaId).OnDelete(DeleteBehavior.Restrict);
         });
 

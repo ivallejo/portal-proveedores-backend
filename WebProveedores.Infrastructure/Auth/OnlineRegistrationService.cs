@@ -31,6 +31,9 @@ public sealed class OnlineRegistrationService(
         var user = await db.Users.Include(item => item.Emails).Include(item => item.UserRoles).SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
         var activationToken = GenerateToken();
 
+        if (user?.PasswordSetAtUtc is not null)
+            throw new InvalidOperationException("Este RUC ya tiene una cuenta activa. Usa la opción 'Olvidé mi contraseña' para recuperar el acceso.");
+
         if (user is null)
         {
             user = new AppUser

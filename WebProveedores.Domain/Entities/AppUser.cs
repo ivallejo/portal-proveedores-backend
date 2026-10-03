@@ -11,6 +11,7 @@ public sealed class AppUser
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAtUtc { get; set; }
+    public DateTime? PasswordSetAtUtc { get; set; }
 
     public Area? Area { get; set; }
     public ICollection<UserEmail> Emails { get; set; } = [];

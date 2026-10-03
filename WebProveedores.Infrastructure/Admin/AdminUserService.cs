@@ -26,7 +26,7 @@ public sealed class AdminUserService(AppDbContext db) : IAdminUserService
         var role = await FindRoleAsync(request.Role, cancellationToken);
         var username = string.IsNullOrWhiteSpace(request.Username) ? (ruc ?? email.Split('@')[0]) : request.Username.Trim();
         if (await db.Users.AnyAsync(user => user.Username == username, cancellationToken)) throw new InvalidOperationException("Ya existe un usuario con ese username.");
-        var user = new AppUser { Username = username, CompanyName = request.CompanyName.Trim(), Ruc = ruc };
+        var user = new AppUser { Username = username, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = DateTime.UtcNow };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         user.UserRoles.Add(new UserRole { Role = role });
