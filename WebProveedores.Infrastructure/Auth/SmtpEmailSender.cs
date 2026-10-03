@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
 
 namespace WebProveedores.Infrastructure.Auth;
@@ -37,6 +38,21 @@ public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
             Credentials = new NetworkCredential(username, password),
         };
         using var message = new MailMessage(from, targetRecipient, targetSubject, targetBody) { IsBodyHtml = isHtml };
+        if (isHtml)
+        {
+            var htmlView = AlternateView.CreateAlternateViewFromString(targetBody, null, MediaTypeNames.Text.Html);
+            AddInlineResource(htmlView, "portal-logo", "portal-logo.png", MediaTypeNames.Image.Png);
+            AddInlineResource(htmlView, "lock-icon", "lock.png", MediaTypeNames.Image.Png);
+            message.AlternateViews.Add(htmlView);
+        }
         await client.SendMailAsync(message, cancellationToken);
+    }
+
+    private static void AddInlineResource(AlternateView view, string contentId, string fileName, string mediaType)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Auth", "EmailAssets", fileName);
+        if (!File.Exists(path)) return;
+        var resource = new LinkedResource(path, mediaType) { ContentId = contentId, TransferEncoding = TransferEncoding.Base64 };
+        view.LinkedResources.Add(resource);
     }
 }

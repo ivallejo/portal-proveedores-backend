@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <Content Include="Auth\EmailAssets\*.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WebProveedores.Application\WebProveedores.Application.csproj" />
     <ProjectReference Include="..\WebProveedores.Domain\WebProveedores.Domain.csproj" />
   </ItemGroup>
