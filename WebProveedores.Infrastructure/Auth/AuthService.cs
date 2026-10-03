@@ -68,7 +68,7 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
             ExpiresAtUtc = DateTime.UtcNow.AddHours(24),
         });
         await db.SaveChangesAsync(cancellationToken);
-        await emailSender.SendAsync(email, "Recuperación de contraseña - Portal de Proveedores", $"Usa este token para cambiar tu contraseña: {token}", cancellationToken);
+        await emailSender.SendAsync(email, "Recuperación de contraseña - Portal de Proveedores", EmailTemplates.PasswordReset(user.CompanyName, token), cancellationToken, isHtml: true);
         return new PasswordResetResponse(true, MaskEmail(email), token);
     }
 

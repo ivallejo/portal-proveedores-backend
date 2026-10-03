@@ -53,7 +53,7 @@ public sealed class OnlineRegistrationService(
 
         user.PasswordHash = passwordHasher.HashPassword(user, temporaryPassword);
         await db.SaveChangesAsync(cancellationToken);
-        await emailSender.SendAsync(provider.Correo!, "Clave de acceso - Portal de Proveedores", $"Tu clave temporal de acceso es: {temporaryPassword}", cancellationToken);
+        await emailSender.SendAsync(provider.Correo!, "Tu cuenta está lista - Portal de Proveedores", EmailTemplates.AccessKey(provider.CompanyName, temporaryPassword), cancellationToken, isHtml: true);
 
         return new(true, ObfuscateEmail(provider.Correo!));
     }

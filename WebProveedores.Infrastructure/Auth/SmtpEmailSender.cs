@@ -6,7 +6,7 @@ namespace WebProveedores.Infrastructure.Auth;
 
 public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
 {
-    public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+    public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
     {
         var host = configuration["Smtp:Host"] ?? throw new InvalidOperationException("SMTP no está configurado.");
         var username = configuration["Smtp:Username"] ?? throw new InvalidOperationException("SMTP username no está configurado.");
@@ -26,7 +26,9 @@ public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
 
             targetRecipient = testRecipient;
             targetSubject = $"[PRUEBA SMTP] {subject}";
-            targetBody = $"Destinatario original: {recipient}{Environment.NewLine}{Environment.NewLine}{body}";
+            targetBody = isHtml
+                ? $"<div style=\"margin:0 auto 16px;max-width:600px;padding:10px 16px;background:#fff4ed;border:1px solid #ed7624;border-radius:8px;font:14px Arial,sans-serif;color:#7a3a12;\">Correo de prueba · destinatario original: {System.Net.WebUtility.HtmlEncode(recipient)}</div>{body}"
+                : $"Destinatario original: {recipient}{Environment.NewLine}{Environment.NewLine}{body}";
         }
 
         using var client = new SmtpClient(host, port)
@@ -34,7 +36,7 @@ public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
             EnableSsl = configuration.GetValue("Smtp:EnableSsl", true),
             Credentials = new NetworkCredential(username, password),
         };
-        using var message = new MailMessage(from, targetRecipient, targetSubject, targetBody);
+        using var message = new MailMessage(from, targetRecipient, targetSubject, targetBody) { IsBodyHtml = isHtml };
         await client.SendMailAsync(message, cancellationToken);
     }
 }
