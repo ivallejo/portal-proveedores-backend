@@ -62,6 +62,7 @@ public sealed class OnlineRegistrationService(
         {
             UserId = user.Id,
             TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(activationToken))),
+            Purpose = PasswordTokenPurpose.Activation,
             ExpiresAtUtc = DateTime.UtcNow.AddHours(24),
         });
         await db.SaveChangesAsync(cancellationToken);

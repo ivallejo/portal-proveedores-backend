@@ -50,7 +50,7 @@ public interface IAuthService
     Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
     Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
-    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, CancellationToken cancellationToken);
+    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
     UserResponse? GetCurrentUser(System.Security.Claims.ClaimsPrincipal principal);
 }
 

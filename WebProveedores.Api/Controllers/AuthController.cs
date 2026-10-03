@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Application.Auth;
+using WebProveedores.Domain.Entities;
 
 namespace WebProveedores.Api.Controllers;
 
@@ -54,8 +55,16 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmPasswordReset(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
-        var confirmed = await auth.ConfirmPasswordResetAsync(request, cancellationToken);
+        var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, cancellationToken);
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de recuperación es inválido o ya venció." });
+    }
+
+    [HttpPost("activation/confirm")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmActivation(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
+    {
+        var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.Activation, cancellationToken);
+        return confirmed ? NoContent() : BadRequest(new { message = "El enlace de activación es inválido o ya venció." });
     }
 
     [HttpGet("me")]

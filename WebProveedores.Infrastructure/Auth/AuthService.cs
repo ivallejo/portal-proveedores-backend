@@ -65,6 +65,7 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         {
             UserId = user.Id,
             TokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))),
+            Purpose = PasswordTokenPurpose.PasswordReset,
             ExpiresAtUtc = DateTime.UtcNow.AddHours(24),
         });
         await db.SaveChangesAsync(cancellationToken);
@@ -74,13 +75,12 @@ public sealed class AuthService(AppDbContext db, IConfiguration configuration, I
         return new PasswordResetResponse(true, MaskEmail(email));
     }
 
-    public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
+    public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
         var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
         var resetToken = await db.PasswordResetTokens.Include(item => item.User).ThenInclude(item => item.Emails)
-            .Where(item => item.User.Ruc == request.Ruc.Trim() && item.UsedAtUtc == null && item.ExpiresAtUtc > DateTime.UtcNow)
-            .OrderByDescending(item => item.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken);
-        if (resetToken is null || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(resetToken.TokenHash), Encoding.UTF8.GetBytes(tokenHash))) return false;
+            .SingleOrDefaultAsync(item => item.User.Ruc == request.Ruc.Trim() && item.TokenHash == tokenHash && item.Purpose == purpose && item.UsedAtUtc == null && item.ExpiresAtUtc > DateTime.UtcNow, cancellationToken);
+        if (resetToken is null) return false;
 
         resetToken.User.PasswordHash = passwordHasher.HashPassword(resetToken.User, request.NewPassword);
         resetToken.UsedAtUtc = DateTime.UtcNow;
