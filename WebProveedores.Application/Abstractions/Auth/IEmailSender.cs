@@ -1,4 +1,4 @@
-namespace WebProveedores.Infrastructure.Auth;
+namespace WebProveedores.Application.Abstractions.Auth;
 
 public interface IEmailSender
 {

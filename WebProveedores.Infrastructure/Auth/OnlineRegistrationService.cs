@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
@@ -10,9 +13,9 @@ using WebProveedores.Infrastructure.Providers;
 namespace WebProveedores.Infrastructure.Auth;
 
 public sealed class OnlineRegistrationService(
-    AppDbContext db,
+    IAppDbContext db,
     IEmailSender emailSender,
-    SapProviderClient sapProvider,
+    IProviderDirectory sapProvider,
     IConfiguration configuration) : IOnlineRegistrationService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();

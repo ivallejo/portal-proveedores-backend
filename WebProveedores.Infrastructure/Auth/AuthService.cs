@@ -7,12 +7,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Infrastructure.Auth;
 
-public sealed class AuthService(AppDbContext db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
+public sealed class AuthService(IAppDbContext db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 

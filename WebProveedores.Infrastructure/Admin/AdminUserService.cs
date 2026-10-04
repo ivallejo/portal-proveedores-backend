@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Admin;
+using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Infrastructure.Admin;
 
-public sealed class AdminUserService(AppDbContext db) : IAdminUserService
+public sealed class AdminUserService(IAppDbContext db) : IAdminUserService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 

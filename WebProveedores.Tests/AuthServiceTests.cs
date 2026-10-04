@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;

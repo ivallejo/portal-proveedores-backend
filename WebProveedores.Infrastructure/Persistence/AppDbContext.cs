@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
 
 namespace WebProveedores.Infrastructure.Persistence;
 
-public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
 {
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Area> Areas => Set<Area>();

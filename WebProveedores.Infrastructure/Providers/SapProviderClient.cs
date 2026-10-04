@@ -2,10 +2,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using WebProveedores.Application.Abstractions.Providers;
 
 namespace WebProveedores.Infrastructure.Providers;
 
-public sealed class SapProviderClient(HttpClient httpClient, IConfiguration configuration)
+public sealed class SapProviderClient(HttpClient httpClient, IConfiguration configuration) : IProviderDirectory
 {
     public async Task<SapProviderRecord?> FindByRucAsync(string ruc, CancellationToken cancellationToken)
     {
@@ -32,14 +33,4 @@ public sealed class SapProviderClient(HttpClient httpClient, IConfiguration conf
 
         return providers?.FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider.Correo));
     }
-}
-
-public sealed record SapProviderRecord(
-    string? Stcd1,
-    string? Name1,
-    string? Name2,
-    string? Adrnr,
-    string? Correo)
-{
-    public string CompanyName => string.Join(" ", new[] { Name1, Name2 }.Where(value => !string.IsNullOrWhiteSpace(value))).Trim();
 }

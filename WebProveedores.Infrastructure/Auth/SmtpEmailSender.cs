@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
+using WebProveedores.Application.Abstractions.Auth;
 
 namespace WebProveedores.Infrastructure.Auth;
 
