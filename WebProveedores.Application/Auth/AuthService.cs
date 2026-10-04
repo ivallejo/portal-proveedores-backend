@@ -10,9 +10,7 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
-using WebProveedores.Infrastructure.Persistence;
-
-namespace WebProveedores.Infrastructure.Auth;
+namespace WebProveedores.Application.Auth;
 
 public sealed class AuthService(IAppDbContext db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {

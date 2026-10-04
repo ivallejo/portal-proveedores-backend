@@ -3,9 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
-using WebProveedores.Infrastructure.Persistence;
-
-namespace WebProveedores.Infrastructure.Admin;
+namespace WebProveedores.Application.Admin;
 
 public sealed class AdminUserService(IAppDbContext db) : IAdminUserService
 {

@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace WebProveedores.Infrastructure.Auth;
+namespace WebProveedores.Application.Auth;
 
 public static class EmailTemplates
 {

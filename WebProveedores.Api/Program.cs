@@ -9,7 +9,6 @@ using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
-using WebProveedores.Infrastructure.Admin;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
 using WebProveedores.Api.Infrastructure;

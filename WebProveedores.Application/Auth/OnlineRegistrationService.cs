@@ -7,10 +7,7 @@ using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Domain.Entities;
-using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Infrastructure.Providers;
-
-namespace WebProveedores.Infrastructure.Auth;
+namespace WebProveedores.Application.Auth;
 
 public sealed class OnlineRegistrationService(
     IAppDbContext db,
