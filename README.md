@@ -2,6 +2,8 @@
 
 Backend ASP.NET Core Web API para el Portal de Proveedores.
 
+> Para continuar el desarrollo con otro agente, leer primero [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md). Describe la arquitectura, contratos, seguridad, base de datos, configuración y el límite actual entre backend implementado y módulos que siguen en mock.
+
 ## Requisitos
 
 - .NET SDK 10.
@@ -140,5 +142,7 @@ WebProveedores.Domain         # Entidades y reglas del dominio
 WebProveedores.Infrastructure # EF Core, autenticación y persistencia
 WebProveedores.Tests          # Pruebas automatizadas
 ```
+
+La capa `Application` no depende de EF Core. Los casos de uso utilizan abstracciones como `IIdentityRepository`, `IEmailSender` e `IProviderDirectory`; sus implementaciones viven en `Infrastructure`.
 
 Si la API no conecta con SQL Server, verificar Docker, el estado `healthy` de `docker compose ps` y que la contraseña de `.env` coincida con `ConnectionStrings__DefaultConnection`. Para errores desde el frontend, confirmar el puerto `5080` y CORS para `http://localhost:4200`.
