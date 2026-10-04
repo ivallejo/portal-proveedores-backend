@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -30,7 +32,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"]).AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 builder.Services.AddScoped<IIdentityRepository, EfIdentityRepository>();
-builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15))
+    // Reintentos con espera, corte de circuito y tiempos máximos ante caídas de SAP.
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.MaxRetryAttempts = 2;
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
+        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(20);
+    });
 builder.Services.AddScoped<IProviderDirectory>(services => services.GetRequiredService<SapProviderClient>());
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
@@ -62,6 +72,42 @@ builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Límite de peticiones por IP contra fuerza bruta y abuso de los endpoints públicos.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+        await context.HttpContext.Response.WriteAsJsonAsync(new { message = "Demasiadas solicitudes. Espera un momento antes de volver a intentarlo." }, cancellationToken);
+    };
+    string Client(HttpContext http) => http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    options.AddPolicy(RateLimitPolicies.Login, http => RateLimitPartition.GetFixedWindowLimiter(Client(http), _ => new FixedWindowRateLimiterOptions
+    {
+        PermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPerMinute", 10),
+        Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+    }));
+    options.AddPolicy(RateLimitPolicies.Sensitive, http => RateLimitPartition.GetFixedWindowLimiter(Client(http), _ => new FixedWindowRateLimiterOptions
+    {
+        PermitLimit = builder.Configuration.GetValue("RateLimiting:SensitivePerMinute", 10),
+        Window = TimeSpan.FromMinutes(1),
+        QueueLimit = 0,
+    }));
+});
+
+// Detrás de un proxy inverso la IP real llega en X-Forwarded-For; activar solo si el proxy es de confianza.
+if (builder.Configuration.GetValue("Security:UseForwardedHeaders", false))
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -77,8 +123,29 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (app.Configuration.GetValue("Security:UseForwardedHeaders", false)) app.UseForwardedHeaders();
+
+if (app.Configuration.GetValue("Security:RequireHttps", false))
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["X-Frame-Options"] = "DENY";
+    headers["Referrer-Policy"] = "no-referrer";
+    headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    // Las respuestas de la API llevan datos de sesión o de documentos: no deben quedar en cachés.
+    if (context.Request.Path.StartsWithSegments("/api")) headers.CacheControl = "no-store";
+    await next();
+});
+
 app.UseExceptionHandler();
 app.UseCors("Frontend");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

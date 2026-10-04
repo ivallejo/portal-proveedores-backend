@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using WebProveedores.Api.Infrastructure;
 using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Entities;
 
@@ -7,10 +9,11 @@ namespace WebProveedores.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService auth, IOnlineRegistrationService onlineRegistration) : ControllerBase
+public sealed class AuthController(IAuthService auth, IOnlineRegistrationService onlineRegistration, ILogger<AuthController> logger) : ControllerBase
 {
+    /// <summary>Alta directa de proveedores. El registro de proveedores es por RUC (request-access-key); esta vía es solo administrativa.</summary>
     [HttpPost("register")]
-    [AllowAnonymous]
+    [Authorize(Policy = Policies.UsersManage)]
     public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         try { return Ok(await auth.RegisterAsync(request, cancellationToken)); }
@@ -19,14 +22,24 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
-        var response = await auth.LoginAsync(request, cancellationToken);
-        return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
+        try
+        {
+            var response = await auth.LoginAsync(request, cancellationToken);
+            return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
+        }
+        catch (AccountLockedException exception)
+        {
+            Response.Headers.RetryAfter = ((int)Math.Ceiling(exception.RetryAfter.TotalSeconds)).ToString();
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = $"Demasiados intentos fallidos. Vuelve a intentarlo en {Math.Max(1, (int)Math.Ceiling(exception.RetryAfter.TotalMinutes))} minuto(s) o recupera tu contraseña." });
+        }
     }
 
     [HttpPost("validate-ruc")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<ProviderLookupResponse>> ValidateRuc(ValidateRucRequest request, CancellationToken cancellationToken)
     {
         try { return Ok(await onlineRegistration.ValidateRucAsync(request.Ruc, cancellationToken)); }
@@ -37,6 +50,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
 
     [HttpPost("request-access-key")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<AccessKeyResponse>> RequestAccessKey(RequestAccessKeyRequest request, CancellationToken cancellationToken)
     {
         try { return Ok(await onlineRegistration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
@@ -44,16 +58,30 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
         catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
     }
 
+    /// <summary>
+    /// Responde siempre lo mismo, exista o no el RUC, y sin devolver el correo (ni siquiera ofuscado),
+    /// para que no sirva para averiguar qué RUC tienen cuenta.
+    /// </summary>
     [HttpPost("password-reset/request")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<PasswordResetResponse>> RequestPasswordReset(PasswordResetRequest request, CancellationToken cancellationToken)
     {
-        var response = await auth.RequestPasswordResetAsync(request, cancellationToken);
-        return response is null ? NotFound(new { message = "No encontramos información para el RUC indicado." }) : Ok(response);
+        try
+        {
+            await auth.RequestPasswordResetAsync(request, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // Un fallo de correo no debe delatar que la cuenta existe: se registra y se responde igual.
+            logger.LogError(exception, "No se pudo procesar la recuperación de contraseña");
+        }
+        return Ok(new PasswordResetResponse(true, string.Empty));
     }
 
     [HttpPost("password-reset/confirm")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmPasswordReset(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
         var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, cancellationToken);
@@ -62,6 +90,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
 
     [HttpPost("activation/confirm")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmActivation(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
         var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.Activation, cancellationToken);

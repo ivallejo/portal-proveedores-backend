@@ -31,6 +31,60 @@ public sealed class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_locks_the_account_after_repeated_failures_and_recovers_after_the_lockout()
+    {
+        await using var db = CreateContext();
+        var user = CreateUser("20523682790", "lock-user", "Proveedor Bloqueo", "lock@demo.test");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var wrong = new LoginRequest { Identifier = "lock-user", Password = "incorrecta" };
+
+        for (var attempt = 0; attempt < 5; attempt++)
+            Assert.Null(await service.LoginAsync(wrong, CancellationToken.None));
+
+        // Bloqueada: ni siquiera la contraseña correcta entra.
+        var locked = await Assert.ThrowsAsync<AccountLockedException>(() =>
+            service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None));
+        Assert.True(locked.RetryAfter > TimeSpan.FromMinutes(14));
+
+        user.LockoutUntilUtc = DateTime.UtcNow.AddSeconds(-1);
+        await db.SaveChangesAsync();
+        var response = await service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None);
+
+        Assert.NotNull(response);
+        Assert.Equal(0, user.FailedLoginCount);
+        Assert.Null(user.LockoutUntilUtc);
+    }
+
+    [Fact]
+    public async Task LoginAsync_resets_the_failure_counter_after_a_successful_login()
+    {
+        await using var db = CreateContext();
+        var user = CreateUser("20523682791", "counter-user", "Proveedor Contador", "counter@demo.test");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        for (var attempt = 0; attempt < 3; attempt++)
+            await service.LoginAsync(new LoginRequest { Identifier = "counter-user", Password = "mala" }, CancellationToken.None);
+        Assert.Equal(3, user.FailedLoginCount);
+        await service.LoginAsync(new LoginRequest { Identifier = "counter-user", Password = "Password1" }, CancellationToken.None);
+
+        Assert.Equal(0, user.FailedLoginCount);
+    }
+
+    [Fact]
+    public async Task LoginAsync_returns_null_for_unknown_users_without_locking_anything()
+    {
+        await using var db = CreateContext();
+        var service = CreateService(db);
+
+        for (var attempt = 0; attempt < 7; attempt++)
+            Assert.Null(await service.LoginAsync(new LoginRequest { Identifier = "no-existe", Password = "x" }, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task LoginAsync_rejects_inactive_user()
     {
         await using var db = CreateContext();

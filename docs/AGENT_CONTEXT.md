@@ -151,6 +151,12 @@ Sap__BasicToken
 Storage__DocumentsPath
 DemoData__Enabled
 DemoData__Password
+Security__RequireHttps
+Security__UseForwardedHeaders
+Security__MaxFailedLogins
+Security__LockoutMinutes
+RateLimiting__LoginPerMinute
+RateLimiting__SensitivePerMinute
 Smtp__Host
 Smtp__Port
 Smtp__Username
@@ -260,6 +266,19 @@ Si el proveedor tiene `PasswordSetAtUtc`, no se genera otra activación y debe u
 
 ## Seguridad
 
+Protecciones del acceso (todas con prueba o verificación HTTP):
+
+- **Bloqueo temporal de cuenta:** 5 contraseñas incorrectas seguidas bloquean la cuenta 15 minutos (`Security:MaxFailedLogins`, `Security:LockoutMinutes`). Responde 429 con `Retry-After`; un ingreso correcto reinicia el contador. Un usuario inexistente responde igual que una clave mala (401) y se verifica un hash de relleno para igualar tiempos.
+- **Límite de peticiones por IP:** login 10/min y endpoints públicos sensibles (`validate-ruc`, `request-access-key`, recuperación y activación) 10/min (`RateLimiting:LoginPerMinute`, `RateLimiting:SensitivePerMinute`). Responde 429.
+- **Recuperación de contraseña sin enumeración:** `password-reset/request` responde siempre `{ sent: true, maskedEmail: "" }`, exista o no el RUC, y un fallo de correo solo se registra. El front muestra un texto genérico.
+- **`POST /api/auth/register` solo administradores:** el alta de proveedores es por RUC (`request-access-key`).
+- **Cabeceras:** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` y `Cache-Control: no-store` en `/api`.
+- **HTTPS/HSTS:** activar con `Security:RequireHttps=true` en producción.
+- **Proxy inverso:** con `Security:UseForwardedHeaders=true` se toma la IP real de `X-Forwarded-For` (sin esto, el límite por IP verá solo la IP del proxy). Activar solo si el proxy es de confianza y el backend no es accesible directamente.
+- **SAP:** el cliente usa reintentos con espera, corte de circuito y tiempos máximos (`AddStandardResilienceHandler`). El uso de HTTPS contra SAP depende de la URL configurada en `Sap__BaseUrl`.
+
+Pendiente de producción: `AllowedHosts` restringido, secretos fuera del `.env` (gestor de secretos), CORS por ambiente y auditoría de accesos.
+
 - Nunca se guardan contraseñas en texto plano.
 - `PasswordHasher<AppUser>` usa el formato seguro de ASP.NET Identity.
 - Los tokens se generan con bytes criptográficamente seguros.
@@ -287,6 +306,7 @@ Migraciones actuales:
 20261003193747_AddPasswordTokenPurpose
 20261004181709_AddSupplierDocuments
 20261004193728_AddPettyCashFlag
+20261004233933_AddLoginLockout
 ```
 
 No borrar migraciones ni el volumen Docker para resolver errores de conexión. Primero revisar contenedor, credenciales y connection string.
@@ -315,7 +335,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 22 passed (autenticación y documentos).
+- Tests: 25 passed (autenticación, bloqueo de cuentas y documentos).
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 

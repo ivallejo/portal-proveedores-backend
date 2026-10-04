@@ -12,6 +12,9 @@ namespace WebProveedores.Application.Auth;
 
 public sealed class AuthService(IIdentityRepository db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {
+    private static readonly AppUser DummyUser = new();
+    private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(DummyUser, Guid.NewGuid().ToString("N")));
+
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 
     public async Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
@@ -35,7 +38,35 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
         var identifier = request.Identifier.Trim();
         var normalizedEmail = identifier.ToLowerInvariant();
         var user = await db.FindForLoginAsync(identifier, normalizedEmail, cancellationToken);
-        if (user is null || !user.IsActive || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed) return null;
+        if (user is null || !user.IsActive)
+        {
+            // Se verifica igual un hash para que el tiempo de respuesta no delate si la cuenta existe.
+            passwordHasher.VerifyHashedPassword(DummyUser, DummyHash.Value, request.Password);
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        if (user.LockoutUntilUtc is { } lockedUntil && lockedUntil > now)
+            throw new AccountLockedException(lockedUntil - now);
+
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+        {
+            user.FailedLoginCount++;
+            if (user.FailedLoginCount >= configuration.GetValue("Security:MaxFailedLogins", 5))
+            {
+                user.LockoutUntilUtc = now.AddMinutes(configuration.GetValue("Security:LockoutMinutes", 15));
+                user.FailedLoginCount = 0;
+            }
+            await db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        if (user.FailedLoginCount != 0 || user.LockoutUntilUtc is not null)
+        {
+            user.FailedLoginCount = 0;
+            user.LockoutUntilUtc = null;
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         var expires = DateTime.UtcNow.AddMinutes(configuration.GetValue("Jwt:AccessTokenMinutes", 30));
         var key = configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
