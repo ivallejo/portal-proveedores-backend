@@ -7,8 +7,12 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
 {
     public AppDbContext CreateDbContext(string[] args)
     {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "ConnectionStrings__DefaultConnection debe estar configurada para ejecutar migraciones.");
+
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer("Server=localhost,1433;Database=WebProveedores;User Id=sa;Password=DesignTimeOnly_12345!;TrustServerCertificate=True")
+            .UseSqlServer(connectionString)
             .Options;
 
         return new AppDbContext(options);
