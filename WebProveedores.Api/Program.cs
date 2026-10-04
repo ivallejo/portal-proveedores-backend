@@ -24,7 +24,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"]).AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
-builder.Services.AddScoped<IAppDbContext>(services => services.GetRequiredService<AppDbContext>());
+builder.Services.AddScoped<IIdentityRepository, EfIdentityRepository>();
 builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddScoped<IProviderDirectory>(services => services.GetRequiredService<SapProviderClient>());
 builder.Services.AddScoped<IAuthService, AuthService>();

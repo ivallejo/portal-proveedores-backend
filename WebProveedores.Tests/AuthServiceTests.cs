@@ -116,7 +116,7 @@ public sealed class AuthServiceTests
             ["Sap:BaseUrl"] = "http://sap.invalid",
             ["Sap:BasicToken"] = "test-token",
         }).Build());
-        var service = new OnlineRegistrationService(db, new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
 
@@ -133,7 +133,7 @@ public sealed class AuthServiceTests
             ["Jwt:AccessTokenMinutes"] = "30",
             ["Frontend:BaseUrl"] = "http://localhost:4200",
         }).Build();
-        return new AuthService(db, configuration, emailSender ?? new FakeEmailSender());
+        return new AuthService(new EfIdentityRepository(db), configuration, emailSender ?? new FakeEmailSender());
     }
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()

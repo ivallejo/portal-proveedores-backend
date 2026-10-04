@@ -3,16 +3,14 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using WebProveedores.Application.Auth;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
 namespace WebProveedores.Application.Auth;
 
-public sealed class AuthService(IAppDbContext db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
+public sealed class AuthService(IIdentityRepository db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 
@@ -20,14 +18,14 @@ public sealed class AuthService(IAppDbContext db, IConfiguration configuration, 
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var ruc = request.Ruc.Trim();
-        if (await db.UserEmails.AnyAsync(item => item.Email == email, cancellationToken) || await db.Users.AnyAsync(item => item.Ruc == ruc, cancellationToken))
+        if (await db.EmailExistsAsync(email, cancellationToken) || await db.UserExistsByRucAsync(ruc, cancellationToken))
             throw new InvalidOperationException("Ya existe un usuario registrado con ese correo o RUC.");
 
         var user = new AppUser { Username = ruc, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = DateTime.UtcNow };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-        user.UserRoles.Add(new UserRole { Role = await GetRoleAsync(SecurityCatalog.ProviderRole, cancellationToken) });
-        db.Users.Add(user);
+        user.UserRoles.Add(new UserRole { Role = await db.FindRoleByCodeAsync(SecurityCatalog.ProviderRole, cancellationToken) ?? throw new InvalidOperationException("El rol de proveedor no está configurado.") });
+        db.AddUser(user);
         await db.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
     }
@@ -36,11 +34,7 @@ public sealed class AuthService(IAppDbContext db, IConfiguration configuration, 
     {
         var identifier = request.Identifier.Trim();
         var normalizedEmail = identifier.ToLowerInvariant();
-        var user = await db.Users
-            .Include(item => item.Emails)
-            .Include(item => item.Area)
-            .Include(item => item.UserRoles).ThenInclude(item => item.Role)
-            .SingleOrDefaultAsync(item => item.Username == identifier || item.Ruc == identifier || item.Emails.Any(email => email.Email == normalizedEmail), cancellationToken);
+        var user = await db.FindForLoginAsync(identifier, normalizedEmail, cancellationToken);
         if (user is null || !user.IsActive || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed) return null;
 
         var expires = DateTime.UtcNow.AddMinutes(configuration.GetValue("Jwt:AccessTokenMinutes", 30));
@@ -56,12 +50,12 @@ public sealed class AuthService(IAppDbContext db, IConfiguration configuration, 
 
     public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
     {
-        var user = await db.Users.Include(item => item.Emails).SingleOrDefaultAsync(item => item.Ruc == request.Ruc.Trim(), cancellationToken);
+        var user = await db.FindByRucAsync(request.Ruc.Trim(), cancellationToken);
         var email = user is null ? null : PrimaryEmail(user);
         if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(email)) return null;
 
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
-        db.PasswordResetTokens.Add(new PasswordResetToken
+        db.AddPasswordToken(new PasswordResetToken
         {
             UserId = user.Id,
             TokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))),
@@ -78,8 +72,7 @@ public sealed class AuthService(IAppDbContext db, IConfiguration configuration, 
     public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
         var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
-        var resetToken = await db.PasswordResetTokens.Include(item => item.User).ThenInclude(item => item.Emails)
-            .SingleOrDefaultAsync(item => item.User.Ruc == request.Ruc.Trim() && item.TokenHash == tokenHash && item.Purpose == purpose && item.UsedAtUtc == null && item.ExpiresAtUtc > DateTime.UtcNow, cancellationToken);
+        var resetToken = await db.FindValidTokenAsync(request.Ruc.Trim(), tokenHash, purpose, cancellationToken);
         if (resetToken is null) return false;
 
         resetToken.User.PasswordHash = passwordHasher.HashPassword(resetToken.User, request.NewPassword);
@@ -94,11 +87,10 @@ public sealed class AuthService(IAppDbContext db, IConfiguration configuration, 
     {
         var id = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (id is null || !Guid.TryParse(id, out var userId)) return null;
-        var user = await db.Users.AsNoTracking().Include(item => item.Emails).Include(item => item.Area).Include(item => item.UserRoles).ThenInclude(item => item.Role).SingleOrDefaultAsync(item => item.Id == userId, cancellationToken);
+        var user = await db.FindByIdAsync(userId, cancellationToken);
         return user is null ? null : ToResponse(user);
     }
 
-    private async Task<Role> GetRoleAsync(string code, CancellationToken cancellationToken) => await db.Roles.SingleAsync(role => role.Code == code, cancellationToken);
     private static string PrimaryEmail(AppUser user) => user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.First(item => item.IsActive).Email;
     private static UserResponse ToResponse(AppUser user) { var roles = RolesFor(user); return new(user.Id, user.Username, PrimaryEmail(user), user.CompanyName, user.Ruc ?? string.Empty, user.Area?.Name, roles.FirstOrDefault() ?? string.Empty, roles); }
     private static IReadOnlyList<string> RolesFor(AppUser user) => user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Name).OrderBy(name => name).ToArray();

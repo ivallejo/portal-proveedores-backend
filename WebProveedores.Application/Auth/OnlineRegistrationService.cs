@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Abstractions.Auth;
@@ -10,7 +9,7 @@ using WebProveedores.Domain.Entities;
 namespace WebProveedores.Application.Auth;
 
 public sealed class OnlineRegistrationService(
-    IAppDbContext db,
+    IIdentityRepository db,
     IEmailSender emailSender,
     IProviderDirectory sapProvider,
     IConfiguration configuration) : IOnlineRegistrationService
@@ -20,7 +19,7 @@ public sealed class OnlineRegistrationService(
     public async Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken)
     {
         var normalizedRuc = NormalizeRuc(ruc);
-        if (await db.Users.AnyAsync(item => item.Ruc == normalizedRuc, cancellationToken))
+        if (await db.UserExistsByRucAsync(normalizedRuc, cancellationToken))
             throw new InvalidOperationException("El usuario ya se encuentra registrado.");
 
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
@@ -31,7 +30,7 @@ public sealed class OnlineRegistrationService(
     {
         var normalizedRuc = NormalizeRuc(ruc);
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
-        var user = await db.Users.Include(item => item.Emails).Include(item => item.UserRoles).SingleOrDefaultAsync(item => item.Ruc == normalizedRuc, cancellationToken);
+        var user = await db.FindByRucAsync(normalizedRuc, cancellationToken);
         var activationToken = GenerateToken();
 
         if (user?.PasswordSetAtUtc is not null)
@@ -46,8 +45,8 @@ public sealed class OnlineRegistrationService(
                 CompanyName = provider.CompanyName.Trim(),
             };
             user.Emails.Add(new UserEmail { Email = provider.Correo!.Trim().ToLowerInvariant(), IsPrimary = true });
-            user.UserRoles.Add(new UserRole { Role = await db.Roles.SingleAsync(role => role.Code == SecurityCatalog.ProviderRole, cancellationToken) });
-            db.Users.Add(user);
+            user.UserRoles.Add(new UserRole { Role = await db.FindRoleByCodeAsync(SecurityCatalog.ProviderRole, cancellationToken) ?? throw new InvalidOperationException("El rol de proveedor no está configurado.") });
+            db.AddUser(user);
         }
         else
         {
@@ -61,7 +60,7 @@ public sealed class OnlineRegistrationService(
 
         if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();
         if (string.IsNullOrWhiteSpace(user.PasswordHash)) user.PasswordHash = passwordHasher.HashPassword(user, GenerateToken());
-        db.PasswordResetTokens.Add(new PasswordResetToken
+        db.AddPasswordToken(new PasswordResetToken
         {
             UserId = user.Id,
             TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(activationToken))),
