@@ -20,6 +20,9 @@ public sealed class OnlineRegistrationService(
     public async Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken)
     {
         var normalizedRuc = NormalizeRuc(ruc);
+        if (await db.Users.AnyAsync(item => item.Ruc == normalizedRuc, cancellationToken))
+            throw new InvalidOperationException("El usuario ya se encuentra registrado.");
+
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
         return new(normalizedRuc, provider.CompanyName, ObfuscateEmail(provider.Correo!));
     }

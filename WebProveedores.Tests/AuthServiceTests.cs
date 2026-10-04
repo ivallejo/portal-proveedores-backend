@@ -7,6 +7,7 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Providers;
 
 namespace WebProveedores.Tests;
 
@@ -102,6 +103,25 @@ public sealed class AuthServiceTests
         Assert.Contains("resetToken=", emailSender.Body);
     }
 
+    [Fact]
+    public async Task ValidateRucAsync_rejects_existing_user_before_calling_sap()
+    {
+        await using var db = CreateContext();
+        var user = CreateUser("20523682780", "registered", "Proveedor Registrado", "registered@demo.test");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var sap = new SapProviderClient(new HttpClient(new ThrowingHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Sap:BaseUrl"] = "http://sap.invalid",
+            ["Sap:BasicToken"] = "test-token",
+        }).Build());
+        var service = new OnlineRegistrationService(db, new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
+
+        Assert.Equal("El usuario ya se encuentra registrado.", exception.Message);
+    }
+
     private static AuthService CreateService(AppDbContext db, IEmailSender? emailSender = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -149,5 +169,11 @@ public sealed class AuthServiceTests
             Body = body;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("SAP no debió ser consultado.");
     }
 }
