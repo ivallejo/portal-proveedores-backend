@@ -108,7 +108,7 @@ Correo: admin@naviera.local
 Contraseña: valor de `BootstrapAdmin__Password` en el archivo `.env`
 ```
 
-Roles disponibles: `Proveedor`, `Área Usuaria`, `CxP` y `Administrador`.
+Roles disponibles: `Proveedor`, `Usuario interno`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`.
 
 ## Comandos útiles
 
@@ -131,7 +131,11 @@ La primera migración crea un modelo de seguridad normalizado:
 - `Areas`: áreas organizacionales a las que pueden pertenecer los usuarios internos.
 - `PasswordResetTokens`: tokens de recuperación con expiración y uso controlado.
 
-Los roles iniciales son `Proveedor`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`. Los datos de documentos, archivos y aprobaciones se incorporarán en migraciones posteriores cuando se implemente ese módulo en backend.
+Los roles iniciales son `Proveedor`, `Usuario interno`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`.
+
+La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentItems`, `DocumentAttachments` y `DocumentEvents`. Los adjuntos se guardan en disco (`Storage__DocumentsPath`, por defecto `App_Data/documents`). Detalle de endpoints y reglas en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#módulo-de-documentos).
+
+Para probar todos los roles en local, agrega al `.env` `DemoData__Enabled=true` y `DemoData__Password=...`: al iniciar se crean áreas y usuarios de prueba (`colaborador`, `maria.torres`, `cxp`, proveedor `20512345678`, etc.).
 
 ## Estructura
 

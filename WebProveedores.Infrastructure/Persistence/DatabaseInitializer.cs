@@ -7,6 +7,7 @@ namespace WebProveedores.Infrastructure.Persistence;
 public sealed class DatabaseInitializer(
     AppDbContext db,
     AdminBootstrapper bootstrapper,
+    ReferenceDataSeeder referenceData,
     IConfiguration configuration)
 {
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -15,5 +16,6 @@ public sealed class DatabaseInitializer(
             await db.Database.MigrateAsync(cancellationToken);
 
         await bootstrapper.EnsureAdminAsync(cancellationToken);
+        await referenceData.SeedAsync(cancellationToken);
     }
 }

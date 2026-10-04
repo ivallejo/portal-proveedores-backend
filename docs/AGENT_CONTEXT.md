@@ -14,8 +14,9 @@ Implementado:
 - Usuarios, roles, áreas y múltiples correos en el modelo.
 - Administración básica de usuarios.
 - SQL Server en Docker, migraciones EF Core, Swagger y health check.
+- Módulo de documentos: registro Con OC, Sin OC y documentos especiales, adjuntos en disco, historial, aprobación (aprobar, rechazar, reasignar) y Cuentas por pagar (rechazar, observar). Ver «Módulo de documentos».
 
-Todavía no implementado en backend: documentos, archivos adjuntos, validación SUNAT/Sertica, historial, aprobaciones, contabilización y workflows persistentes. Esas partes existen principalmente como prototipo frontend.
+Todavía no implementado: servicios SAP 01/02/03 reales (hay un simulador), proceso diario de contabilización (Servicio 03), consolidación de PDFs de sustento, órdenes de compra/pago y estado de factura, y workflows persistentes.
 
 ## Stack
 
@@ -147,6 +148,9 @@ Frontend__BaseUrl
 Sap__BaseUrl
 Sap__Client
 Sap__BasicToken
+Storage__DocumentsPath
+DemoData__Enabled
+DemoData__Password
 Smtp__Host
 Smtp__Port
 Smtp__Username
@@ -167,6 +171,61 @@ Authorization: Basic {Sap__BasicToken}
 ```
 
 La respuesta SAP esperada es una lista con `stcd1`, `name1`, `name2`, `adrnr` y `correo`.
+
+## Módulo de documentos
+
+Capas:
+
+```text
+Domain/Documents          SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, Company
+Application/Documents     DocumentService, UblDocumentReader (XML UBL 2.1 sin DTD), contratos y plantillas de correo
+Application/Abstractions  IDocumentRepository, IFileStorage, ISapDocumentGateway
+Infrastructure            EfDocumentRepository, LocalFileStorage, MockSapDocumentGateway, ReferenceDataSeeder
+Api                       DocumentsController (api/documents), CatalogController (api/catalog)
+```
+
+Roles y políticas (claims con el código del rol):
+
+| Política | Roles |
+|---|---|
+| `Documents.Register` | `PROVIDER`, `INTERNAL_USER`, `ADMINISTRATOR` |
+| `Documents.Approve` | `AREA_APPROVER`, `ADMINISTRATOR` |
+| `Documents.Account` | `ACCOUNTS_PAYABLE`, `ADMINISTRATOR` |
+
+`INTERNAL_USER` («Usuario interno») se agregó al catálogo de seguridad; `AdminBootstrapper` lo crea al iniciar.
+
+Endpoints (JWT obligatorio, enums en texto):
+
+| Método | Endpoint | Uso |
+|---|---|---|
+| GET | `/api/catalog/companies` | Sociedades activas |
+| GET | `/api/catalog/areas` | Áreas con sus aprobadores activos |
+| POST | `/api/documents/orders/validate` | Servicio 01: valida la orden (422 si no existe) |
+| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
+| POST | `/api/documents/special` | Documento especial (multipart, solo `INTERNAL_USER` o admin) |
+| GET | `/api/documents?inbox=Approvals\|Accounting\|Mine&ruc&status&page&pageSize` | Bandejas con `countsByStatus` para los KPI |
+| GET | `/api/documents/{id}` | Detalle con ítems, adjuntos e historial |
+| GET | `/api/documents/{id}/attachments/{attachmentId}` | Descarga de un adjunto |
+| POST | `/api/documents/{id}/approve` · `/reject` · `/reassign` | Acciones del aprobador asignado |
+| POST | `/api/documents/{id}/accounting/reject` · `/accounting/observe` | Acciones de Cuentas por pagar |
+
+Reglas que aplica el servidor (no confía en el navegador):
+
+- Lee el XML (UBL 2.1) con DTD prohibido; el número, importes, ítems y emisor salen del XML.
+- Un proveedor solo registra documentos emitidos por su RUC. Si la sociedad tiene RUC, el receptor del XML debe coincidir.
+- CDR obligatorio salvo serie que empieza con «E». Archivos ≤ 5 MB, extensión permitida y firma de contenido (`%PDF`, `PK`, XML).
+- Duplicidad por (RUC emisor, número): índice único en BD → 422.
+- Sin OC del proveedor → *PendingApproval* con aprobador elegido; usuario interno → *PendingAccounting*. Con OC y especiales → *PendingAccounting*.
+- Solo el aprobador asignado (o el admin) aprueba, rechaza o reasigna. Aprobar exige N° de pedido o de viaje.
+- Los correos (aprobador, rechazo, observación) no revierten la acción si fallan; se registran en el log.
+
+Errores: `ArgumentException` → 400, `UnauthorizedAccessException` → 403, `KeyNotFoundException` → 404, `InvalidOperationException` de negocio → 409, `DocumentRejectedException` → 422. Todas las respuestas de error incluyen `message`.
+
+Pendiente de decisión de negocio: `flujo.md` envía los documentos especiales a aprobación; la Propuesta 1 los registra directo a contabilización (implementado así en `DocumentService.RegisterSpecialAsync`).
+
+### Datos de prueba
+
+`ReferenceDataSeeder` crea siempre las sociedades 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA (sin RUC hasta confirmarlo). Con `DemoData__Enabled=true` y `DemoData__Password` crea áreas y un usuario por rol: `colaborador`, `maria.torres`, `jorge.paredes`, `ana.rios`, `carlos.vega`, `cxp` y el proveedor `20512345678`. Nunca modifica registros existentes. No habilitar en producción.
 
 ## Endpoints de autenticación
 
@@ -225,6 +284,7 @@ Migraciones actuales:
 20261003165656_InitialSecurity
 20261003174951_AddPasswordSetAt
 20261003193747_AddPasswordTokenPurpose
+20261004181709_AddSupplierDocuments
 ```
 
 No borrar migraciones ni el volumen Docker para resolver errores de conexión. Primero revisar contenedor, credenciales y connection string.
@@ -253,17 +313,15 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 6 passed.
+- Tests: 17 passed (autenticación y documentos).
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 
 ## Próximos pasos recomendados
 
-1. Crear entidades y migraciones de documentos, archivos, validaciones, historial y aprobaciones.
-2. Definir contratos de Application para documentos antes de crear controllers.
-3. Implementar almacenamiento de archivos con límites, MIME/extensiones permitidos y nombres seguros.
-4. Conectar el frontend de documentos reemplazando mocks por HTTP.
-5. Implementar aprobaciones por área/usuario y estados transaccionales.
-6. Completar administración multirol, áreas y permisos.
+1. Conectar el frontend (Registrar documentos, Documentos, Contabilización) a `api/documents` y `api/catalog`.
+2. Reemplazar `MockSapDocumentGateway` por los servicios SAP 01/02 reales y agregar el proceso diario del Servicio 03.
+3. Consolidar los PDF de sustento de Sin OC en un solo archivo.
+4. Completar administración multirol y asignación de áreas (necesario para los aprobadores).
 7. Añadir pruebas de integración de login, registro, activación y recuperación.
 8. Agregar rate limiting, auditoría y manejo de errores operativo antes de producción.

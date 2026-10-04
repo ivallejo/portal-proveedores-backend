@@ -1,0 +1,313 @@
+using System.Text;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Documents;
+using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Entities;
+using WebProveedores.Infrastructure.Documents;
+using WebProveedores.Infrastructure.Persistence;
+
+namespace WebProveedores.Tests;
+
+public sealed class DocumentServiceTests
+{
+    private const string ProviderRuc = "20512345678";
+    private const string CompanyRuc = "20100000001";
+
+    [Fact]
+    public async Task RegisterAsync_without_order_sends_document_to_selected_approver()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var result = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000100"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingApproval, result.Status);
+        Assert.Equal("María Torres", result.ApproverName);
+        Assert.Equal(3, result.Attachments.Count);
+        Assert.Equal(1180m, result.Amount);
+        Assert.Equal("Pendiente de aprobación", result.History[^1].Title);
+        Assert.Equal("mtorres@test.pe", fixture.Email.Recipients.Single());
+        Assert.Equal(3, fixture.Storage.Files.Count);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_with_order_goes_to_accounting_and_rejects_unknown_orders()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        await Assert.ThrowsAsync<DocumentRejectedException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000101"), orderNumber: "4500099999"), CancellationToken.None));
+        var result = await fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000101"), orderNumber: "4500012873"), CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingAccounting, result.Status);
+        Assert.Equal("4500012873", result.OrderNumber);
+        Assert.Equal("Orden validada en SAP", result.History[0].Title);
+        // El intento con la orden inválida no debe dejar archivos guardados.
+        Assert.Equal(3, fixture.Storage.Files.Count);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_rejects_xml_issued_by_another_ruc()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000102", issuerRuc: "20999999999"), approverId: fixture.Approver.Id), CancellationToken.None));
+
+        Assert.Contains("20999999999", exception.Message);
+        Assert.Empty(fixture.Storage.Files);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_requires_cdr_except_for_series_starting_with_e()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000103"), approverId: fixture.Approver.Id, includeCdr: false), CancellationToken.None));
+        var result = await fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("E001-00000103"), approverId: fixture.Approver.Id, includeCdr: false), CancellationToken.None);
+
+        Assert.DoesNotContain(result.Attachments, attachment => attachment.Kind == AttachmentKind.Cdr);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_rejects_duplicates_and_files_with_wrong_content()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000104"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        await Assert.ThrowsAsync<DocumentRejectedException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000104"), approverId: fixture.Approver.Id), CancellationToken.None));
+        var fakePdf = Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000105"), approverId: fixture.Approver.Id) with { Pdf = File("factura.pdf", "no soy un pdf") };
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(fixture.Provider.Id, fakePdf, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Internal_user_registers_without_approval_and_providers_cannot_register_special_documents()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var internalResult = await fixture.Service.RegisterAsync(fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106")), CancellationToken.None);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.RegisterSpecialAsync(fixture.Provider.Id, Special("075-1"), CancellationToken.None));
+        var special = await fixture.Service.RegisterSpecialAsync(fixture.Internal.Id, Special("075-1"), CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingAccounting, internalResult.Status);
+        Assert.Null(internalResult.ApproverName);
+        Assert.Equal("Boleto aéreo", special.DocumentType);
+        Assert.Equal(DocumentStatus.PendingAccounting, special.Status);
+    }
+
+    [Fact]
+    public async Task Only_the_assigned_approver_can_approve()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var document = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000107"), approverId: fixture.Approver.Id), CancellationToken.None);
+        var request = new ApproveDocumentRequest { ReferenceType = ApprovalReferenceType.Order, Reference = "ped-2026-01842" };
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.ApproveAsync(fixture.OtherApprover.Id, document.Id, request, CancellationToken.None));
+        var approved = await fixture.Service.ApproveAsync(fixture.Approver.Id, document.Id, request, CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingAccounting, approved.Status);
+        Assert.Equal("PED-2026-01842", approved.ApprovalReference);
+        Assert.Equal(DocumentEventKind.Current, approved.History[^1].Kind);
+        Assert.DoesNotContain(approved.History.SkipLast(1), item => item.Kind == DocumentEventKind.Current);
+    }
+
+    [Fact]
+    public async Task Reassign_moves_the_document_and_notifies_the_new_approver()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var document = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000108"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        var reassigned = await fixture.Service.ReassignAsync(fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id }, CancellationToken.None);
+
+        Assert.Equal("Jorge Paredes", reassigned.ApproverName);
+        Assert.Equal("jparedes@test.pe", fixture.Email.Recipients[^1]);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.RejectAsync(
+            fixture.Approver.Id, document.Id, RejectionStage.Approver, new RejectDocumentRequest { Reason = "x" }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Accounting_can_observe_pending_documents_once()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var document = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000109"), orderNumber: "4500012873"), CancellationToken.None);
+        var request = new ObserveDocumentRequest { Reason = "Falta la guía de remisión.", Email = "Proveedor@Test.pe" };
+
+        var observed = await fixture.Service.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.Observed, observed.Status);
+        Assert.Equal("proveedor@test.pe", fixture.Email.Recipients[^1]);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.ObserveAsync(fixture.Provider.Id, document.Id, request, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Inboxes_are_scoped_by_role()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000110"), approverId: fixture.Approver.Id), CancellationToken.None);
+        await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000111"), orderNumber: "4500012873"), CancellationToken.None);
+
+        var approvals = await fixture.Service.SearchAsync(fixture.Approver.Id, DocumentInbox.Approvals, null, null, 1, 10, CancellationToken.None);
+        var accounting = await fixture.Service.SearchAsync(fixture.Accounting.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None);
+        var mine = await fixture.Service.SearchAsync(fixture.Provider.Id, DocumentInbox.Mine, null, null, 1, 10, CancellationToken.None);
+
+        Assert.Equal("F001-00000110", Assert.Single(approvals.Items).Number);
+        Assert.Equal("F001-00000111", Assert.Single(accounting.Items).Number);
+        Assert.Equal(2, mine.Total);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.SearchAsync(fixture.Provider.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None));
+    }
+
+    [Fact]
+    public void UblDocumentReader_rejects_dtd_and_reads_totals()
+    {
+        const string xxe = """<?xml version="1.0"?><!DOCTYPE Invoice [<!ENTITY x SYSTEM "file:///etc/passwd">]><Invoice><ID>&x;</ID></Invoice>""";
+
+        Assert.Null(UblDocumentReader.Read(new MemoryStream(Encoding.UTF8.GetBytes(xxe))));
+        var document = UblDocumentReader.Read(new MemoryStream(Encoding.UTF8.GetBytes(Xml("E001-00000001"))));
+        Assert.NotNull(document);
+        Assert.False(document.RequiresCdr);
+        Assert.Equal(ProviderRuc, document.IssuerRuc);
+        Assert.Equal(1180m, document.Total);
+    }
+
+    // ——— Datos de prueba ———
+
+    private static RegisterElectronicDocumentCommand Command(
+        DocumentEntryType entryType, string xml, Guid? approverId = null, string? orderNumber = null, bool includeCdr = true)
+    {
+        var number = xml.Split("<cbc:ID>")[1].Split('<')[0];
+        return new RegisterElectronicDocumentCommand(
+            entryType, "1001", orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
+            File($"{number}.xml", xml), File($"{number}.pdf", "%PDF-1.4 prueba"),
+            includeCdr ? File($"R-{number}.zip", "PK prueba") : null,
+            []);
+    }
+
+    private static RegisterSpecialDocumentCommand Special(string number) =>
+        new("1001", SpecialDocumentType.AirTicket, "20341841357", new DateOnly(2026, 9, 25), number, 1236.50m, Currency.USD, File($"{number}.pdf", "%PDF-1.4 boleto"));
+
+    private static UploadedFile File(string name, string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        return new UploadedFile(name, "application/octet-stream", bytes.Length, new MemoryStream(bytes));
+    }
+
+    private static string Xml(string number, string issuerRuc = ProviderRuc) => $"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+          xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+          xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+          <cbc:ID>{number}</cbc:ID>
+          <cbc:IssueDate>2026-10-01</cbc:IssueDate>
+          <cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>
+          <cbc:DocumentCurrencyCode>PEN</cbc:DocumentCurrencyCode>
+          <cac:AccountingSupplierParty><cac:Party>
+            <cac:PartyIdentification><cbc:ID>{issuerRuc}</cbc:ID></cac:PartyIdentification>
+            <cac:PartyLegalEntity><cbc:RegistrationName>ANDES S.A.C.</cbc:RegistrationName></cac:PartyLegalEntity>
+          </cac:Party></cac:AccountingSupplierParty>
+          <cac:AccountingCustomerParty><cac:Party>
+            <cac:PartyIdentification><cbc:ID>{CompanyRuc}</cbc:ID></cac:PartyIdentification>
+          </cac:Party></cac:AccountingCustomerParty>
+          <cac:TaxTotal><cbc:TaxAmount>180.00</cbc:TaxAmount></cac:TaxTotal>
+          <cac:LegalMonetaryTotal>
+            <cbc:LineExtensionAmount>1000.00</cbc:LineExtensionAmount>
+            <cbc:PayableAmount>1180.00</cbc:PayableAmount>
+          </cac:LegalMonetaryTotal>
+          <cac:InvoiceLine>
+            <cbc:InvoicedQuantity>1</cbc:InvoicedQuantity>
+            <cbc:LineExtensionAmount>1000.00</cbc:LineExtensionAmount>
+            <cac:Item><cbc:Description>Servicio de mantenimiento</cbc:Description></cac:Item>
+            <cac:Price><cbc:PriceAmount>1000.00</cbc:PriceAmount></cac:Price>
+          </cac:InvoiceLine>
+        </Invoice>
+        """.Trim();
+
+    private sealed class Fixture : IAsyncDisposable
+    {
+        private Fixture(AppDbContext db) => Db = db;
+
+        public AppDbContext Db { get; }
+        public FakeEmailSender Email { get; } = new();
+        public MemoryStorage Storage { get; } = new();
+        public DocumentService Service { get; private set; } = null!;
+        public AppUser Provider { get; private set; } = null!;
+        public AppUser Internal { get; private set; } = null!;
+        public AppUser Approver { get; private set; } = null!;
+        public AppUser OtherApprover { get; private set; } = null!;
+        public AppUser Accounting { get; private set; } = null!;
+
+        public static async Task<Fixture> CreateAsync()
+        {
+            var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase($"documents-{Guid.NewGuid():N}").Options);
+            var fixture = new Fixture(db);
+            var roles = SecurityCatalog.Roles.ToDictionary(role => role.Key, role => new Role { Code = role.Key, Name = role.Value });
+            db.Roles.AddRange(roles.Values);
+            var finance = new Area { Code = "FINANZAS", Name = "Finanzas" };
+            db.Areas.Add(finance);
+            db.Companies.Add(new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = CompanyRuc });
+
+            AppUser User(string name, string email, string role, Area? area = null, string? ruc = null)
+            {
+                var user = new AppUser { Username = email, CompanyName = name, Ruc = ruc, Area = area, AreaId = area?.Id, PasswordHash = "x" };
+                user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
+                user.UserRoles.Add(new UserRole { Role = roles[role] });
+                db.Users.Add(user);
+                return user;
+            }
+
+            fixture.Provider = User("Andes Suministros", "proveedor@test.pe", SecurityCatalog.ProviderRole, ruc: ProviderRuc);
+            fixture.Internal = User("Rocío Medina", "rmedina@test.pe", SecurityCatalog.InternalUserRole);
+            fixture.Approver = User("María Torres", "mtorres@test.pe", SecurityCatalog.AreaApproverRole, finance);
+            fixture.OtherApprover = User("Jorge Paredes", "jparedes@test.pe", SecurityCatalog.AreaApproverRole, finance);
+            fixture.Accounting = User("Cuentas por pagar", "cxp@test.pe", SecurityCatalog.AccountsPayableRole);
+            await db.SaveChangesAsync();
+
+            fixture.Service = new DocumentService(
+                new EfDocumentRepository(db), new EfIdentityRepository(db), fixture.Storage, new MockSapDocumentGateway(),
+                fixture.Email, TimeProvider.System, NullLogger<DocumentService>.Instance);
+            return fixture;
+        }
+
+        public ValueTask DisposeAsync() => Db.DisposeAsync();
+    }
+
+    private sealed class FakeEmailSender : IEmailSender
+    {
+        public List<string> Recipients { get; } = [];
+
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
+        {
+            Recipients.Add(recipient);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class MemoryStorage : IFileStorage
+    {
+        public Dictionary<string, byte[]> Files { get; } = [];
+
+        public async Task<string> SaveAsync(Stream content, string extension, CancellationToken cancellationToken)
+        {
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, cancellationToken);
+            var key = $"{Guid.NewGuid():N}{extension}";
+            Files[key] = buffer.ToArray();
+            return key;
+        }
+
+        public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken) =>
+            Task.FromResult<Stream>(new MemoryStream(Files[storageKey]));
+
+        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
+        {
+            Files.Remove(storageKey);
+            return Task.CompletedTask;
+        }
+    }
+}
