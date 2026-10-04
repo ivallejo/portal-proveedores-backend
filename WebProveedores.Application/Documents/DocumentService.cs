@@ -29,6 +29,7 @@ public sealed class DocumentService(
     IIdentityRepository identities,
     IFileStorage storage,
     ISapDocumentGateway sap,
+    IPdfMerger pdfMerger,
     IEmailSender emailSender,
     TimeProvider clock,
     ILogger<DocumentService> logger) : IDocumentService
@@ -88,6 +89,14 @@ public sealed class DocumentService(
         if (!string.IsNullOrEmpty(company.Ruc) && !string.IsNullOrEmpty(electronic.ReceiverRuc) && electronic.ReceiverRuc != company.Ruc)
             throw new ArgumentException($"El receptor del XML (RUC {electronic.ReceiverRuc}) no corresponde a la sociedad {company.Name}.");
 
+        if (command.IsPettyCash)
+        {
+            if (command.EntryType != DocumentEntryType.WithoutPurchaseOrder)
+                throw new ArgumentException("Solo los documentos sin orden de compra pueden ser de Caja Chica.");
+            if (!actor.IsInternal && !actor.IsAdmin)
+                throw new UnauthorizedAccessException("Solo el personal interno puede registrar documentos de Caja Chica.");
+        }
+
         var pdfBytes = await ReadRequiredAsync(command.Pdf, "PDF del comprobante", [".pdf"], cancellationToken);
         byte[]? cdrBytes = null;
         if (electronic.RequiresCdr)
@@ -105,8 +114,8 @@ public sealed class DocumentService(
                 ?? throw new DocumentRejectedException("SAP no encontró la orden para la sociedad seleccionada o ya no tiene saldo por facturar.");
         }
 
-        // El proveedor elige al aprobador; el usuario interno registra directo a contabilización.
-        var needsApproval = command.EntryType == DocumentEntryType.WithoutPurchaseOrder && !actor.IsInternal;
+        // Sin OC pasa por aprobación (proveedor o usuario interno) salvo que sea de Caja Chica.
+        var needsApproval = command.EntryType == DocumentEntryType.WithoutPurchaseOrder && !command.IsPettyCash;
         ApproverRecord? approver = null;
         if (needsApproval)
         {
@@ -138,6 +147,7 @@ public sealed class DocumentService(
             CompanyId = company.Id,
             Company = company,
             Status = needsApproval ? DocumentStatus.PendingApproval : DocumentStatus.PendingAccounting,
+            IsPettyCash = command.IsPettyCash,
             Validation = "Documento validado en SAP y SUNAT",
         };
         if (order is not null)
@@ -165,7 +175,13 @@ public sealed class DocumentService(
             await AttachAsync(document, AttachmentKind.Xml, command.Xml!, xmlBytes, stored, cancellationToken);
             await AttachAsync(document, AttachmentKind.Pdf, command.Pdf!, pdfBytes, stored, cancellationToken);
             if (cdrBytes is not null) await AttachAsync(document, AttachmentKind.Cdr, command.Cdr!, cdrBytes, stored, cancellationToken);
-            foreach (var (file, bytes) in extras) await AttachAsync(document, AttachmentKind.Support, file, bytes, stored, cancellationToken);
+            if (extras.Count > 0)
+            {
+                // Los PDF de sustento se consolidan en un solo archivo.
+                var merged = MergeSupport(extras.Select(item => item.Bytes).ToArray());
+                var name = $"Anexos_{electronic.Number}.pdf";
+                await AttachAsync(document, AttachmentKind.Support, new UploadedFile(name, "application/pdf", merged.Length, Stream.Null), merged, stored, cancellationToken);
+            }
 
             AddRegistrationHistory(document, "Documento validado en SAP y SUNAT", now);
             documents.Add(document);
@@ -321,10 +337,10 @@ public sealed class DocumentService(
         var (actor, document) = await LoadForApprovalAsync(userId, documentId, cancellationToken);
         var approver = await documents.FindApproverAsync(request.ApproverId, cancellationToken)
             ?? throw new ArgumentException("El aprobador seleccionado no es válido.");
-        document.Reassign(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email, actor.Label, clock.GetUtcNow().UtcDateTime);
+        document.Reassign(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email, request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
         await documents.SaveChangesAsync(cancellationToken);
         await NotifyAsync(approver.Email, $"Documento por aprobar: {document.Number}",
-            DocumentEmailTemplates.PendingApproval(approver.Name, document.Number, document.ProviderName, document.Company.Name, FormatAmount(document)), cancellationToken);
+            DocumentEmailTemplates.PendingApproval(approver.Name, document.Number, document.ProviderName, document.Company.Name, FormatAmount(document), request.Reason.Trim()), cancellationToken);
         return ToDetail(document);
     }
 
@@ -418,6 +434,12 @@ public sealed class DocumentService(
         _ => false,
     };
 
+    private byte[] MergeSupport(IReadOnlyList<byte[]> pdfs)
+    {
+        try { return pdfMerger.Merge(pdfs); }
+        catch (InvalidDataException exception) { throw new ArgumentException(exception.Message); }
+    }
+
     private async Task AttachAsync(SupplierDocument document, AttachmentKind kind, UploadedFile file, byte[] bytes, List<string> stored, CancellationToken cancellationToken)
     {
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -493,7 +515,7 @@ public sealed class DocumentService(
     private static DocumentDetailResponse ToDetail(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName, document.ProviderEmail,
         document.Currency, document.Subtotal, document.Igv, document.Amount, document.Concept, document.IssuedAt, document.RegisteredAtUtc,
-        document.RegisteredByName, ToResponse(document.Company), document.Status, document.RejectedBy, document.AreaName, document.ApproverName,
+        document.RegisteredByName, ToResponse(document.Company), document.Status, document.IsPettyCash, document.RejectedBy, document.AreaName, document.ApproverName,
         document.ApproverEmail, document.ApprovedAtUtc, document.ApprovalReferenceType, document.ApprovalReference, document.OrderType,
         document.OrderNumber, document.OrderBalance, document.OrderDescription, document.Validation,
         document.Items.OrderBy(item => item.LineNumber).Select(item => new DocumentItemResponse(item.Description, item.Quantity, item.UnitPrice, item.Amount)).ToArray(),

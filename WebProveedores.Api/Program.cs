@@ -41,6 +41,7 @@ builder.Services.AddScoped<ReferenceDataSeeder>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
 builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+builder.Services.AddSingleton<IPdfMerger, PdfSharpMerger>();
 // Servicios SAP 01/02 simulados hasta contar con los endpoints reales.
 builder.Services.AddSingleton<ISapDocumentGateway, MockSapDocumentGateway>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();

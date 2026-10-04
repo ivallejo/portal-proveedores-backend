@@ -5,10 +5,10 @@ namespace WebProveedores.Application.Documents;
 /// <summary>Correos del flujo documental, con el mismo estilo que los correos de acceso.</summary>
 public static class DocumentEmailTemplates
 {
-    public static string PendingApproval(string approverName, string number, string providerName, string companyName, string amount) => Layout(
+    public static string PendingApproval(string approverName, string number, string providerName, string companyName, string amount, string? reassignmentReason = null) => Layout(
         $"Hola, {Encode(approverName)}",
-        $"Tienes un documento por aprobar en el Portal de Proveedores.",
-        [("Documento", number), ("Proveedor", providerName), ("Sociedad", companyName), ("Importe", amount)],
+        reassignmentReason is null ? "Tienes un documento por aprobar en el Portal de Proveedores." : "Te reasignaron un documento por aprobar en el Portal de Proveedores.",
+        [("Documento", number), ("Proveedor", providerName), ("Sociedad", companyName), ("Importe", amount), .. reassignmentReason is null ? Array.Empty<(string, string)>() : new[] { ("Motivo de reasignación", reassignmentReason) }],
         "Ingresa al portal, en el módulo Documentos, para aprobarlo, rechazarlo o reasignarlo.");
 
     public static string Rejected(string providerName, string number, string reason) => Layout(

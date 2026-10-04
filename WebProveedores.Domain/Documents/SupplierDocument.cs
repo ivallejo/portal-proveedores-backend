@@ -26,6 +26,9 @@ public sealed class SupplierDocument
     public DocumentStatus Status { get; set; }
     public RejectionStage? RejectedBy { get; set; }
 
+    /// <summary>Documento de Caja Chica: se registra sin pasar por aprobación.</summary>
+    public bool IsPettyCash { get; set; }
+
     public Guid? AreaId { get; set; }
     public string? AreaName { get; set; }
     public Guid? ApproverId { get; set; }
@@ -78,11 +81,13 @@ public sealed class SupplierDocument
         AddEvent("Enviado a contabilización", "Pendiente de contabilización · Contabilidad", DocumentEventKind.Current, now);
     }
 
-    public void Reassign(Guid areaId, string areaName, Guid approverId, string approverName, string approverEmail, string actor, DateTime now)
+    public void Reassign(Guid areaId, string areaName, Guid approverId, string approverName, string approverEmail, string reason, string actor, DateTime now)
     {
         EnsureStatus(DocumentStatus.PendingApproval, "Solo se pueden reasignar documentos pendientes de aprobación.");
         if (approverId == ApproverId)
             throw new InvalidOperationException("El documento ya está asignado a ese aprobador.");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new InvalidOperationException("Ingresa el motivo de la reasignación.");
 
         AreaId = areaId;
         AreaName = areaName;
@@ -90,7 +95,7 @@ public sealed class SupplierDocument
         ApproverName = approverName;
         ApproverEmail = approverEmail;
         CloseCurrentEvent();
-        AddEvent($"Reasignado a {approverName}", $"Por {actor}", DocumentEventKind.Done, now);
+        AddEvent($"Reasignado a {approverName}", $"Por {actor}", DocumentEventKind.Done, now, reason.Trim());
         AddEvent("Pendiente de aprobación", $"En revisión de {approverName} · {areaName}", DocumentEventKind.Current, now);
     }
 

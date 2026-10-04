@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using PdfSharp.Pdf;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Documents;
@@ -87,18 +88,88 @@ public sealed class DocumentServiceTests
     }
 
     [Fact]
-    public async Task Internal_user_registers_without_approval_and_providers_cannot_register_special_documents()
+    public async Task Internal_user_without_order_also_goes_through_approval()
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var internalResult = await fixture.Service.RegisterAsync(fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106")), CancellationToken.None);
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(
+            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111")), CancellationToken.None));
+        var result = await fixture.Service.RegisterAsync(
+            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingApproval, result.Status);
+        Assert.False(result.IsPettyCash);
+        Assert.Equal("María Torres", result.ApproverName);
+    }
+
+    [Fact]
+    public async Task Petty_cash_skips_approval_but_only_for_internal_users_and_without_order()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var result = await fixture.Service.RegisterAsync(
+            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000112", issuerRuc: "20111111111"), pettyCash: true), CancellationToken.None);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000113"), approverId: fixture.Approver.Id, pettyCash: true), CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(
+            fixture.Internal.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000114", issuerRuc: "20111111111"), orderNumber: "4500012873", pettyCash: true), CancellationToken.None));
+
+        Assert.Equal(DocumentStatus.PendingAccounting, result.Status);
+        Assert.True(result.IsPettyCash);
+        Assert.Null(result.ApproverName);
+        Assert.Empty(fixture.Email.Recipients);
+    }
+
+    [Fact]
+    public async Task Internal_users_can_register_special_documents_and_providers_cannot()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.RegisterSpecialAsync(fixture.Provider.Id, Special("075-1"), CancellationToken.None));
         var special = await fixture.Service.RegisterSpecialAsync(fixture.Internal.Id, Special("075-1"), CancellationToken.None);
 
-        Assert.Equal(DocumentStatus.PendingAccounting, internalResult.Status);
-        Assert.Null(internalResult.ApproverName);
         Assert.Equal("Boleto aéreo", special.DocumentType);
         Assert.Equal(DocumentStatus.PendingAccounting, special.Status);
+    }
+
+    [Fact]
+    public async Task Extra_pdfs_are_consolidated_into_a_single_attachment()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var extras = new[] { RealPdf("acta.pdf", 2), RealPdf("fotos.pdf", 3) };
+
+        var result = await fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000115"), orderNumber: "4500012873", extras: extras), CancellationToken.None);
+
+        var support = Assert.Single(result.Attachments, attachment => attachment.Kind == AttachmentKind.Support);
+        Assert.Equal("Anexos_F001-00000115.pdf", support.FileName);
+        var stored = fixture.Storage.Files.Single(file => file.Value.AsSpan().StartsWith("%PDF"u8) && file.Value.Length > 200 && file.Key.EndsWith(".pdf") && IsMergedOf(file.Value, 5));
+        Assert.NotNull(stored.Key);
+    }
+
+    [Fact]
+    public async Task Unreadable_extra_pdf_rejects_the_registration_without_leaving_files()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var broken = File("roto.pdf", "%PDF-1.4 esto no es un pdf completo");
+
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000116"), approverId: fixture.Approver.Id, extras: [broken]), CancellationToken.None));
+
+        Assert.Empty(fixture.Storage.Files);
+    }
+
+    private static bool IsMergedOf(byte[] pdf, int pages)
+    {
+        try
+        {
+            using var document = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(pdf), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import);
+            return document.PageCount == pages;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     [Fact]
@@ -123,12 +194,23 @@ public sealed class DocumentServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var document = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000108"), approverId: fixture.Approver.Id), CancellationToken.None);
 
-        var reassigned = await fixture.Service.ReassignAsync(fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id }, CancellationToken.None);
+        var reassigned = await fixture.Service.ReassignAsync(fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id, Reason = "Corresponde a Finanzas" }, CancellationToken.None);
 
         Assert.Equal("Jorge Paredes", reassigned.ApproverName);
+        Assert.Equal("Corresponde a Finanzas", reassigned.History.Single(item => item.Title.StartsWith("Reasignado")).Note);
         Assert.Equal("jparedes@test.pe", fixture.Email.Recipients[^1]);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.RejectAsync(
             fixture.Approver.Id, document.Id, RejectionStage.Approver, new RejectDocumentRequest { Reason = "x" }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Reassign_requires_a_reason()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var document = await fixture.Service.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000117"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.ReassignAsync(
+            fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id, Reason = "  " }, CancellationToken.None));
     }
 
     [Fact]
@@ -179,14 +261,24 @@ public sealed class DocumentServiceTests
     // ——— Datos de prueba ———
 
     private static RegisterElectronicDocumentCommand Command(
-        DocumentEntryType entryType, string xml, Guid? approverId = null, string? orderNumber = null, bool includeCdr = true)
+        DocumentEntryType entryType, string xml, Guid? approverId = null, string? orderNumber = null, bool includeCdr = true,
+        bool pettyCash = false, IReadOnlyList<UploadedFile>? extras = null)
     {
         var number = xml.Split("<cbc:ID>")[1].Split('<')[0];
         return new RegisterElectronicDocumentCommand(
-            entryType, "1001", orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
+            entryType, "1001", pettyCash, orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
             File($"{number}.xml", xml), File($"{number}.pdf", "%PDF-1.4 prueba"),
             includeCdr ? File($"R-{number}.zip", "PK prueba") : null,
-            []);
+            extras ?? []);
+    }
+
+    private static UploadedFile RealPdf(string name, int pages)
+    {
+        using var document = new PdfDocument();
+        for (var i = 0; i < pages; i++) document.AddPage();
+        using var buffer = new MemoryStream();
+        document.Save(buffer, closeStream: false);
+        return new UploadedFile(name, "application/pdf", buffer.Length, new MemoryStream(buffer.ToArray()));
     }
 
     private static RegisterSpecialDocumentCommand Special(string number) =>
@@ -269,7 +361,7 @@ public sealed class DocumentServiceTests
             await db.SaveChangesAsync();
 
             fixture.Service = new DocumentService(
-                new EfDocumentRepository(db), new EfIdentityRepository(db), fixture.Storage, new MockSapDocumentGateway(),
+                new EfDocumentRepository(db), new EfIdentityRepository(db), fixture.Storage, new MockSapDocumentGateway(), new PdfSharpMerger(),
                 fixture.Email, TimeProvider.System, NullLogger<DocumentService>.Instance);
             return fixture;
         }

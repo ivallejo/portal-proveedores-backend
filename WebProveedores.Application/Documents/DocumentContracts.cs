@@ -9,6 +9,7 @@ public sealed record UploadedFile(string FileName, string ContentType, long Leng
 public sealed record RegisterElectronicDocumentCommand(
     DocumentEntryType EntryType,
     string CompanyCode,
+    bool IsPettyCash,
     OrderType? OrderType,
     string? OrderNumber,
     Guid? ApproverId,
@@ -56,6 +57,7 @@ public sealed class RejectDocumentRequest
 public sealed class ReassignDocumentRequest
 {
     [Required] public Guid ApproverId { get; init; }
+    [Required, MaxLength(1000)] public string Reason { get; init; } = string.Empty;
 }
 
 public sealed class ObserveDocumentRequest
@@ -112,6 +114,7 @@ public sealed record DocumentDetailResponse(
     string RegisteredBy,
     CompanyResponse Company,
     DocumentStatus Status,
+    bool IsPettyCash,
     RejectionStage? RejectedBy,
     string? AreaName,
     string? ApproverName,

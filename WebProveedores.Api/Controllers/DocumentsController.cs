@@ -31,7 +31,7 @@ public sealed class DocumentsController(IDocumentService documents) : Controller
     public async Task<ActionResult<DocumentDetailResponse>> Register([FromForm] RegisterDocumentForm form, CancellationToken cancellationToken)
     {
         var command = new RegisterElectronicDocumentCommand(
-            form.EntryType, form.CompanyCode, form.OrderType, form.OrderNumber, form.ApproverId,
+            form.EntryType, form.CompanyCode, form.IsPettyCash, form.OrderType, form.OrderNumber, form.ApproverId,
             ToUpload(form.Xml), ToUpload(form.Pdf), ToUpload(form.Cdr),
             (form.Extras ?? []).Select(ToUpload).OfType<UploadedFile>().ToArray());
         var created = await documents.RegisterAsync(UserId, command, cancellationToken);
@@ -126,6 +126,7 @@ public sealed class RegisterDocumentForm
 {
     [Required] public DocumentEntryType EntryType { get; init; }
     [Required, MaxLength(20)] public string CompanyCode { get; init; } = string.Empty;
+    public bool IsPettyCash { get; init; }
     public OrderType? OrderType { get; init; }
     [MaxLength(20)] public string? OrderNumber { get; init; }
     public Guid? ApproverId { get; init; }

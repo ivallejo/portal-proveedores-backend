@@ -118,6 +118,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(document => document.RegisteredByName).HasMaxLength(250).IsRequired();
             entity.Property(document => document.Status).HasConversion<string>().HasMaxLength(30);
             entity.Property(document => document.RejectedBy).HasConversion<string>().HasMaxLength(20);
+            entity.Property(document => document.IsPettyCash).HasDefaultValue(false);
             entity.Property(document => document.AreaName).HasMaxLength(120);
             entity.Property(document => document.ApproverName).HasMaxLength(200);
             entity.Property(document => document.ApproverEmail).HasMaxLength(320);

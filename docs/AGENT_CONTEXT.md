@@ -16,7 +16,7 @@ Implementado:
 - SQL Server en Docker, migraciones EF Core, Swagger y health check.
 - Módulo de documentos: registro Con OC, Sin OC y documentos especiales, adjuntos en disco, historial, aprobación (aprobar, rechazar, reasignar) y Cuentas por pagar (rechazar, observar). Ver «Módulo de documentos».
 
-Todavía no implementado: servicios SAP 01/02/03 reales (hay un simulador), proceso diario de contabilización (Servicio 03), consolidación de PDFs de sustento, órdenes de compra/pago y estado de factura, y workflows persistentes.
+Todavía no implementado: servicios SAP 01/02 reales (hay un simulador), proceso diario de contabilización (Servicio 03, fase posterior), órdenes de compra/pago y estado de factura, y workflows persistentes.
 
 ## Stack
 
@@ -201,12 +201,12 @@ Endpoints (JWT obligatorio, enums en texto):
 | GET | `/api/catalog/companies` | Sociedades activas |
 | GET | `/api/catalog/areas` | Áreas con sus aprobadores activos |
 | POST | `/api/documents/orders/validate` | Servicio 01: valida la orden (422 si no existe) |
-| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
+| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `IsPettyCash`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
 | POST | `/api/documents/special` | Documento especial (multipart, solo `INTERNAL_USER` o admin) |
 | GET | `/api/documents?inbox=Approvals\|Accounting\|Mine&ruc&status&page&pageSize` | Bandejas con `countsByStatus` para los KPI |
 | GET | `/api/documents/{id}` | Detalle con ítems, adjuntos e historial |
 | GET | `/api/documents/{id}/attachments/{attachmentId}` | Descarga de un adjunto |
-| POST | `/api/documents/{id}/approve` · `/reject` · `/reassign` | Acciones del aprobador asignado |
+| POST | `/api/documents/{id}/approve` · `/reject` · `/reassign` | Acciones del aprobador asignado (`reassign` exige `approverId` y `reason`) |
 | POST | `/api/documents/{id}/accounting/reject` · `/accounting/observe` | Acciones de Cuentas por pagar |
 
 Reglas que aplica el servidor (no confía en el navegador):
@@ -215,13 +215,14 @@ Reglas que aplica el servidor (no confía en el navegador):
 - Un proveedor solo registra documentos emitidos por su RUC. Si la sociedad tiene RUC, el receptor del XML debe coincidir.
 - CDR obligatorio salvo serie que empieza con «E». Archivos ≤ 5 MB, extensión permitida y firma de contenido (`%PDF`, `PK`, XML).
 - Duplicidad por (RUC emisor, número): índice único en BD → 422.
-- Sin OC del proveedor → *PendingApproval* con aprobador elegido; usuario interno → *PendingAccounting*. Con OC y especiales → *PendingAccounting*.
-- Solo el aprobador asignado (o el admin) aprueba, rechaza o reasigna. Aprobar exige N° de pedido o de viaje.
+- Sin OC (proveedor o usuario interno) → *PendingApproval* con área y aprobador elegidos, salvo **Caja Chica** (`IsPettyCash`) → *PendingAccounting* sin aprobador. Solo `INTERNAL_USER` o admin pueden marcar Caja Chica, y solo en Sin OC. Con OC y especiales → *PendingAccounting*.
+- Los PDF extras se consolidan en un solo adjunto `Anexos_{número}.pdf` (`IPdfMerger`, PDFsharp). Un PDF dañado o con contraseña rechaza el registro y no deja archivos.
+- Solo el aprobador asignado (o el admin) aprueba, rechaza o reasigna. Aprobar exige N° de pedido o de viaje; reasignar exige motivo (queda en el historial y en el correo al nuevo aprobador).
 - Los correos (aprobador, rechazo, observación) no revierten la acción si fallan; se registran en el log.
 
 Errores: `ArgumentException` → 400, `UnauthorizedAccessException` → 403, `KeyNotFoundException` → 404, `InvalidOperationException` de negocio → 409, `DocumentRejectedException` → 422. Todas las respuestas de error incluyen `message`.
 
-Pendiente de decisión de negocio: `flujo.md` envía los documentos especiales a aprobación; la Propuesta 1 los registra directo a contabilización (implementado así en `DocumentService.RegisterSpecialAsync`).
+Documentos especiales: van directo a *PendingAccounting* (confirmado en los flujos actualizados). El estado `Accounted` (Contabilizado) existe en el modelo pero los flujos actuales no lo usan; el Servicio 03 queda para una fase posterior.
 
 ### Datos de prueba
 
@@ -285,6 +286,7 @@ Migraciones actuales:
 20261003174951_AddPasswordSetAt
 20261003193747_AddPasswordTokenPurpose
 20261004181709_AddSupplierDocuments
+20261004193728_AddPettyCashFlag
 ```
 
 No borrar migraciones ni el volumen Docker para resolver errores de conexión. Primero revisar contenedor, credenciales y connection string.
@@ -313,7 +315,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 17 passed (autenticación y documentos).
+- Tests: 22 passed (autenticación y documentos).
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 
@@ -321,7 +323,6 @@ Estado validado:
 
 1. Conectar el frontend (Registrar documentos, Documentos, Contabilización) a `api/documents` y `api/catalog`.
 2. Reemplazar `MockSapDocumentGateway` por los servicios SAP 01/02 reales y agregar el proceso diario del Servicio 03.
-3. Consolidar los PDF de sustento de Sin OC en un solo archivo.
-4. Completar administración multirol y asignación de áreas (necesario para los aprobadores).
+3. Completar administración multirol y asignación de áreas (necesario para los aprobadores).
 7. Añadir pruebas de integración de login, registro, activación y recuperación.
 8. Agregar rate limiting, auditoría y manejo de errores operativo antes de producción.
