@@ -510,7 +510,7 @@ public sealed class DocumentService(
 
     private static DocumentSummaryResponse ToSummary(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName,
-        document.Currency, document.Amount, document.Status, document.IssuedAt, document.RegisteredAtUtc, document.ApproverName, document.OrderNumber);
+        document.Currency, document.Amount, document.Status, document.IsPettyCash, document.IssuedAt, document.RegisteredAtUtc, document.ApproverName, document.OrderNumber);
 
     private static DocumentDetailResponse ToDetail(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName, document.ProviderEmail,
