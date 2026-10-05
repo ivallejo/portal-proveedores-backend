@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Abstractions.Providers;
@@ -72,7 +73,15 @@ public sealed class OnlineRegistrationService(
         await db.SaveChangesAsync(cancellationToken);
         var frontendUrl = configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:4200";
         var activationUrl = $"{frontendUrl}/?ruc={Uri.EscapeDataString(normalizedRuc)}&activationToken={Uri.EscapeDataString(activationToken)}";
-        await emailSender.SendAsync(provider.Correo!, "Completa tu registro - Portal de Proveedores", EmailTemplates.AccountActivation(provider.CompanyName, activationUrl), cancellationToken, isHtml: true);
+        try
+        {
+            await emailSender.SendAsync(provider.Correo!, "Completa tu registro - Portal de Proveedores", EmailTemplates.AccountActivation(provider.CompanyName, activationUrl), cancellationToken, isHtml: true);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // El token ya quedó guardado: al reintentar se genera uno nuevo y se vuelve a enviar.
+            throw new ServiceUnavailableException("No pudimos enviar el correo de activación. Intenta nuevamente en unos minutos.", exception);
+        }
 
         return new(true, ObfuscateEmail(provider.Correo!));
     }

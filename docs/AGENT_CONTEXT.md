@@ -328,6 +328,11 @@ Migraciones actuales:
 
 No borrar migraciones ni el volumen Docker para resolver errores de conexión. Primero revisar contenedor, credenciales y connection string.
 
+## Servicios externos
+
+- SAP o correo caídos responden **503** con un mensaje para reintentar (`ServiceUnavailableException`), no 500. La consulta de RUC requiere la VPN hacia `Sap:BaseUrl`.
+- `Smtp:Enabled=false` registra `LogEmailSender`: no envía correos y deja en el log el destinatario, el asunto y los enlaces (activación, cambio de contraseña). Útil en desarrollo para probar el registro sin bandeja de correo.
+
 ## Administración de usuarios
 
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.

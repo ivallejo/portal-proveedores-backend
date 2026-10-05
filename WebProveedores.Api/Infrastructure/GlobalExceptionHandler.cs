@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Documents;
 
 namespace WebProveedores.Api.Infrastructure;
@@ -11,6 +12,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         var statusCode = exception switch
         {
             DocumentRejectedException => StatusCodes.Status422UnprocessableEntity,
+            ServiceUnavailableException => StatusCodes.Status503ServiceUnavailable,
             ArgumentException => StatusCodes.Status400BadRequest,
             UnauthorizedAccessException => StatusCodes.Status403Forbidden,
             // Las InvalidOperationException de librerías (por ejemplo EF Core) son errores internos, no de negocio.

@@ -44,7 +44,11 @@ builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = Tim
 builder.Services.AddScoped<IProviderDirectory>(services => services.GetRequiredService<SapProviderClient>());
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
-builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+// Smtp:Enabled=false (desarrollo) deja los correos en el log en lugar de enviarlos.
+if (builder.Configuration.GetValue("Smtp:Enabled", true))
+    builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+else
+    builder.Services.AddScoped<IEmailSender, LogEmailSender>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ReferenceDataSeeder>();
 builder.Services.AddSingleton(TimeProvider.System);

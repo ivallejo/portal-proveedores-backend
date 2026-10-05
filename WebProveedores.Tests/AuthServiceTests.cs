@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
@@ -177,6 +178,22 @@ public sealed class AuthServiceTests
         Assert.Equal("El usuario ya se encuentra registrado.", exception.Message);
     }
 
+    [Fact]
+    public async Task ValidateRucAsync_reports_sap_outages_as_service_unavailable()
+    {
+        await using var db = CreateContext();
+        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Sap:BaseUrl"] = "http://sap.invalid",
+            ["Sap:BasicToken"] = "test-token",
+        }).Build());
+        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+
+        var exception = await Assert.ThrowsAsync<ServiceUnavailableException>(() => service.ValidateRucAsync("20100003199", CancellationToken.None));
+
+        Assert.Contains("SAP", exception.Message);
+    }
+
     private static AuthService CreateService(AppDbContext db, IEmailSender? emailSender = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -230,5 +247,11 @@ public sealed class AuthServiceTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("SAP no debió ser consultado.");
+    }
+
+    private sealed class UnreachableHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new HttpRequestException("nodename nor servname provided, or not known");
     }
 }
