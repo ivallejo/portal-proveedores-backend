@@ -10,6 +10,7 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure;
 using WebProveedores.Infrastructure.Auth;
+using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Email;
 using WebProveedores.Infrastructure.Persistence;
 
@@ -83,6 +84,8 @@ if (builder.Configuration.GetValue("Security:UseForwardedHeaders", false))
 
 var app = builder.Build();
 app.Logger.LogInformation("Correo: modo {EmailMode}", app.Services.GetRequiredService<EmailSettings>().Describe());
+if (app.Services.GetRequiredService<SapDocumentSettings>().Mode == SapDocumentSettings.Simulated)
+    app.Logger.LogWarning("SAP 01/02 (orden, SUNAT y duplicidad): SIMULADOS. Las órdenes válidas son las de prueba.");
 
 using (var scope = app.Services.CreateScope())
 {

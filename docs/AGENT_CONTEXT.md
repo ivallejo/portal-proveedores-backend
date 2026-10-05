@@ -334,6 +334,18 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 - SAP o correo caídos responden **503** con un mensaje para reintentar (`ServiceUnavailableException`), no 500. La consulta de RUC requiere la VPN hacia `Sap:BaseUrl`.
 - Correo (`Infrastructure/Email`): `Email:Mode` = `Send` | `Redirect` | `Log`, resuelto y validado al arrancar por `EmailSettings` (por defecto `Send` en producción y `Redirect` fuera de ella, o `Log` si no hay `Email:TestRecipient`). `RedirectingEmailSender` envuelve a `SmtpEmailSender` y entrega todo al buzón de pruebas. `Send` fuera de producción exige `Email:AllowSendOutsideProduction=true`. Se aceptan los nombres antiguos `Smtp:RedirectEnabled`/`Smtp:TestRecipient`. Hoy el transporte es Gmail SMTP; otro proveedor = otra implementación de `IEmailSender`.
 
+## Errores
+
+`Application/Errors.cs`: `ValidationException` (400), `ForbiddenException` (403), `NotFoundException` (404), `ConflictException` (409); en el dominio `DomainRuleException` (409). Además `DocumentRejectedException` (422), `AccountLockedException` (429 + Retry-After) y `ServiceUnavailableException` (503). `GlobalExceptionHandler` solo traduce esos tipos: cualquier otra excepción es 500 con mensaje genérico. No usar `ArgumentException`/`InvalidOperationException` para errores de negocio, ni try/catch en los controladores.
+
+## Entidades
+
+`AppUser` y `SupplierDocument` tienen `private set` y constructor privado (EF los materializa igual). Se crean con `AppUser.Create(...)` y `SupplierDocument.Register(...)` y cambian solo con sus métodos (`RecordFailedLogin`, `SetPassword`, `SetRoles`, `SetCompanies`…; `Approve`, `Reassign`, `Reject`, `Observe`, `AddItem`, `AddAttachment`). `Register` aplica las reglas de entrada (Con OC con orden, Sin OC con aprobador salvo Caja Chica, especiales a contabilización) y genera el historial.
+
+## SAP 01/02
+
+`Sap:DocumentServices` elige la implementación de los servicios 01/02. Hoy solo existe `Simulated` (`MockSapDocumentGateway`); fuera de producción es el valor por defecto, en producción hay que declararlo explícitamente o la API no arranca. El log de arranque avisa que están simulados.
+
 ## Administración de usuarios
 
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.

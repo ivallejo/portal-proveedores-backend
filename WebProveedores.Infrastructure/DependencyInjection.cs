@@ -40,7 +40,7 @@ public static class DependencyInjection
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         services.AddSingleton<IPdfMerger, PdfSharpMerger>();
 
-        // SAP: consulta de proveedores real, con reintentos y corte de circuito; servicios 01/02 simulados hasta tener los endpoints.
+        // SAP: consulta de proveedores real, con reintentos y corte de circuito; servicios 01/02 según Sap:DocumentServices.
         services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15))
             .AddStandardResilienceHandler(options =>
             {
@@ -50,6 +50,8 @@ public static class DependencyInjection
                 options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(20);
             });
         services.AddScoped<IProviderDirectory>(provider => provider.GetRequiredService<SapProviderClient>());
+        var sapDocuments = SapDocumentSettings.Resolve(configuration, isProduction);
+        services.AddSingleton(sapDocuments);
         services.AddSingleton<ISapDocumentGateway, MockSapDocumentGateway>();
 
         // Correo (Email:Mode): Send en producción, Redirect al buzón de pruebas fuera de ella.
