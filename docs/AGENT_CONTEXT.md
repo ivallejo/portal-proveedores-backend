@@ -331,7 +331,8 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 ## Servicios externos
 
 - SAP o correo caídos responden **503** con un mensaje para reintentar (`ServiceUnavailableException`), no 500. La consulta de RUC requiere la VPN hacia `Sap:BaseUrl`.
-- `Smtp:Enabled=false` registra `LogEmailSender`: no envía correos y deja en el log el destinatario, el asunto y los enlaces (activación, cambio de contraseña). Útil en desarrollo para probar el registro sin bandeja de correo.
+- Desarrollo: `Smtp:RedirectEnabled=true` + `Smtp:TestRecipient` envía todos los correos solo al buzón de pruebas (asunto «[PRUEBA SMTP]» y aviso del destinatario original); nunca llegan al proveedor. Es el modo a usar al levantar el backend localmente.
+- `Smtp:Enabled=false` registra `LogEmailSender`: no envía nada y deja en el log los enlaces (activación, cambio de contraseña). Solo para trabajar sin SMTP.
 
 ## Administración de usuarios
 
