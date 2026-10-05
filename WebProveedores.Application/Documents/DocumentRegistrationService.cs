@@ -74,47 +74,19 @@ internal sealed class DocumentRegistrationService(
         await EnsureValidInSapAsync(company.Code, electronic.IssuerRuc, electronic.IssuedAt, electronic.Number, electronic.Total, checkSunat: true, cancellationToken);
 
         var now = clock.GetUtcNow().UtcDateTime;
-        var document = new SupplierDocument
-        {
-            Number = electronic.Number,
-            EntryType = command.EntryType,
-            DocumentType = electronic.DocumentType,
-            ProviderRuc = electronic.IssuerRuc,
-            ProviderName = string.IsNullOrWhiteSpace(electronic.IssuerName) ? actor.Name : electronic.IssuerName,
-            ProviderEmail = actor.IsProvider ? actor.Email : null,
-            Currency = electronic.Currency,
-            Subtotal = electronic.Subtotal,
-            Igv = electronic.Igv,
-            Amount = electronic.Total,
-            Concept = string.Join("; ", electronic.Lines.Select(line => line.Description)),
-            IssuedAt = electronic.IssuedAt,
-            RegisteredAtUtc = now,
-            RegisteredById = actor.Id,
-            RegisteredByName = actor.RegistrationLabel,
-            CompanyId = company.Id,
-            Company = company,
-            Status = needsApproval ? DocumentStatus.PendingApproval : DocumentStatus.PendingAccounting,
-            IsPettyCash = command.IsPettyCash,
-            Validation = "Documento validado en SAP y SUNAT",
-        };
-        if (order is not null)
-        {
-            document.OrderType = order.Type;
-            document.OrderNumber = order.Number;
-            document.OrderBalance = order.Balance;
-            document.OrderDescription = order.Description;
-        }
-        if (approver is not null)
-        {
-            document.AreaId = approver.AreaId;
-            document.AreaName = approver.AreaName;
-            document.ApproverId = approver.UserId;
-            document.ApproverName = approver.Name;
-            document.ApproverEmail = approver.Email;
-        }
-        var lineNumber = 0;
+        var data = new DocumentData(
+            electronic.Number, command.EntryType, electronic.DocumentType, electronic.IssuerRuc,
+            string.IsNullOrWhiteSpace(electronic.IssuerName) ? actor.Name : electronic.IssuerName,
+            actor.IsProvider ? actor.Email : null,
+            electronic.Currency, electronic.Subtotal, electronic.Igv, electronic.Total,
+            string.Join("; ", electronic.Lines.Select(line => line.Description)), electronic.IssuedAt,
+            "Documento validado en SAP y SUNAT");
+        var document = SupplierDocument.Register(
+            data, company, actor.Id, actor.RegistrationLabel, now, "Documento validado en SAP y SUNAT", command.IsPettyCash,
+            order is null ? null : new PurchaseOrderInfo(order.Type, order.Number, order.Balance, order.Description),
+            approver is null ? null : new ApproverAssignment(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email));
         foreach (var line in electronic.Lines)
-            document.Items.Add(new DocumentItem { DocumentId = document.Id, LineNumber = ++lineNumber, Description = line.Description, Quantity = line.Quantity, UnitPrice = line.UnitPrice, Amount = line.Amount });
+            document.AddItem(line.Description, line.Quantity, line.UnitPrice, line.Amount);
 
         var stored = new List<string>();
         try
@@ -129,7 +101,6 @@ internal sealed class DocumentRegistrationService(
                 await files.AttachAsync(document, AttachmentKind.Support, new UploadedFile(name, "application/pdf", merged.Length, Stream.Null), merged, stored, cancellationToken);
             }
 
-            AddRegistrationHistory(document, "Documento validado en SAP y SUNAT", now);
             documents.Add(document);
             await documents.SaveChangesAsync(cancellationToken);
         }
@@ -163,33 +134,17 @@ internal sealed class DocumentRegistrationService(
 
         var now = clock.GetUtcNow().UtcDateTime;
         var typeName = SpecialTypeNames[command.DocumentType];
-        var document = new SupplierDocument
-        {
-            Number = number,
-            EntryType = DocumentEntryType.Special,
-            DocumentType = typeName,
-            ProviderRuc = ruc,
-            ProviderName = $"Proveedor RUC {ruc}",
-            Currency = command.Currency,
-            Subtotal = command.Amount,
-            Amount = command.Amount,
-            Concept = $"{typeName} {number}",
-            IssuedAt = command.IssuedAt,
-            RegisteredAtUtc = now,
-            RegisteredById = actor.Id,
-            RegisteredByName = actor.RegistrationLabel,
-            CompanyId = company.Id,
-            Company = company,
-            // Pendiente de definir con negocio: flujo.md indica aprobación; la Propuesta 1 registra directo a contabilización.
-            Status = DocumentStatus.PendingAccounting,
-            Validation = isSettlement ? "Válido en SUNAT y sin duplicidad en SAP (Servicio 02)" : "Sin duplicidad en SAP (Servicio 02)",
-        };
+        var validation = isSettlement ? "Válido en SUNAT y sin duplicidad en SAP (Servicio 02)" : "Sin duplicidad en SAP (Servicio 02)";
+        // Pendiente de definir con negocio: flujo.md indica aprobación; la Propuesta 1 registra directo a contabilización.
+        var document = SupplierDocument.Register(
+            new DocumentData(number, DocumentEntryType.Special, typeName, ruc, $"Proveedor RUC {ruc}", null,
+                command.Currency, command.Amount, null, command.Amount, $"{typeName} {number}", command.IssuedAt, validation),
+            company, actor.Id, actor.RegistrationLabel, now, isSettlement ? "Validado en SUNAT y SAP" : "Duplicidad validada en SAP");
 
         var stored = new List<string>();
         try
         {
             await files.AttachAsync(document, AttachmentKind.Pdf, command.Pdf!, pdfBytes, stored, cancellationToken);
-            AddRegistrationHistory(document, isSettlement ? "Validado en SUNAT y SAP" : "Duplicidad validada en SAP", now);
             documents.Add(document);
             await documents.SaveChangesAsync(cancellationToken);
         }
@@ -208,28 +163,5 @@ internal sealed class DocumentRegistrationService(
         var validation = await sap.ValidateDocumentAsync(new SapDocumentValidation(companyCode, ruc, issuedAt, number, amount, checkSunat), cancellationToken);
         if (!validation.IsValid)
             throw new DocumentRejectedException(validation.Message ?? "SAP rechazó el documento.");
-    }
-
-    private static void AddRegistrationHistory(SupplierDocument document, string validationTitle, DateTime now)
-    {
-        if (document.OrderNumber is not null)
-            document.AddEvent("Orden validada en SAP", $"Servicio 01 SAP · {document.OrderNumber}", DocumentEventKind.Done, now);
-        var entry = document.EntryType switch
-        {
-            DocumentEntryType.WithPurchaseOrder => "Con orden de compra",
-            DocumentEntryType.WithoutPurchaseOrder => "Sin orden de compra",
-            _ => "Documento especial",
-        };
-        document.AddEvent("Documento registrado", $"{document.RegisteredByName} · {entry}", DocumentEventKind.Done, now);
-        document.AddEvent(validationTitle, "Servicio 02 SAP", DocumentEventKind.Done, now);
-        if (document.Status == DocumentStatus.PendingApproval)
-        {
-            document.AddEvent("Asignado para aprobación", $"{document.ApproverName} · {document.AreaName}", DocumentEventKind.Done, now);
-            document.AddEvent("Pendiente de aprobación", $"En revisión de {document.ApproverName}", DocumentEventKind.Current, now);
-        }
-        else
-        {
-            document.AddEvent("Pendiente de contabilización", "Cuentas por pagar · Contabilidad", DocumentEventKind.Current, now);
-        }
     }
 }

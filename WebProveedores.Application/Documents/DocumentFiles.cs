@@ -6,7 +6,7 @@ using WebProveedores.Application;
 namespace WebProveedores.Application.Documents;
 
 /// <summary>Validación de los archivos recibidos y su guardado como adjuntos del documento.</summary>
-internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, ILogger<DocumentFiles> logger)
+internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, TimeProvider clock, ILogger<DocumentFiles> logger)
 {
     public const long MaxFileBytes = 5 * 1024 * 1024;
 
@@ -39,15 +39,8 @@ internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         var key = await storage.SaveAsync(new MemoryStream(bytes), extension, cancellationToken);
         stored.Add(key);
-        document.Attachments.Add(new DocumentAttachment
-        {
-            DocumentId = document.Id,
-            Kind = kind,
-            FileName = SafeFileName(file.FileName),
-            StorageKey = key,
-            ContentType = extension switch { ".pdf" => "application/pdf", ".xml" => "application/xml", ".zip" => "application/zip", _ => "application/octet-stream" },
-            SizeBytes = bytes.Length,
-        });
+        var contentType = extension switch { ".pdf" => "application/pdf", ".xml" => "application/xml", ".zip" => "application/zip", _ => "application/octet-stream" };
+        document.AddAttachment(kind, SafeFileName(file.FileName), key, contentType, bytes.Length, clock.GetUtcNow().UtcDateTime);
     }
 
     /// <summary>Si el registro falla, se borran los archivos ya guardados.</summary>

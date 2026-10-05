@@ -27,7 +27,7 @@ internal sealed class DocumentApprovalService(IDocumentRepository documents, Doc
     {
         var (actor, document) = await access.LoadForApprovalAsync(userId, documentId, cancellationToken);
         var approver = await access.RequireApproverAsync(request.ApproverId, document.Company, cancellationToken);
-        document.Reassign(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email, request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
+        document.Reassign(new ApproverAssignment(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email), request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
         await documents.SaveChangesAsync(cancellationToken);
         await notifier.PendingApprovalAsync(approver.Email, approver.Name, document, document.Company.Name, cancellationToken, request.Reason.Trim());
         return DocumentMapper.ToDetail(document);

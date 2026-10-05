@@ -38,7 +38,7 @@ internal static class TestServices
         var repository = new EfDocumentRepository(db);
         var access = new DocumentAccess(repository, new EfUserRepository(db));
         var notifier = new DocumentNotifier(email, NullLogger<DocumentNotifier>.Instance);
-        var files = new DocumentFiles(storage, new PdfSharpMerger(), NullLogger<DocumentFiles>.Instance);
+        var files = new DocumentFiles(storage, new PdfSharpMerger(), TimeProvider.System, NullLogger<DocumentFiles>.Instance);
         var sap = new MockSapDocumentGateway();
         return new DocumentServices(
             new DocumentCatalogService(repository, access, sap),
