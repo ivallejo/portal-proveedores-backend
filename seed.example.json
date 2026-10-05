@@ -17,7 +17,9 @@
       "name": "María Torres",
       "email": "maria.torres@ejemplo.test",
       "role": "AREA_APPROVER",
-      "area": "Finanzas"
+      "area": "Finanzas",
+      // Sociedades con las que trabaja; si se omite, todas las activas.
+      "companies": ["1001", "1002"]
     },
     {
       "username": "cuentas.por.pagar",

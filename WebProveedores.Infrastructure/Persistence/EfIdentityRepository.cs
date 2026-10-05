@@ -18,11 +18,11 @@ public sealed class EfIdentityRepository(AppDbContext db) : IIdentityRepository
             .SingleOrDefaultAsync(user => user.Ruc == ruc, cancellationToken);
 
     public Task<AppUser?> FindByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
+        db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role).Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company)
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
     public Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        db.Users.Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
+        db.Users.Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role).Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company)
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
     public Task<PasswordResetToken?> FindValidTokenAsync(string ruc, string tokenHash, PasswordTokenPurpose purpose, CancellationToken cancellationToken) =>
@@ -30,8 +30,11 @@ public sealed class EfIdentityRepository(AppDbContext db) : IIdentityRepository
             .SingleOrDefaultAsync(token => token.User.Ruc == ruc && token.TokenHash == tokenHash && token.Purpose == purpose && token.UsedAtUtc == null && token.ExpiresAtUtc > DateTime.UtcNow, cancellationToken);
 
     public async Task<IReadOnlyList<AppUser>> ListUsersAsync(CancellationToken cancellationToken) =>
-        await db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
+        await db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role).Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company)
             .OrderBy(user => user.CompanyName).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Domain.Documents.Company>> ListActiveCompaniesAsync(CancellationToken cancellationToken) =>
+        await db.Companies.Where(company => company.IsActive).OrderBy(company => company.Code).ToListAsync(cancellationToken);
 
     public Task<bool> UserExistsByRucAsync(string ruc, CancellationToken cancellationToken) =>
         db.Users.AnyAsync(user => user.Ruc == ruc, cancellationToken);

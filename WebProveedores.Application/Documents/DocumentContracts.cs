@@ -72,7 +72,8 @@ public sealed record CompanyResponse(string Code, string Name, string? Ruc);
 
 public sealed record AreaResponse(Guid Id, string Name, IReadOnlyList<ApproverResponse> Approvers);
 
-public sealed record ApproverResponse(Guid Id, string Name, string Email);
+/// <summary>Aprobador con las sociedades en las que puede aprobar (el frontend filtra por la sociedad del documento).</summary>
+public sealed record ApproverResponse(Guid Id, string Name, string Email, IReadOnlyList<string> CompanyCodes);
 
 public sealed record DocumentSummaryResponse(
     Guid Id,

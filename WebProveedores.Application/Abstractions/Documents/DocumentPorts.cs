@@ -16,7 +16,7 @@ public interface IDocumentRepository
 }
 
 /// <summary>Usuario activo con rol de aprobador y área asignada.</summary>
-public sealed record ApproverRecord(Guid UserId, string Name, string Email, Guid AreaId, string AreaName);
+public sealed record ApproverRecord(Guid UserId, string Name, string Email, Guid AreaId, string AreaName, IReadOnlyList<string> CompanyCodes);
 
 public enum DocumentInbox
 {
@@ -40,7 +40,9 @@ public sealed record DocumentQuery(
     // Si se indica, limita «Mine» a ese RUC emisor.
     string? OwnerRuc = null,
     // Si se indica, limita «Mine» a lo registrado por ese usuario.
-    Guid? RegisteredById = null);
+    Guid? RegisteredById = null,
+    // Si se indica, limita la bandeja a documentos de esas sociedades.
+    IReadOnlyCollection<Guid>? CompanyIds = null);
 
 public sealed record DocumentPage(
     IReadOnlyList<SupplierDocument> Items,

@@ -31,6 +31,8 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         user.UserRoles.Add(new UserRole { Role = await db.FindRoleByCodeAsync(SecurityCatalog.ProviderRole, cancellationToken) ?? throw new InvalidOperationException("El rol de proveedor no está configurado.") });
+        // Un proveedor puede facturar a cualquier sociedad del grupo; el administrador puede restringirlo después.
+        user.SetCompanies(await db.ListActiveCompaniesAsync(cancellationToken));
         db.AddUser(user);
         await db.SaveChangesAsync(cancellationToken);
         return ToResponse(user);

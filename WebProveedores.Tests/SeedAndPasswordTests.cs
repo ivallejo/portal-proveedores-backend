@@ -43,6 +43,9 @@ public sealed class SeedAndPasswordTests : IDisposable
         Assert.Equal(4, await db.Companies.CountAsync());
         Assert.Equal(SecurityCatalog.Roles.Count, await db.Roles.CountAsync());
         Assert.Equal(2, await db.Areas.CountAsync());
+        // «companies» limita las sociedades; si se omite, el usuario trabaja con todas.
+        Assert.Equal(["1001", "1003"], await db.Set<UserCompany>().Where(item => item.UserId == approver.Id).Select(item => item.Company.Code).OrderBy(code => code).ToListAsync());
+        Assert.Equal(4, await db.Set<UserCompany>().CountAsync(item => item.UserId == own.Id));
     }
 
     [Fact]
@@ -146,7 +149,7 @@ public sealed class SeedAndPasswordTests : IDisposable
           "companies": [ { "code": "1001", "ruc": "20000000001" } ],
           "areas": ["Finanzas", "Logística"],
           "users": [
-            { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas" },
+            { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas", "companies": ["1001", "1003"] },
             { "username": "rocio.medina", "name": "Rocío Medina", "email": "rocio@ejemplo.test", "role": "INTERNAL_USER", "temporaryPassword": "Propia_Clave_9" }
           ]
         }

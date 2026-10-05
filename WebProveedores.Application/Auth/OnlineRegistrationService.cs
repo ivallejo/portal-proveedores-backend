@@ -46,6 +46,8 @@ public sealed class OnlineRegistrationService(
             };
             user.Emails.Add(new UserEmail { Email = provider.Correo!.Trim().ToLowerInvariant(), IsPrimary = true });
             user.UserRoles.Add(new UserRole { Role = await db.FindRoleByCodeAsync(SecurityCatalog.ProviderRole, cancellationToken) ?? throw new InvalidOperationException("El rol de proveedor no está configurado.") });
+            // Un proveedor puede facturar a cualquier sociedad del grupo; el administrador puede restringirlo después.
+            user.SetCompanies(await db.ListActiveCompaniesAsync(cancellationToken));
             db.AddUser(user);
         }
         else

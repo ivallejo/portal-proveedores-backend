@@ -10,7 +10,7 @@ namespace WebProveedores.Application.Documents;
 
 public interface IDocumentService
 {
-    Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(Guid userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AreaResponse>> ListAreasAsync(CancellationToken cancellationToken);
     Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderRequest request, CancellationToken cancellationToken);
     Task<DocumentDetailResponse> RegisterAsync(Guid userId, RegisterElectronicDocumentCommand command, CancellationToken cancellationToken);
@@ -46,8 +46,12 @@ public sealed class DocumentService(
 
     // ——— Catálogos ———
 
-    public async Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(CancellationToken cancellationToken) =>
-        (await documents.ListCompaniesAsync(cancellationToken)).Select(ToResponse).ToArray();
+    /// <summary>Sociedades con las que trabaja el usuario (el administrador ve todas).</summary>
+    public async Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var actor = await LoadActorAsync(userId, cancellationToken);
+        return (await documents.ListCompaniesAsync(cancellationToken)).Where(company => actor.HasCompany(company.Id)).Select(ToResponse).ToArray();
+    }
 
     public async Task<IReadOnlyList<AreaResponse>> ListAreasAsync(CancellationToken cancellationToken)
     {
@@ -58,7 +62,7 @@ public sealed class DocumentService(
             .Select(group => new AreaResponse(
                 group.Key.AreaId,
                 group.Key.AreaName,
-                group.OrderBy(item => item.Name).Select(item => new ApproverResponse(item.UserId, item.Name, item.Email)).ToArray()))
+                group.OrderBy(item => item.Name).Select(item => new ApproverResponse(item.UserId, item.Name, item.Email, item.CompanyCodes)).ToArray()))
             .ToArray();
     }
 
@@ -66,8 +70,8 @@ public sealed class DocumentService(
 
     public async Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderRequest request, CancellationToken cancellationToken)
     {
-        await LoadActorAsync(userId, cancellationToken);
-        var company = await RequireCompanyAsync(request.CompanyCode, cancellationToken);
+        var actor = await LoadActorAsync(userId, cancellationToken);
+        var company = await RequireCompanyAsync(actor, request.CompanyCode, cancellationToken);
         var order = await sap.ValidateOrderAsync(company.Code, request.OrderType, request.Number.Trim().ToUpperInvariant(), cancellationToken);
         return order is null ? null : new OrderValidationResponse(order.Number, order.Type, order.Description, order.Balance);
     }
@@ -79,7 +83,7 @@ public sealed class DocumentService(
         if (command.EntryType == DocumentEntryType.Special)
             throw new ArgumentException("Los documentos especiales se registran con su propio formulario.");
 
-        var company = await RequireCompanyAsync(command.CompanyCode, cancellationToken);
+        var company = await RequireCompanyAsync(actor, command.CompanyCode, cancellationToken);
         var xmlBytes = await ReadRequiredAsync(command.Xml, "XML del comprobante", [".xml"], cancellationToken);
         var electronic = UblDocumentReader.Read(new MemoryStream(xmlBytes))
             ?? throw new ArgumentException("El XML no es un comprobante electrónico válido (UBL 2.1).");
@@ -122,6 +126,7 @@ public sealed class DocumentService(
             if (command.ApproverId is null) throw new ArgumentException("Selecciona el área y el aprobador del documento.");
             approver = await documents.FindApproverAsync(command.ApproverId.Value, cancellationToken)
                 ?? throw new ArgumentException("El aprobador seleccionado no es válido.");
+            EnsureApproverWorksWith(approver, company);
         }
 
         await EnsureValidInSapAsync(company.Code, electronic.IssuerRuc, electronic.IssuedAt, electronic.Number, electronic.Total, checkSunat: true, cancellationToken);
@@ -207,7 +212,7 @@ public sealed class DocumentService(
         if (!actor.IsInternal && !actor.IsAdmin)
             throw new UnauthorizedAccessException("Los documentos especiales solo los registra personal interno.");
 
-        var company = await RequireCompanyAsync(command.CompanyCode, cancellationToken);
+        var company = await RequireCompanyAsync(actor, command.CompanyCode, cancellationToken);
         var ruc = command.ProviderRuc.Trim();
         if (ruc.Length != 11 || !ruc.All(char.IsAsciiDigit)) throw new ArgumentException("El RUC del proveedor debe tener 11 dígitos.");
         if (string.IsNullOrWhiteSpace(command.Number)) throw new ArgumentException("Ingresa el número del documento.");
@@ -270,8 +275,9 @@ public sealed class DocumentService(
         query = inbox switch
         {
             DocumentInbox.Approvals when actor.IsAdmin => query,
-            DocumentInbox.Approvals when actor.IsApprover => query with { ApproverId = actor.Id, ApproverAreaId = actor.AreaId },
-            DocumentInbox.Accounting when actor.IsAdmin || actor.IsAccounting => query,
+            DocumentInbox.Approvals when actor.IsApprover => query with { ApproverId = actor.Id, ApproverAreaId = actor.AreaId, CompanyIds = actor.CompanyIds },
+            DocumentInbox.Accounting when actor.IsAdmin => query,
+            DocumentInbox.Accounting when actor.IsAccounting => query with { CompanyIds = actor.CompanyIds },
             DocumentInbox.Mine when actor.IsProvider && !actor.IsAdmin => query with { OwnerRuc = actor.Ruc },
             DocumentInbox.Mine when !actor.IsAdmin => query with { RegisteredById = actor.Id },
             DocumentInbox.Mine => query,
@@ -320,6 +326,7 @@ public sealed class DocumentService(
             actor = await LoadActorAsync(userId, cancellationToken);
             if (!actor.IsAccounting && !actor.IsAdmin) throw new UnauthorizedAccessException("Solo Cuentas por pagar puede rechazar en contabilización.");
             document = await RequireDocumentAsync(documentId, cancellationToken);
+            EnsureCompanyAccess(actor, document);
         }
 
         document.Reject(stage, request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
@@ -337,6 +344,7 @@ public sealed class DocumentService(
         var (actor, document) = await LoadForApprovalAsync(userId, documentId, cancellationToken);
         var approver = await documents.FindApproverAsync(request.ApproverId, cancellationToken)
             ?? throw new ArgumentException("El aprobador seleccionado no es válido.");
+        EnsureApproverWorksWith(approver, document.Company);
         document.Reassign(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email, request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
         await documents.SaveChangesAsync(cancellationToken);
         await NotifyAsync(approver.Email, $"Documento por aprobar: {document.Number}",
@@ -349,6 +357,7 @@ public sealed class DocumentService(
         var actor = await LoadActorAsync(userId, cancellationToken);
         if (!actor.IsAccounting && !actor.IsAdmin) throw new UnauthorizedAccessException("Solo Cuentas por pagar puede observar documentos.");
         var document = await RequireDocumentAsync(documentId, cancellationToken);
+        EnsureCompanyAccess(actor, document);
         var email = request.Email.Trim().ToLowerInvariant();
         document.Observe(request.Reason, email, actor.Label, clock.GetUtcNow().UtcDateTime);
         await documents.SaveChangesAsync(cancellationToken);
@@ -365,16 +374,18 @@ public sealed class DocumentService(
         if (user is null || !user.IsActive) throw new UnauthorizedAccessException("La sesión no es válida.");
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
         var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Code).ToHashSet();
-        return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles);
+        var companies = user.UserCompanies.Select(item => item.CompanyId).ToHashSet();
+        return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles, companies);
     }
 
     private async Task<(DocumentActor Actor, SupplierDocument Document)> LoadVisibleAsync(Guid userId, Guid documentId, CancellationToken cancellationToken)
     {
         var actor = await LoadActorAsync(userId, cancellationToken);
         var document = await RequireDocumentAsync(documentId, cancellationToken);
+        // Lo propio (registrado, emitido con su RUC o asignado a él) siempre es visible; lo demás, solo en sus sociedades.
         var visible = actor.IsAdmin
-            || actor.IsAccounting
-            || (actor.IsApprover && (document.ApproverId == actor.Id || (actor.AreaId is not null && document.AreaId == actor.AreaId)))
+            || (actor.IsAccounting && actor.HasCompany(document.CompanyId))
+            || (actor.IsApprover && (document.ApproverId == actor.Id || (actor.AreaId is not null && document.AreaId == actor.AreaId && actor.HasCompany(document.CompanyId))))
             || (actor.IsProvider && document.ProviderRuc == actor.Ruc)
             || document.RegisteredById == actor.Id;
         if (!visible) throw new KeyNotFoundException("El documento no existe.");
@@ -393,10 +404,23 @@ public sealed class DocumentService(
     private async Task<SupplierDocument> RequireDocumentAsync(Guid documentId, CancellationToken cancellationToken) =>
         await documents.FindAsync(documentId, cancellationToken) ?? throw new KeyNotFoundException("El documento no existe.");
 
-    private async Task<Company> RequireCompanyAsync(string code, CancellationToken cancellationToken)
+    private async Task<Company> RequireCompanyAsync(DocumentActor actor, string code, CancellationToken cancellationToken)
     {
         var company = await documents.FindCompanyAsync(code.Trim(), cancellationToken);
-        return company is { IsActive: true } ? company : throw new ArgumentException("La sociedad seleccionada no es válida.");
+        if (company is not { IsActive: true }) throw new ArgumentException("La sociedad seleccionada no es válida.");
+        if (!actor.HasCompany(company.Id)) throw new UnauthorizedAccessException($"No tienes asignada la sociedad {company.Name}.");
+        return company;
+    }
+
+    private static void EnsureCompanyAccess(DocumentActor actor, SupplierDocument document)
+    {
+        if (!actor.HasCompany(document.CompanyId)) throw new UnauthorizedAccessException("No tienes asignada la sociedad de este documento.");
+    }
+
+    private static void EnsureApproverWorksWith(ApproverRecord approver, Company company)
+    {
+        if (!approver.CompanyCodes.Contains(company.Code))
+            throw new ArgumentException($"{approver.Name} no aprueba documentos de la sociedad {company.Name}.");
     }
 
     private async Task EnsureValidInSapAsync(string companyCode, string ruc, DateOnly issuedAt, string number, decimal amount, bool checkSunat, CancellationToken cancellationToken)
@@ -522,9 +546,11 @@ public sealed class DocumentService(
         document.Attachments.OrderBy(item => item.Kind).ThenBy(item => item.FileName).Select(item => new AttachmentResponse(item.Id, item.Kind, item.FileName, item.SizeBytes)).ToArray(),
         document.Events.OrderBy(item => item.Sequence).Select(item => new DocumentEventResponse(item.Title, item.Actor, item.Kind, item.OccurredAtUtc, item.Note)).ToArray());
 
-    private sealed record DocumentActor(Guid Id, string Name, string Email, string? Ruc, Guid? AreaId, string? AreaName, IReadOnlySet<string> Roles)
+    private sealed record DocumentActor(Guid Id, string Name, string Email, string? Ruc, Guid? AreaId, string? AreaName, IReadOnlySet<string> Roles, IReadOnlySet<Guid> CompanyIds)
     {
         public bool IsAdmin => Roles.Contains(SecurityCatalog.AdministratorRole);
+        /// <summary>El administrador trabaja con todas las sociedades.</summary>
+        public bool HasCompany(Guid companyId) => IsAdmin || CompanyIds.Contains(companyId);
         public bool IsProvider => Roles.Contains(SecurityCatalog.ProviderRole);
         public bool IsInternal => Roles.Contains(SecurityCatalog.InternalUserRole);
         public bool IsApprover => Roles.Contains(SecurityCatalog.AreaApproverRole);

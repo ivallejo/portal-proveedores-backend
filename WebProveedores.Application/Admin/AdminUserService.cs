@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 namespace WebProveedores.Application.Admin;
 
@@ -29,6 +30,7 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         user.UserRoles.Add(new UserRole { Role = role });
+        user.SetCompanies(await ResolveCompaniesAsync(request.CompanyCodes, allIfEmpty: true, cancellationToken));
         db.AddUser(user);
         await db.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
@@ -46,6 +48,16 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
         return ToResponse(user);
     }
 
+    public async Task<AdminUserResponse?> AssignCompaniesAsync(Guid id, AssignCompaniesRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.FindTrackedByIdAsync(id, cancellationToken);
+        if (user is null) return null;
+        user.SetCompanies(await ResolveCompaniesAsync(request.CompanyCodes, allIfEmpty: false, cancellationToken));
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return ToResponse(user);
+    }
+
     public async Task<AdminUserResponse?> SetStatusAsync(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
     {
         var user = await db.FindTrackedByIdAsync(id, cancellationToken);
@@ -54,6 +66,17 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
         user.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
+    }
+
+    private async Task<IReadOnlyList<Company>> ResolveCompaniesAsync(IReadOnlyList<string> codes, bool allIfEmpty, CancellationToken cancellationToken)
+    {
+        var active = await db.ListActiveCompaniesAsync(cancellationToken);
+        var wanted = codes.Select(code => code.Trim()).Where(code => code.Length > 0).Distinct().ToArray();
+        if (wanted.Length == 0)
+            return allIfEmpty ? active : throw new ArgumentException("Asigna al menos una sociedad.");
+        var unknown = wanted.Where(code => active.All(company => company.Code != code)).ToArray();
+        if (unknown.Length > 0) throw new ArgumentException($"Sociedad no válida: {string.Join(", ", unknown)}.");
+        return active.Where(company => wanted.Contains(company.Code)).ToArray();
     }
 
     private async Task<Role> FindRoleAsync(string value, CancellationToken cancellationToken)
@@ -66,6 +89,7 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
     {
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
         var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Name).OrderBy(name => name).ToArray();
-        return new AdminUserResponse(user.Id, user.Username, email, user.CompanyName, user.Ruc ?? string.Empty, roles.FirstOrDefault() ?? string.Empty, roles, user.IsActive, user.CreatedAtUtc);
+        var companies = user.UserCompanies.Select(item => item.Company.Code).OrderBy(code => code).ToArray();
+        return new AdminUserResponse(user.Id, user.Username, email, user.CompanyName, user.Ruc ?? string.Empty, roles.FirstOrDefault() ?? string.Empty, roles, companies, user.IsActive, user.CreatedAtUtc);
     }
 }

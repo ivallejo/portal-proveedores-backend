@@ -112,6 +112,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             errors.Add($"El usuario «{duplicate.Key}» está repetido.");
 
         var areaNames = seed.Areas.Select(area => area.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var companyCodes = BaseCompanies.Select(company => company.Code).Concat(seed.Companies.Select(company => company.Code.Trim())).ToHashSet();
         foreach (var user in seed.Users)
         {
             var label = string.IsNullOrWhiteSpace(user.Username) ? "(sin usuario)" : user.Username;
@@ -123,6 +124,9 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             if (user.Role == SecurityCatalog.AreaApproverRole && string.IsNullOrWhiteSpace(user.Area)) errors.Add($"El aprobador «{label}» necesita un área.");
             if (!string.IsNullOrWhiteSpace(user.Area) && !areaNames.Contains(user.Area.Trim()))
                 errors.Add($"El usuario «{label}» usa el área «{user.Area}», que no está en la lista «areas».");
+            foreach (var code in user.Companies ?? [])
+                if (!companyCodes.Contains(code.Trim())) errors.Add($"El usuario «{label}» usa la sociedad «{code}», que no es una sociedad base ni está en «companies».");
+            if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
             if (!MeetsPolicy(user.TemporaryPassword ?? fallbackPassword))
                 errors.Add($"El usuario «{label}» necesita una contraseña temporal de mínimo 8 caracteres con mayúscula, minúscula y número (en «temporaryPassword» o en Seed:TemporaryPassword).");
         }
@@ -164,6 +168,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
     private async Task ApplyUsersAsync(SeedFile seed, CancellationToken cancellationToken)
     {
         var roles = await db.Roles.ToDictionaryAsync(role => role.Code, cancellationToken);
+        var companies = await db.Companies.Where(company => company.IsActive).ToListAsync(cancellationToken);
         var areas = await db.Areas.ToDictionaryAsync(area => area.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var usernames = (await db.Users.Select(user => user.Username).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var hasher = new PasswordHasher<AppUser>();
@@ -194,6 +199,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             user.PasswordHash = hasher.HashPassword(user, item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!);
             user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
             user.UserRoles.Add(new UserRole { RoleId = role.Id });
+            user.SetCompanies(item.Companies is null ? companies : companies.Where(company => item.Companies.Any(code => code.Trim() == company.Code)));
             db.Users.Add(user);
             usernames.Add(username);
             created++;
@@ -238,6 +244,8 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         public string Role { get; init; } = string.Empty;
         public string? Area { get; init; }
         public string? Ruc { get; init; }
+        /// <summary>Códigos de sociedad; si se omite, el usuario trabaja con todas las sociedades activas.</summary>
+        public List<string>? Companies { get; init; }
         public string? TemporaryPassword { get; init; }
     }
 }

@@ -56,6 +56,7 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
             var areaId = query.ApproverAreaId;
             scoped = scoped.Where(document => document.ApproverId == approverId || (areaId != null && document.AreaId == areaId));
         }
+        if (query.CompanyIds is { } companyIds) scoped = scoped.Where(document => companyIds.Contains(document.CompanyId));
         if (query.OwnerRuc is { } ownerRuc) scoped = scoped.Where(document => document.ProviderRuc == ownerRuc);
         if (query.RegisteredById is { } registeredBy) scoped = scoped.Where(document => document.RegisteredById == registeredBy);
         if (query.ProviderRuc is { } ruc) scoped = scoped.Where(document => document.ProviderRuc.Contains(ruc));
@@ -105,7 +106,8 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
             user.CompanyName,
             user.Emails.Where(email => email.IsActive).OrderByDescending(email => email.IsPrimary).Select(email => email.Email).FirstOrDefault() ?? string.Empty,
             user.AreaId!.Value,
-            user.Area!.Name);
+            user.Area!.Name,
+            user.UserCompanies.Select(userCompany => userCompany.Company.Code).ToList());
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException?.Message.Contains("IX_Documents_ProviderRuc_Number", StringComparison.Ordinal) == true;

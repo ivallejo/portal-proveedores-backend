@@ -1,3 +1,4 @@
+using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 
 namespace WebProveedores.Application.Abstractions.Persistence;
@@ -12,6 +13,8 @@ public interface IIdentityRepository
     Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<PasswordResetToken?> FindValidTokenAsync(string ruc, string tokenHash, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
     Task<IReadOnlyList<AppUser>> ListUsersAsync(CancellationToken cancellationToken);
+    /// <summary>Sociedades activas, con seguimiento (para asignarlas a usuarios).</summary>
+    Task<IReadOnlyList<Company>> ListActiveCompaniesAsync(CancellationToken cancellationToken);
     Task<bool> UserExistsByRucAsync(string ruc, CancellationToken cancellationToken);
     Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken);
     Task<bool> UsernameExistsAsync(string username, CancellationToken cancellationToken);

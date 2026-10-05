@@ -3,6 +3,7 @@
   // Las contraseñas no van aquí: todos usan Seed__TemporaryPassword del .env y deben cambiarla al ingresar.
   // Para recrear la base local con estos datos: scripts/reset-dev-db.sh
   // Producción usa seed.production.json (fuera de git); ver seed.example.json.
+  // «companies» limita las sociedades del usuario; si se omite, trabaja con todas.
 
   "areas": ["Operaciones", "Logística", "Compras", "Finanzas", "Contabilidad"],
 
@@ -25,7 +26,9 @@
       "name": "Segundo aprobador de prueba",
       "email": "prueba.aprobador2@ejemplo.test",
       "role": "AREA_APPROVER",
-      "area": "Operaciones"
+      "area": "Operaciones",
+      // Solo Naviera: sirve para probar el filtro por sociedad.
+      "companies": ["1001"]
     },
     {
       "username": "prueba.cxp",

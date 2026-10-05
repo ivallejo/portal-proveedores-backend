@@ -112,14 +112,20 @@ public sealed class DocumentsController(IDocumentService documents) : Controller
 [Authorize]
 public sealed class CatalogController(IDocumentService documents) : ControllerBase
 {
+    /// <summary>Sociedades del usuario en sesión (el administrador ve todas).</summary>
     [HttpGet("companies")]
     public async Task<ActionResult<IReadOnlyList<CompanyResponse>>> Companies(CancellationToken cancellationToken) =>
-        Ok(await documents.ListCompaniesAsync(cancellationToken));
+        Ok(await documents.ListCompaniesAsync(UserId, cancellationToken));
 
     /// <summary>Áreas con sus aprobadores activos.</summary>
     [HttpGet("areas")]
     public async Task<ActionResult<IReadOnlyList<AreaResponse>>> Areas(CancellationToken cancellationToken) =>
         Ok(await documents.ListAreasAsync(cancellationToken));
+
+    private Guid UserId =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id)
+            ? id
+            : throw new UnauthorizedAccessException("La sesión no es válida.");
 }
 
 public sealed class RegisterDocumentForm

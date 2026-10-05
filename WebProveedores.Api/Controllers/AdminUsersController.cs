@@ -20,6 +20,10 @@ public sealed class AdminUsersController(IAdminUserService users) : ControllerBa
     public async Task<ActionResult<AdminUserResponse>> AssignRole(Guid id, AssignRoleRequest request, CancellationToken cancellationToken)
         => await users.AssignRoleAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
 
+    [HttpPut("{id:guid}/companies")]
+    public async Task<ActionResult<AdminUserResponse>> AssignCompanies(Guid id, AssignCompaniesRequest request, CancellationToken cancellationToken)
+        => await users.AssignCompaniesAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<AdminUserResponse>> SetStatus(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken) => await users.SetStatusAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
 }
