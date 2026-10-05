@@ -1,5 +1,6 @@
 {
-  // Copia este archivo como seed.json (está ignorado por git) y reemplaza los datos de ejemplo.
+  // Plantilla para PRODUCCIÓN: cópiala como seed.production.json (ignorado por git), pon los datos reales
+  // y apunta Seed__FilePath a ese archivo. Desarrollo usa seed.development.json.
   // El seed solo CREA lo que falte: nunca modifica ni borra usuarios, áreas o sociedades existentes.
   // Roles válidos: PROVIDER, INTERNAL_USER, AREA_APPROVER, ACCOUNTS_PAYABLE, ADMINISTRATOR.
 

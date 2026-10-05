@@ -235,6 +235,8 @@ Documentos especiales: van directo a *PendingAccounting* (confirmado en los fluj
 Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con migraciones** (las migraciones solo cambian el esquema). Es idempotente: solo crea lo que falta y nunca modifica ni borra registros existentes.
 
 - Siempre: las sociedades base 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA, y los roles y el administrador (`AdminBootstrapper`).
+- Desarrollo: `seed.development.json` (versionado, ficticio: áreas Operaciones, Logística, Compras, Finanzas, Contabilidad y usuarios `prueba.admin`, `prueba.aprobador`, `prueba.aprobador2`, `prueba.cxp`, `prueba.interno`). `scripts/reset-dev-db.sh` borra la base local (solo si la conexión apunta a localhost) para recrearla.
+- Producción: `seed.production.json` (fuera de git) sobre una base nueva. `Seed:FilePath` relativo se busca en el directorio actual y en el padre.
 - Con un archivo de seed: sociedades con su RUC, áreas y **usuarios reales**. El archivo se busca en `Seed__FilePath`, o `seed.json` en el directorio actual o en el padre. Está ignorado por git porque contiene datos personales y contraseñas temporales; la plantilla es `seed.example.json`.
 - Cada usuario se crea con una **contraseña temporal** (`temporaryPassword` del usuario o `Seed__TemporaryPassword`; mínimo 8 caracteres con mayúscula, minúscula y número) y la marca `MustChangePassword`.
 - Si el archivo tiene errores (rol desconocido, correo inválido, área inexistente, contraseña débil…) el arranque falla y lista todos los problemas, sin crear nada.

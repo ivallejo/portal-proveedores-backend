@@ -7,3 +7,4 @@ App_Data/
 
 # Datos reales de carga inicial (contienen contraseñas temporales): no versionar
 seed.json
+seed.production.json

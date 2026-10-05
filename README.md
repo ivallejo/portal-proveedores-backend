@@ -135,7 +135,12 @@ Los roles iniciales son `Proveedor`, `Usuario interno`, `Aprobador de área`, `G
 
 La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentItems`, `DocumentAttachments` y `DocumentEvents`. Los adjuntos se guardan en disco (`Storage__DocumentsPath`, por defecto `App_Data/documents`). Detalle de endpoints y reglas en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#módulo-de-documentos).
 
-Para cargar los usuarios, áreas y RUC reales, copia `seed.example.json` como `seed.json` (ignorado por git), complétalo y define `Seed__TemporaryPassword` en el `.env` (o `temporaryPassword` por usuario). Al iniciar se crean solo los que falten; cada usuario debe cambiar su contraseña temporal al ingresar. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#datos-iniciales-seed).
+Datos iniciales por entorno (el seed solo **crea** lo que falta; nunca modifica ni borra):
+
+- **Desarrollo / QA**: `seed.development.json` (versionado, datos ficticios `prueba.*`). En el `.env`: `Seed__FilePath=seed.development.json` y `Seed__TemporaryPassword`. Para empezar de cero: `./scripts/reset-dev-db.sh` (borra la base local y los adjuntos; al iniciar la API se migra y se carga el seed).
+- **Producción**: base nueva + `seed.production.json` con los datos reales (ignorado por git; plantilla en `seed.example.json`), apuntado con `Seed__FilePath`. Después de la salida, los cambios se hacen desde las pantallas de Configuración, no con el seed. Nunca reutilizar la base de desarrollo.
+
+Cada usuario del seed debe cambiar su contraseña temporal al ingresar. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#datos-iniciales-seed).
 
 ## Estructura
 

@@ -65,11 +65,13 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     private string? ResolveSeedFile()
     {
+        // Una ruta relativa se busca en el directorio actual y en el padre (raíz del repo al ejecutar desde WebProveedores.Api).
         var configured = configuration["Seed:FilePath"];
         if (!string.IsNullOrWhiteSpace(configured))
         {
-            var full = Path.GetFullPath(configured);
-            return File.Exists(full) ? full : throw new FileNotFoundException($"No se encontró el archivo de seed configurado en Seed:FilePath: {full}");
+            var candidates = Path.IsPathRooted(configured) ? [configured] : new[] { configured, Path.Combine("..", configured) };
+            return candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists)
+                ?? throw new FileNotFoundException($"No se encontró el archivo de seed configurado en Seed:FilePath: {Path.GetFullPath(configured)}");
         }
         return new[] { "seed.json", Path.Combine("..", "seed.json") }.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
     }
