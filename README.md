@@ -99,14 +99,11 @@ Endpoints locales:
 - Swagger: [http://localhost:5080/swagger](http://localhost:5080/swagger)
 - OpenAPI: [http://localhost:5080/swagger/v1/swagger.json](http://localhost:5080/swagger/v1/swagger.json)
 
-## Administrador inicial
+## Administradores
 
-`AdminBootstrapper` crea el administrador si el correo configurado no existe. No modifica usuarios existentes ni reinicia contraseñas.
+No hay un administrador genérico: los administradores son usuarios nominales del archivo de seed (rol `ADMINISTRATOR`), con contraseña temporal que deben cambiar al ingresar. En desarrollo es `prueba.admin` (`seed.development.json`).
 
-```text
-Correo: admin@naviera.local
-Contraseña: valor de `BootstrapAdmin__Password` en el archivo `.env`
-```
+Si no queda ningún administrador activo, la API no arranca fuera de desarrollo (`Seed__RequireAdministrator`, por defecto `true`). Para recuperar el acceso, agrega un administrador al seed y reinicia: el seed crea los usuarios que falten.
 
 Roles disponibles: `Proveedor`, `Usuario interno`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`.
 

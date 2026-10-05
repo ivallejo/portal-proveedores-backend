@@ -11,7 +11,7 @@ using WebProveedores.Domain.Entities;
 namespace WebProveedores.Infrastructure.Persistence;
 
 /// <summary>
-/// Carga los datos de referencia al iniciar. Las cuatro sociedades base siempre existen.
+/// Carga los datos de referencia al iniciar. Los roles del catálogo y las cuatro sociedades base siempre existen.
 /// Si hay un archivo de seed (<c>Seed:FilePath</c> o <c>seed.json</c>) agrega además las sociedades
 /// con su RUC, las áreas y los usuarios reales. Es idempotente y nunca modifica ni borra registros
 /// existentes (solo completa el RUC de una sociedad que aún no lo tiene).
@@ -36,6 +36,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
+        await SeedRolesAsync(cancellationToken);
         await SeedBaseCompaniesAsync(cancellationToken);
 
         var path = ResolveSeedFile();
@@ -53,6 +54,14 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         await ApplyCompaniesAsync(seed, cancellationToken);
         await ApplyAreasAsync(seed, cancellationToken);
         await ApplyUsersAsync(seed, cancellationToken);
+    }
+
+    private async Task SeedRolesAsync(CancellationToken cancellationToken)
+    {
+        var existing = await db.Roles.Select(role => role.Code).ToListAsync(cancellationToken);
+        foreach (var role in SecurityCatalog.Roles.Where(role => !existing.Contains(role.Key)))
+            db.Roles.Add(new Role { Code = role.Key, Name = role.Value });
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task SeedBaseCompaniesAsync(CancellationToken cancellationToken)

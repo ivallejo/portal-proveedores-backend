@@ -87,7 +87,6 @@ WebProveedores.Infrastructure/
 ├── Persistence/DatabaseInitializer.cs
 ├── Providers/SapProviderClient.cs
 ├── Auth/SmtpEmailSender.cs
-├── Auth/AdminBootstrapper.cs
 └── Migrations/
 ```
 
@@ -141,9 +140,8 @@ MSSQL_SA_PASSWORD
 MSSQL_PORT
 ConnectionStrings__DefaultConnection
 Jwt__SigningKey
-BootstrapAdmin__Email
-BootstrapAdmin__Password
-BootstrapAdmin__CompanyName
+Seed__FilePath
+Seed__TemporaryPassword
 Frontend__BaseUrl
 Sap__BaseUrl
 Sap__Client
@@ -198,7 +196,7 @@ Roles y políticas (claims con el código del rol):
 | `Documents.Approve` | `AREA_APPROVER`, `ADMINISTRATOR` |
 | `Documents.Account` | `ACCOUNTS_PAYABLE`, `ADMINISTRATOR` |
 
-`INTERNAL_USER` («Usuario interno») se agregó al catálogo de seguridad; `AdminBootstrapper` lo crea al iniciar.
+`INTERNAL_USER` («Usuario interno») se agregó al catálogo de seguridad; `ReferenceDataSeeder` crea los roles del catálogo al iniciar.
 
 Endpoints (JWT obligatorio, enums en texto):
 
@@ -234,7 +232,7 @@ Documentos especiales: van directo a *PendingAccounting* (confirmado en los fluj
 
 Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con migraciones** (las migraciones solo cambian el esquema). Es idempotente: solo crea lo que falta y nunca modifica ni borra registros existentes.
 
-- Siempre: las sociedades base 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA, y los roles y el administrador (`AdminBootstrapper`).
+- Siempre: las sociedades base 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA, y los roles del catálogo. No hay administrador genérico: los administradores vienen del seed, y sin ninguno activo la API no arranca fuera de desarrollo (`Seed:RequireAdministrator`).
 - Desarrollo: `seed.development.json` (versionado, ficticio: áreas Operaciones, Logística, Compras, Finanzas, Contabilidad y usuarios `prueba.admin`, `prueba.aprobador`, `prueba.aprobador2`, `prueba.cxp`, `prueba.interno`). `scripts/reset-dev-db.sh` borra la base local (solo si la conexión apunta a localhost) para recrearla.
 - Producción: `seed.production.json` (fuera de git) sobre una base nueva. `Seed:FilePath` relativo se busca en el directorio actual y en el padre.
 - Con un archivo de seed: sociedades con su RUC, áreas y **usuarios reales**. El archivo se busca en `Seed__FilePath`, o `seed.json` en el directorio actual o en el padre. Está ignorado por git porque contiene datos personales y contraseñas temporales; la plantilla es `seed.example.json`.

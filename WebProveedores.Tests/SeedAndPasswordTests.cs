@@ -41,6 +41,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         Assert.Equal(2, await db.Users.CountAsync());
         Assert.Equal("20000000001", (await db.Companies.SingleAsync(company => company.Code == "1001")).Ruc);
         Assert.Equal(4, await db.Companies.CountAsync());
+        Assert.Equal(SecurityCatalog.Roles.Count, await db.Roles.CountAsync());
         Assert.Equal(2, await db.Areas.CountAsync());
     }
 
@@ -88,7 +89,7 @@ public sealed class SeedAndPasswordTests : IDisposable
     }
 
     [Fact]
-    public async Task Without_a_seed_file_only_the_base_companies_are_created()
+    public async Task Without_a_seed_file_only_the_roles_and_base_companies_are_created()
     {
         await using var db = CreateContext();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Seed:FilePath"] = null }).Build();

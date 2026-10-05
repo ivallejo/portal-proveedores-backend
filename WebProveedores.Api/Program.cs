@@ -46,7 +46,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
-builder.Services.AddScoped<AdminBootstrapper>();
 builder.Services.AddScoped<ReferenceDataSeeder>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
