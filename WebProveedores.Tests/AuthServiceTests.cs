@@ -7,7 +7,6 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Domain.Entities;
-using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
 

@@ -86,7 +86,7 @@ WebProveedores.Infrastructure/
 ├── Persistence/EfIdentityRepository.cs
 ├── Persistence/DatabaseInitializer.cs
 ├── Providers/SapProviderClient.cs
-├── Auth/SmtpEmailSender.cs
+├── Email/ (EmailSettings, SmtpEmailSender, RedirectingEmailSender, LogEmailSender)
 └── Migrations/
 ```
 
@@ -161,11 +161,12 @@ Smtp__Username
 Smtp__Password
 Smtp__From
 Smtp__EnableSsl
-Smtp__RedirectEnabled
-Smtp__TestRecipient
+Email__Mode
+Email__TestRecipient
+Email__AllowSendOutsideProduction
 ```
 
-Con `Smtp__RedirectEnabled=true`, todo correo se redirige a `Smtp__TestRecipient`; el asunto se marca `[PRUEBA SMTP]` y el HTML conserva el destinatario original. Para Gmail se usa una contraseña de aplicación.
+Con `Email__Mode=Redirect`, todo correo va a `Email__TestRecipient`; el asunto se marca `[PRUEBA]` y el HTML conserva el destinatario original. Para Gmail se usa una contraseña de aplicación. Ver «Servicios externos».
 
 `SapProviderClient` ejecuta:
 
@@ -331,8 +332,7 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 ## Servicios externos
 
 - SAP o correo caídos responden **503** con un mensaje para reintentar (`ServiceUnavailableException`), no 500. La consulta de RUC requiere la VPN hacia `Sap:BaseUrl`.
-- Desarrollo: `Smtp:RedirectEnabled=true` + `Smtp:TestRecipient` envía todos los correos solo al buzón de pruebas (asunto «[PRUEBA SMTP]» y aviso del destinatario original); nunca llegan al proveedor. Es el modo a usar al levantar el backend localmente.
-- `Smtp:Enabled=false` registra `LogEmailSender`: no envía nada y deja en el log los enlaces (activación, cambio de contraseña). Solo para trabajar sin SMTP.
+- Correo (`Infrastructure/Email`): `Email:Mode` = `Send` | `Redirect` | `Log`, resuelto y validado al arrancar por `EmailSettings` (por defecto `Send` en producción y `Redirect` fuera de ella, o `Log` si no hay `Email:TestRecipient`). `RedirectingEmailSender` envuelve a `SmtpEmailSender` y entrega todo al buzón de pruebas. `Send` fuera de producción exige `Email:AllowSendOutsideProduction=true`. Se aceptan los nombres antiguos `Smtp:RedirectEnabled`/`Smtp:TestRecipient`. Hoy el transporte es Gmail SMTP; otro proveedor = otra implementación de `IEmailSender`.
 
 ## Administración de usuarios
 

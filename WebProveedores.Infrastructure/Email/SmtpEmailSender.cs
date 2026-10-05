@@ -3,10 +3,10 @@ using System.Net.Mail;
 using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Auth;
 
-namespace WebProveedores.Infrastructure.Auth;
+namespace WebProveedores.Infrastructure.Email;
 
+/// <summary>Envío por SMTP (hoy Gmail). La redirección de pruebas la hace <see cref="RedirectingEmailSender"/>.</summary>
 public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
 {
     public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
@@ -16,33 +16,15 @@ public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
         var password = configuration["Smtp:Password"] ?? throw new InvalidOperationException("SMTP password no está configurado.");
         var port = configuration.GetValue("Smtp:Port", 587);
         var from = configuration["Smtp:From"] ?? username;
-        var redirectEnabled = configuration.GetValue("Smtp:RedirectEnabled", false);
-        var testRecipient = configuration["Smtp:TestRecipient"];
-        var targetRecipient = recipient;
-        var targetSubject = subject;
-        var targetBody = body;
-
-        if (redirectEnabled)
-        {
-            if (string.IsNullOrWhiteSpace(testRecipient))
-                throw new InvalidOperationException("SMTP está en modo prueba, pero Smtp:TestRecipient no está configurado.");
-
-            targetRecipient = testRecipient;
-            targetSubject = $"[PRUEBA SMTP] {subject}";
-            targetBody = isHtml
-                ? $"<div style=\"margin:0 auto 16px;max-width:600px;padding:10px 16px;background:#fff4ed;border:1px solid #ed7624;border-radius:8px;font:14px Arial,sans-serif;color:#7a3a12;\">Correo de prueba · destinatario original: {System.Net.WebUtility.HtmlEncode(recipient)}</div>{body}"
-                : $"Destinatario original: {recipient}{Environment.NewLine}{Environment.NewLine}{body}";
-        }
-
         using var client = new SmtpClient(host, port)
         {
             EnableSsl = configuration.GetValue("Smtp:EnableSsl", true),
             Credentials = new NetworkCredential(username, password),
         };
-        using var message = new MailMessage(from, targetRecipient, targetSubject, targetBody) { IsBodyHtml = isHtml };
+        using var message = new MailMessage(from, recipient, subject, body) { IsBodyHtml = isHtml };
         if (isHtml)
         {
-            var htmlView = AlternateView.CreateAlternateViewFromString(targetBody, null, MediaTypeNames.Text.Html);
+            var htmlView = AlternateView.CreateAlternateViewFromString(body, null, MediaTypeNames.Text.Html);
             AddInlineResource(htmlView, "portal-logo", "portal-logo.png", MediaTypeNames.Image.Png);
             AddInlineResource(htmlView, "lock-icon", "lock.png", MediaTypeNames.Image.Png);
             message.AlternateViews.Add(htmlView);

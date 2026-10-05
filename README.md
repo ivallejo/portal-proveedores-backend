@@ -20,9 +20,13 @@ ASP.NET Core Web API, Entity Framework Core 10, SQL Server 2022 en Docker, JWT y
 cp .env.example .env
 ```
 
-Revisar en `.env` la conexión SQL, la llave JWT y las credenciales del administrador inicial. El archivo `.env` es local y no debe versionarse.
+El archivo `.env` es local y no debe versionarse.
 
-Para habilitar el envío de claves por Gmail, configurar una contraseña de aplicación (no la contraseña normal de Gmail) en estas variables del `.env`:
+Revisar en `.env` la conexión SQL y la llave JWT.
+
+### Correo
+
+El envío es por SMTP (hoy Gmail). Usar una **contraseña de aplicación** de Gmail, no la contraseña normal, y que `Smtp__From` sea la misma cuenta que `Smtp__Username`:
 
 ```env
 Smtp__Host=smtp.gmail.com
@@ -31,11 +35,22 @@ Smtp__Username=tu-cuenta@gmail.com
 Smtp__Password=tu-app-password-de-gmail
 Smtp__From=tu-cuenta@gmail.com
 Smtp__EnableSsl=true
-Smtp__RedirectEnabled=true
-Smtp__TestRecipient=tu-correo-de-pruebas@gmail.com
+
+Email__Mode=Redirect
+Email__TestRecipient=tu-correo-de-pruebas@gmail.com
 ```
 
-Mientras `Smtp__RedirectEnabled=true`, ningún correo se envía al destinatario real: todos se redirigen a `Smtp__TestRecipient`. El asunto se marca como `[PRUEBA SMTP]` y el cuerpo conserva el destinatario original para facilitar las pruebas. Antes de pasar a un ambiente real, cambiar el flag a `false` o eliminarlo.
+`Email__Mode` define qué pasa con los correos:
+
+| Modo | Uso | Comportamiento |
+|---|---|---|
+| `Send` | Producción (valor por defecto allí) | Envío real a cada destinatario. |
+| `Redirect` | Desarrollo y QA (valor por defecto fuera de producción) | Todo va solo a `Email__TestRecipient`, con asunto `[PRUEBA]` y el destinatario original en el cuerpo. Nunca llega al proveedor. |
+| `Log` | Sin SMTP | No envía nada; deja los enlaces (activación, cambio de contraseña) en el log. |
+
+La configuración se valida al arrancar y el log indica el modo activo (`Correo: modo …`). Fuera de producción, `Send` exige `Email__AllowSendOutsideProduction=true`, para que un `.env` mal copiado nunca escriba a proveedores reales.
+
+**Producción con Gmail:** cuenta dedicada al portal (no personal) con verificación en dos pasos y contraseña de aplicación, guardada como secreto del servidor; `Email__Mode=Send` (o sin definir) y sin `Email__TestRecipient`. Límite aproximado: 500 correos/día (cuenta gratuita) o 2 000 (Google Workspace). Para cambiar de proveedor más adelante basta otra implementación de `IEmailSender`.
 
 Para consultar la información del proveedor durante el registro online, configurar también el servicio SAP:
 

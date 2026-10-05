@@ -14,7 +14,7 @@ using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Documents;
 using WebProveedores.Api.Controllers;
 using WebProveedores.Domain.Entities;
-using WebProveedores.Infrastructure.Auth;
+using WebProveedores.Infrastructure.Email;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
 using WebProveedores.Infrastructure.Documents;
@@ -44,11 +44,16 @@ builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = Tim
 builder.Services.AddScoped<IProviderDirectory>(services => services.GetRequiredService<SapProviderClient>());
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
-// Smtp:Enabled=false (desarrollo) deja los correos en el log en lugar de enviarlos.
-if (builder.Configuration.GetValue("Smtp:Enabled", true))
-    builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
-else
-    builder.Services.AddScoped<IEmailSender, LogEmailSender>();
+// Modo de correo (Email:Mode): Send en producción, Redirect al buzón de pruebas fuera de ella. Se valida al arrancar.
+var emailSettings = EmailSettings.Resolve(builder.Configuration, builder.Environment.IsProduction());
+builder.Services.AddSingleton(emailSettings);
+builder.Services.AddScoped<SmtpEmailSender>();
+builder.Services.AddScoped<IEmailSender>(services => emailSettings.Mode switch
+{
+    EmailMode.Send => services.GetRequiredService<SmtpEmailSender>(),
+    EmailMode.Redirect => new RedirectingEmailSender(services.GetRequiredService<SmtpEmailSender>(), emailSettings.TestRecipient!),
+    _ => ActivatorUtilities.CreateInstance<LogEmailSender>(services),
+});
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<ReferenceDataSeeder>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -112,6 +117,7 @@ if (builder.Configuration.GetValue("Security:UseForwardedHeaders", false))
 }
 
 var app = builder.Build();
+app.Logger.LogInformation("Correo: modo {EmailMode}", emailSettings.Describe());
 
 using (var scope = app.Services.CreateScope())
 {
