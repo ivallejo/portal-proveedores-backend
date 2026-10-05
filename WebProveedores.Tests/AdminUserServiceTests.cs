@@ -16,8 +16,13 @@ public sealed class AdminUserServiceTests
 
         var created = await fixture.Service.CreateAsync(new CreateUserRequest
         {
-            Username = "ana.rios", Email = "Ana.Rios@Ejemplo.test", Name = "Ana Ríos", Password = "Temporal_1",
-            Roles = [SecurityCatalog.AreaApproverRole, SecurityCatalog.InternalUserRole], AreaId = fixture.Area.Id, CompanyCodes = ["1002"],
+            Username = "ana.rios",
+            Email = "Ana.Rios@Ejemplo.test",
+            Name = "Ana Ríos",
+            Password = "Temporal_1",
+            Roles = [SecurityCatalog.AreaApproverRole, SecurityCatalog.InternalUserRole],
+            AreaId = fixture.Area.Id,
+            CompanyCodes = ["1002"],
         }, CancellationToken.None);
 
         Assert.Equal("ana.rios@ejemplo.test", created.Email);
@@ -41,8 +46,13 @@ public sealed class AdminUserServiceTests
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.CreateAsync(new CreateUserRequest
         {
-            Username = "nuevo", Email = "nuevo@ejemplo.test", Name = "Nuevo", Password = password ?? "Temporal_1",
-            Roles = [role], AreaId = withArea ? fixture.Area.Id : null, CompanyCodes = company is null ? [] : [company],
+            Username = "nuevo",
+            Email = "nuevo@ejemplo.test",
+            Name = "Nuevo",
+            Password = password ?? "Temporal_1",
+            Roles = [role],
+            AreaId = withArea ? fixture.Area.Id : null,
+            CompanyCodes = company is null ? [] : [company],
         }, CancellationToken.None));
 
         Assert.Contains(expected, exception.Message);
@@ -56,8 +66,12 @@ public sealed class AdminUserServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.CreateAsync(new CreateUserRequest
         {
-            Username = "admin.uno", Email = "otro@ejemplo.test", Name = "Duplicado", Password = "Temporal_1",
-            Roles = [SecurityCatalog.InternalUserRole], CompanyCodes = ["1001"],
+            Username = "admin.uno",
+            Email = "otro@ejemplo.test",
+            Name = "Duplicado",
+            Password = "Temporal_1",
+            Roles = [SecurityCatalog.InternalUserRole],
+            CompanyCodes = ["1001"],
         }, CancellationToken.None));
     }
 
@@ -103,7 +117,10 @@ public sealed class AdminUserServiceTests
 
     private static UpdateUserRequest Update(string email, string role) => new()
     {
-        Email = email, Name = "Editado", Roles = [role], CompanyCodes = ["1001"],
+        Email = email,
+        Name = "Editado",
+        Roles = [role],
+        CompanyCodes = ["1001"],
     };
 
     private sealed class Fixture : IAsyncDisposable
