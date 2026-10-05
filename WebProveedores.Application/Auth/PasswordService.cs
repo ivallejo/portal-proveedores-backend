@@ -30,11 +30,7 @@ public sealed class PasswordService(
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
             throw new ValidationException(PasswordPolicy.Description);
 
-        var now = clock.GetUtcNow().UtcDateTime;
-        user.PasswordHash = hasher.Hash(request.NewPassword);
-        user.MustChangePassword = false;
-        user.PasswordSetAtUtc = now;
-        user.UpdatedAtUtc = now;
+        user.SetPassword(hasher.Hash(request.NewPassword), clock.GetUtcNow().UtcDateTime);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return tokens.StartSession(user);
     }
@@ -67,10 +63,8 @@ public sealed class PasswordService(
         if (resetToken is null) return false;
 
         var now = clock.GetUtcNow().UtcDateTime;
-        resetToken.User.PasswordHash = hasher.Hash(request.NewPassword);
+        resetToken.User.SetPassword(hasher.Hash(request.NewPassword), now);
         resetToken.UsedAtUtc = now;
-        resetToken.User.UpdatedAtUtc = now;
-        resetToken.User.PasswordSetAtUtc = now;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

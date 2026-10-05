@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Time.Testing;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
@@ -38,7 +39,8 @@ public sealed class AuthServiceTests
         var user = CreateUser("20523682790", "lock-user", "Proveedor Bloqueo", "lock@demo.test");
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var service = TestServices.Login(db);
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var service = TestServices.Login(db, clock);
         var wrong = new LoginRequest { Identifier = "lock-user", Password = "incorrecta" };
 
         for (var attempt = 0; attempt < 5; attempt++)
@@ -49,8 +51,7 @@ public sealed class AuthServiceTests
             service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None));
         Assert.True(locked.RetryAfter > TimeSpan.FromMinutes(14));
 
-        user.LockoutUntilUtc = DateTime.UtcNow.AddSeconds(-1);
-        await db.SaveChangesAsync();
+        clock.Advance(TimeSpan.FromMinutes(16));
         var response = await service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None);
 
         Assert.NotNull(response);
@@ -90,7 +91,7 @@ public sealed class AuthServiceTests
     {
         await using var db = CreateContext();
         var user = CreateUser("20523682786", "inactive", "Proveedor Inactivo", "inactive@demo.test");
-        user.IsActive = false;
+        user.SetActive(false, DateTime.UtcNow);
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var service = TestServices.Login(db);
@@ -179,8 +180,7 @@ public sealed class AuthServiceTests
     public async Task ValidateRucAsync_rejects_existing_user_before_calling_sap()
     {
         await using var db = CreateContext();
-        var user = CreateUser("20523682780", "registered", "Proveedor Registrado", "registered@demo.test");
-        user.PasswordSetAtUtc = DateTime.UtcNow;
+        var user = CreateUser("20523682780", "registered", "Proveedor Registrado", "registered@demo.test", activated: true);
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var sap = new SapProviderClient(new HttpClient(new ThrowingHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -200,7 +200,6 @@ public sealed class AuthServiceTests
     {
         await using var db = CreateContext();
         var pending = CreateUser("20100003199", "20100003199", "Proveedor sin activar", "pendiente@demo.test");
-        pending.PasswordSetAtUtc = null;
         db.Users.Add(pending);
         await db.SaveChangesAsync();
         var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -234,13 +233,10 @@ public sealed class AuthServiceTests
         .UseInMemoryDatabase($"auth-tests-{Guid.NewGuid():N}")
         .Options);
 
-    private static AppUser CreateUser(string ruc, string username, string company, string email)
+    private static AppUser CreateUser(string ruc, string username, string company, string email, bool activated = false)
     {
-        var user = new AppUser { Ruc = ruc, Username = username, CompanyName = company };
-        user.PasswordHash = new PasswordHasher<AppUser>().HashPassword(user, "Password1");
-        user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-        var role = new Role { Code = SecurityCatalog.ProviderRole, Name = "Proveedor" };
-        user.UserRoles.Add(new UserRole { Role = role });
+        var user = AppUser.Create(username, company, ruc, email, TestServices.Hasher.Hash("Password1"), DateTime.UtcNow, activated: activated);
+        user.SetRoles([new Role { Code = SecurityCatalog.ProviderRole, Name = "Proveedor" }]);
         return user;
     }
 

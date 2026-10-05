@@ -27,27 +27,17 @@ public sealed class LoginService(
         }
 
         var now = clock.GetUtcNow().UtcDateTime;
-        if (user.LockoutUntilUtc is { } lockedUntil && lockedUntil > now)
-            throw new AccountLockedException(lockedUntil - now);
+        if (user.IsLockedOut(now))
+            throw new AccountLockedException(user.LockoutUntilUtc!.Value - now);
 
         if (!hasher.Verify(user.PasswordHash, request.Password))
         {
-            user.FailedLoginCount++;
-            if (user.FailedLoginCount >= lockout.MaxFailedLogins)
-            {
-                user.LockoutUntilUtc = now.AddMinutes(lockout.LockoutMinutes);
-                user.FailedLoginCount = 0;
-            }
+            user.RecordFailedLogin(lockout.MaxFailedLogins, lockout.LockoutMinutes, now);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             return null;
         }
 
-        if (user.FailedLoginCount != 0 || user.LockoutUntilUtc is not null)
-        {
-            user.FailedLoginCount = 0;
-            user.LockoutUntilUtc = null;
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-        }
+        if (user.ClearFailedLogins()) await unitOfWork.SaveChangesAsync(cancellationToken);
         return tokens.StartSession(user);
     }
 

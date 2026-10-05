@@ -1,10 +1,11 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 
@@ -17,7 +18,7 @@ namespace WebProveedores.Infrastructure.Persistence;
 /// existentes (solo completa el RUC de una sociedad que aún no lo tiene).
 /// Los usuarios se crean con una contraseña temporal y la obligación de cambiarla al ingresar.
 /// </summary>
-public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configuration, ILogger<ReferenceDataSeeder> logger)
+public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configuration, IPasswordHasher hasher, TimeProvider clock, ILogger<ReferenceDataSeeder> logger)
 {
     private static readonly (string Code, string Name)[] BaseCompanies =
     [
@@ -127,7 +128,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             foreach (var code in user.Companies ?? [])
                 if (!companyCodes.Contains(code.Trim())) errors.Add($"El usuario «{label}» usa la sociedad «{code}», que no es una sociedad base ni está en «companies».");
             if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
-            if (!MeetsPolicy(user.TemporaryPassword ?? fallbackPassword))
+            if (!PasswordPolicy.IsSatisfiedBy(user.TemporaryPassword ?? fallbackPassword))
                 errors.Add($"El usuario «{label}» necesita una contraseña temporal de mínimo 8 caracteres con mayúscula, minúscula y número (en «temporaryPassword» o en Seed:TemporaryPassword).");
         }
         return errors;
@@ -171,7 +172,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         var companies = await db.Companies.Where(company => company.IsActive).ToListAsync(cancellationToken);
         var areas = await db.Areas.ToDictionaryAsync(area => area.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
         var usernames = (await db.Users.Select(user => user.Username).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var hasher = new PasswordHasher<AppUser>();
+        var now = clock.GetUtcNow().UtcDateTime;
         var created = 0;
 
         foreach (var item in seed.Users)
@@ -187,18 +188,10 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             if (!roles.TryGetValue(item.Role, out var role))
                 throw new InvalidOperationException($"El rol {item.Role} no existe en la base de datos. Ejecuta primero el arranque que lo crea.");
 
-            var user = new AppUser
-            {
-                Username = username,
-                CompanyName = item.Name.Trim(),
-                Ruc = IsRuc(item.Ruc) ? item.Ruc!.Trim() : null,
-                Area = string.IsNullOrWhiteSpace(item.Area) ? null : areas[item.Area.Trim()],
-                PasswordSetAtUtc = DateTime.UtcNow,
-                MustChangePassword = true,
-            };
-            user.PasswordHash = hasher.HashPassword(user, item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!);
-            user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-            user.UserRoles.Add(new UserRole { RoleId = role.Id });
+            var password = item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!;
+            var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true);
+            user.AssignArea(string.IsNullOrWhiteSpace(item.Area) ? null : areas[item.Area.Trim()]);
+            user.SetRoles([role]);
             user.SetCompanies(item.Companies is null ? companies : companies.Where(company => item.Companies.Any(code => code.Trim() == company.Code)));
             db.Users.Add(user);
             usernames.Add(username);
@@ -211,8 +204,6 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     private static bool IsRuc(string? value) => value is { Length: 11 } && value.All(char.IsAsciiDigit);
 
-    private static bool MeetsPolicy(string? password) =>
-        password is { Length: >= 8 } && password.Any(char.IsUpper) && password.Any(char.IsLower) && password.Any(char.IsDigit);
 
     private static string CodeFor(string name)
     {

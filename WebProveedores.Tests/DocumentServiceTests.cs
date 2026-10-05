@@ -377,9 +377,9 @@ public sealed class DocumentServiceTests
 
             AppUser User(string name, string email, string role, Area? area = null, string? ruc = null, params Company[] companies)
             {
-                var user = new AppUser { Username = email, CompanyName = name, Ruc = ruc, Area = area, AreaId = area?.Id, PasswordHash = "x" };
-                user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-                user.UserRoles.Add(new UserRole { Role = roles[role] });
+                var user = AppUser.Create(email, name, ruc, email, "x", DateTime.UtcNow);
+                user.AssignArea(area);
+                user.SetRoles([roles[role]]);
                 user.SetCompanies(companies.Length > 0 ? companies : [naviera]);
                 db.Users.Add(user);
                 return user;

@@ -19,8 +19,8 @@ internal static class TestServices
         new JwtSettings("test-signing-key-with-at-least-32-characters", "test-issuer", "test-audience", 30), TimeProvider.System);
     public static readonly PortalSettings Portal = new("http://localhost:4200");
 
-    public static LoginService Login(AppDbContext db) =>
-        new(new EfUserRepository(db), new EfUnitOfWork(db), Hasher, Tokens, new LoginLockoutSettings(5, 15), TimeProvider.System);
+    public static LoginService Login(AppDbContext db, TimeProvider? clock = null) =>
+        new(new EfUserRepository(db), new EfUnitOfWork(db), Hasher, Tokens, new LoginLockoutSettings(5, 15), clock ?? TimeProvider.System);
 
     public static PasswordService Passwords(AppDbContext db, IEmailSender email) =>
         new(new EfUserRepository(db), new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), Hasher, Tokens, email, Portal, TimeProvider.System);

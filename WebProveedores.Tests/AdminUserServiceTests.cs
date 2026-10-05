@@ -102,8 +102,7 @@ public sealed class AdminUserServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
         var locked = await fixture.Db.Users.SingleAsync(user => user.Id == fixture.OtherAdmin.Id);
-        locked.FailedLoginCount = 5;
-        locked.LockoutUntilUtc = DateTime.UtcNow.AddMinutes(10);
+        for (var attempt = 0; attempt < 5; attempt++) locked.RecordFailedLogin(5, 10, DateTime.UtcNow);
         await fixture.Db.SaveChangesAsync();
 
         Assert.True((await fixture.Service.SearchAsync("admin2", 1, 10, CancellationToken.None)).Items.Single().IsLocked);
@@ -146,9 +145,8 @@ public sealed class AdminUserServiceTests
 
             AppUser Admin(string username, string email)
             {
-                var user = new AppUser { Username = username, CompanyName = username, PasswordHash = "x" };
-                user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-                user.UserRoles.Add(new UserRole { Role = roles[SecurityCatalog.AdministratorRole] });
+                var user = AppUser.Create(username, username, null, email, "x", DateTime.UtcNow);
+                user.SetRoles([roles[SecurityCatalog.AdministratorRole]]);
                 db.Users.Add(user);
                 return user;
             }

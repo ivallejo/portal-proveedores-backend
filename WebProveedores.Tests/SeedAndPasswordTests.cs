@@ -56,8 +56,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         await using var db = CreateContext();
         db.Roles.AddRange(SecurityCatalog.Roles.Select(role => new Role { Code = role.Key, Name = role.Value }));
         db.Companies.Add(new Company { Code = "1001", Name = "Nombre propio", Ruc = "20999999999" });
-        var existing = new AppUser { Username = "maria.torres", CompanyName = "Nombre original", PasswordHash = "hash-original" };
-        existing.Emails.Add(new UserEmail { Email = "otra@correo.test", IsPrimary = true });
+        var existing = AppUser.Create("maria.torres", "Nombre original", null, "otra@correo.test", "hash-original", DateTime.UtcNow);
         db.Users.Add(existing);
         await db.SaveChangesAsync();
         await File.WriteAllTextAsync(seedPath, ValidSeed);
@@ -100,7 +99,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Seed:FilePath"] = null }).Build();
         var originalDirectory = Directory.GetCurrentDirectory();
         Directory.SetCurrentDirectory(Path.GetTempPath());
-        try { await new ReferenceDataSeeder(db, configuration, NullLogger<ReferenceDataSeeder>.Instance).SeedAsync(); }
+        try { await new ReferenceDataSeeder(db, configuration, TestServices.Hasher, TimeProvider.System, NullLogger<ReferenceDataSeeder>.Instance).SeedAsync(); }
         finally { Directory.SetCurrentDirectory(originalDirectory); }
 
         Assert.Equal(4, await db.Companies.CountAsync());
@@ -181,7 +180,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         }
         var settings = new Dictionary<string, string?> { ["Seed:FilePath"] = seedPath };
         if (key is not null) settings[key] = value;
-        return new ReferenceDataSeeder(db, new ConfigurationBuilder().AddInMemoryCollection(settings).Build(), NullLogger<ReferenceDataSeeder>.Instance);
+        return new ReferenceDataSeeder(db, new ConfigurationBuilder().AddInMemoryCollection(settings).Build(), TestServices.Hasher, TimeProvider.System, NullLogger<ReferenceDataSeeder>.Instance);
     }
 
     private static (LoginService Login, PasswordService Passwords) CreateAuth(AppDbContext db) =>
@@ -189,10 +188,8 @@ public sealed class SeedAndPasswordTests : IDisposable
 
     private static async Task<AppUser> AddUserAsync(AppDbContext db, bool mustChange)
     {
-        var user = new AppUser { Username = "temporal", CompanyName = "Usuario Temporal", MustChangePassword = mustChange };
-        user.PasswordHash = new PasswordHasher<AppUser>().HashPassword(user, "Password1");
-        user.Emails.Add(new UserEmail { Email = "temporal@demo.test", IsPrimary = true });
-        user.UserRoles.Add(new UserRole { Role = new Role { Code = SecurityCatalog.InternalUserRole, Name = "Usuario interno" } });
+        var user = AppUser.Create("temporal", "Usuario Temporal", null, "temporal@demo.test", TestServices.Hasher.Hash("Password1"), DateTime.UtcNow, temporaryPassword: mustChange);
+        user.SetRoles([new Role { Code = SecurityCatalog.InternalUserRole, Name = "Usuario interno" }]);
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return user;

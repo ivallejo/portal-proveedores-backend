@@ -48,9 +48,7 @@ public sealed class AdminUserService(
         if (ruc is not null && await users.RucExistsAsync(ruc, cancellationToken)) throw new ConflictException("Ya existe un usuario con ese RUC.");
 
         // La contraseña la define el administrador: es temporal y la persona debe cambiarla al ingresar.
-        var user = new AppUser { Username = username, CompanyName = request.Name.Trim(), Ruc = ruc, PasswordSetAtUtc = Now, MustChangePassword = true };
-        user.PasswordHash = hasher.Hash(request.Password);
-        user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
+        var user = AppUser.Create(username, request.Name, ruc, email, hasher.Hash(request.Password), Now, temporaryPassword: true);
         await ApplyAccessAsync(user, request.Roles, request.AreaId, request.CompanyCodes, cancellationToken);
         users.Add(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -69,12 +67,8 @@ public sealed class AdminUserService(
         if (losesAdministrator && user.Id == actorId) throw new ConflictException("No puedes quitarte el rol de administrador.");
         if (losesAdministrator && user.IsActive) await EnsureAnotherAdministratorAsync(user.Id, cancellationToken);
 
-        user.CompanyName = request.Name.Trim();
-        var primary = user.Emails.FirstOrDefault(item => item.IsPrimary) ?? user.Emails.FirstOrDefault();
-        if (primary is null) user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-        else primary.Email = email;
+        user.UpdateProfile(request.Name, email, Now);
         await ApplyAccessAsync(user, request.Roles, request.AreaId, request.CompanyCodes, cancellationToken);
-        user.UpdatedAtUtc = Now;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
     }
@@ -88,8 +82,7 @@ public sealed class AdminUserService(
             if (user.Id == actorId) throw new ConflictException("No puedes desactivar tu propia cuenta.");
             if (IsAdministrator(user)) await EnsureAnotherAdministratorAsync(user.Id, cancellationToken);
         }
-        user.IsActive = request.IsActive;
-        user.UpdatedAtUtc = Now;
+        user.SetActive(request.IsActive, Now);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
     }
@@ -98,9 +91,7 @@ public sealed class AdminUserService(
     {
         var user = await users.FindTrackedByIdAsync(id, cancellationToken);
         if (user is null) return null;
-        user.FailedLoginCount = 0;
-        user.LockoutUntilUtc = null;
-        user.UpdatedAtUtc = Now;
+        user.Unlock(Now);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return ToResponse(user);
     }
@@ -127,14 +118,8 @@ public sealed class AdminUserService(
         // El administrador trabaja con todas las sociedades; los demás necesitan al menos una.
         if (wanted.Length == 0 && !codes.Contains(SecurityCatalog.AdministratorRole)) throw new ValidationException("Asigna al menos una sociedad.");
 
-        var roles = known.Where(role => codes.Contains(role.Code)).ToArray();
-        foreach (var stale in user.UserRoles.Where(item => roles.All(role => role.Id != item.RoleId)).ToList())
-            user.UserRoles.Remove(stale);
-        foreach (var role in roles.Where(role => user.UserRoles.All(item => item.RoleId != role.Id)))
-            user.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id, Role = role });
-
-        user.Area = area;
-        user.AreaId = area?.Id;
+        user.SetRoles(known.Where(role => codes.Contains(role.Code)));
+        user.AssignArea(area);
         user.SetCompanies(active.Where(company => wanted.Contains(company.Code)));
     }
 
@@ -146,8 +131,7 @@ public sealed class AdminUserService(
             throw new ConflictException("Debe quedar al menos un administrador activo.");
     }
 
-    private static bool IsAdministrator(AppUser user) =>
-        user.UserRoles.Any(item => item.Role?.Code == SecurityCatalog.AdministratorRole);
+    private static bool IsAdministrator(AppUser user) => user.HasRole(SecurityCatalog.AdministratorRole);
 
     private static bool IsRuc(string? value) => value is { Length: 11 } && value.All(char.IsAsciiDigit);
 

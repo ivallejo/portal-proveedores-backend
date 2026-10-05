@@ -8,8 +8,7 @@ namespace WebProveedores.Application.Auth;
 /// <summary>Piezas comunes a login, contraseñas y registro.</summary>
 internal static class AuthSupport
 {
-    public static string PrimaryEmail(AppUser user) =>
-        user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.First(item => item.IsActive).Email;
+    public static string PrimaryEmail(AppUser user) => user.PrimaryEmail;
 
     public static UserResponse ToResponse(AppUser user)
     {

@@ -47,21 +47,14 @@ public sealed partial class ProviderRegistrationService(
         var email = provider.Correo!.Trim().ToLowerInvariant();
         if (user is null)
         {
-            user = new AppUser { Username = normalizedRuc, Ruc = normalizedRuc, CompanyName = provider.CompanyName.Trim() };
-            user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-            await MakeProviderAsync(user, cancellationToken);
             // Hasta activar la cuenta tiene una contraseña aleatoria que nadie conoce.
-            user.PasswordHash = hasher.Hash(AuthSupport.NewOneTimeToken());
+            user = AppUser.Create(normalizedRuc, provider.CompanyName, normalizedRuc, email, hasher.Hash(AuthSupport.NewOneTimeToken()), now, activated: false);
+            await MakeProviderAsync(user, cancellationToken);
             users.Add(user);
         }
         else
         {
-            var current = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive) ?? user.Emails.FirstOrDefault(item => item.IsActive);
-            if (current is null) user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
-            else current.Email = email;
-            user.CompanyName = provider.CompanyName.Trim();
-            user.IsActive = true;
-            user.UpdatedAtUtc = now;
+            user.RefreshPendingProvider(provider.CompanyName, email, now);
         }
 
         var activationToken = AuthSupport.NewOneTimeToken();
@@ -94,9 +87,7 @@ public sealed partial class ProviderRegistrationService(
         if (await users.EmailExistsAsync(email, cancellationToken) || await users.RucExistsAsync(ruc, cancellationToken))
             throw new ConflictException("Ya existe un usuario registrado con ese correo o RUC.");
 
-        var user = new AppUser { Username = ruc, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = clock.GetUtcNow().UtcDateTime };
-        user.PasswordHash = hasher.Hash(request.Password);
-        user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
+        var user = AppUser.Create(ruc, request.CompanyName, ruc, email, hasher.Hash(request.Password), clock.GetUtcNow().UtcDateTime);
         await MakeProviderAsync(user, cancellationToken);
         users.Add(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -108,7 +99,7 @@ public sealed partial class ProviderRegistrationService(
     {
         var role = await referenceData.FindRoleAsync(SecurityCatalog.ProviderRole, cancellationToken)
             ?? throw new InvalidOperationException("El rol de proveedor no está configurado.");
-        user.UserRoles.Add(new UserRole { Role = role });
+        user.SetRoles([role]);
         user.SetCompanies(await referenceData.ListActiveCompaniesAsync(cancellationToken));
     }
 
