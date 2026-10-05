@@ -16,7 +16,7 @@ public sealed class LocalFileStorage(IConfiguration configuration) : IFileStorag
         if (extension is not (".pdf" or ".xml" or ".zip"))
             throw new ArgumentException("Tipo de archivo no permitido.");
         var now = DateTime.UtcNow;
-        var key = $"{now:yyyy}/{now:MM}/{Guid.NewGuid():N}{extension}";
+        var key = $"{now:yyyy}/{now:MM}/{Guid.CreateVersion7():N}{extension}";
         var path = Resolve(key);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);

@@ -6,7 +6,7 @@ namespace WebProveedores.Domain.Documents;
 /// </summary>
 public sealed class SupplierDocument
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public string Number { get; set; } = string.Empty;
     public DocumentEntryType EntryType { get; set; }
     public string DocumentType { get; set; } = string.Empty;
@@ -141,7 +141,7 @@ public sealed class SupplierDocument
 
 public sealed class DocumentItem
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid DocumentId { get; set; }
     public int LineNumber { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -152,7 +152,7 @@ public sealed class DocumentItem
 
 public sealed class DocumentAttachment
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid DocumentId { get; set; }
     public AttachmentKind Kind { get; set; }
     public string FileName { get; set; } = string.Empty;
@@ -165,7 +165,7 @@ public sealed class DocumentAttachment
 
 public sealed class DocumentEvent
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid DocumentId { get; set; }
     public int Sequence { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -178,7 +178,7 @@ public sealed class DocumentEvent
 /// <summary>Sociedad del grupo que recibe el documento.</summary>
 public sealed class Company
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? Ruc { get; set; }

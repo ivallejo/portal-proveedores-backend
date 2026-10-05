@@ -2,7 +2,7 @@ namespace WebProveedores.Domain.Entities;
 
 public sealed class AppUser
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.CreateVersion7();
     public string Username { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public string? Ruc { get; set; }

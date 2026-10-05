@@ -16,7 +16,7 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
     public const string PasswordChangeClaim = "pwd_change";
 
     private static readonly AppUser DummyUser = new();
-    private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(DummyUser, Guid.NewGuid().ToString("N")));
+    private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(DummyUser, Guid.CreateVersion7().ToString("N")));
 
     private readonly PasswordHasher<AppUser> passwordHasher = new();
 

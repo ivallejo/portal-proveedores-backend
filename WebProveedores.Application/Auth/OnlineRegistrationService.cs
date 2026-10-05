@@ -58,7 +58,7 @@ public sealed class OnlineRegistrationService(
             user.UpdatedAtUtc = DateTime.UtcNow;
         }
 
-        if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();
+        if (user.Id == Guid.Empty) user.Id = Guid.CreateVersion7();
         if (string.IsNullOrWhiteSpace(user.PasswordHash)) user.PasswordHash = passwordHasher.HashPassword(user, GenerateToken());
         db.AddPasswordToken(new PasswordResetToken
         {
