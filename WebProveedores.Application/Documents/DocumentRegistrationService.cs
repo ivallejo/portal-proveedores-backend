@@ -1,5 +1,6 @@
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
@@ -22,26 +23,26 @@ internal sealed class DocumentRegistrationService(
     public async Task<DocumentDetailResponse> RegisterAsync(Guid userId, RegisterElectronicDocumentCommand command, CancellationToken cancellationToken)
     {
         var actor = await access.LoadActorAsync(userId, cancellationToken);
-        if (!actor.CanRegister) throw new UnauthorizedAccessException("No tienes permiso para registrar documentos.");
+        if (!actor.CanRegister) throw new ForbiddenException("No tienes permiso para registrar documentos.");
         if (command.EntryType == DocumentEntryType.Special)
-            throw new ArgumentException("Los documentos especiales se registran con su propio formulario.");
+            throw new ValidationException("Los documentos especiales se registran con su propio formulario.");
 
         var company = await access.RequireCompanyAsync(actor, command.CompanyCode, cancellationToken);
         var xmlBytes = await DocumentFiles.ReadRequiredAsync(command.Xml, "XML del comprobante", [".xml"], cancellationToken);
         var electronic = UblDocumentReader.Read(new MemoryStream(xmlBytes))
-            ?? throw new ArgumentException("El XML no es un comprobante electrónico válido (UBL 2.1).");
+            ?? throw new ValidationException("El XML no es un comprobante electrónico válido (UBL 2.1).");
 
         if (actor.IsProvider && !actor.IsAdmin && electronic.IssuerRuc != actor.Ruc)
-            throw new ArgumentException($"El XML fue emitido por el RUC {electronic.IssuerRuc}. Solo puedes registrar documentos emitidos por tu RUC.");
+            throw new ValidationException($"El XML fue emitido por el RUC {electronic.IssuerRuc}. Solo puedes registrar documentos emitidos por tu RUC.");
         if (!string.IsNullOrEmpty(company.Ruc) && !string.IsNullOrEmpty(electronic.ReceiverRuc) && electronic.ReceiverRuc != company.Ruc)
-            throw new ArgumentException($"El receptor del XML (RUC {electronic.ReceiverRuc}) no corresponde a la sociedad {company.Name}.");
+            throw new ValidationException($"El receptor del XML (RUC {electronic.ReceiverRuc}) no corresponde a la sociedad {company.Name}.");
 
         if (command.IsPettyCash)
         {
             if (command.EntryType != DocumentEntryType.WithoutPurchaseOrder)
-                throw new ArgumentException("Solo los documentos sin orden de compra pueden ser de Caja Chica.");
+                throw new ValidationException("Solo los documentos sin orden de compra pueden ser de Caja Chica.");
             if (!actor.IsInternal && !actor.IsAdmin)
-                throw new UnauthorizedAccessException("Solo el personal interno puede registrar documentos de Caja Chica.");
+                throw new ForbiddenException("Solo el personal interno puede registrar documentos de Caja Chica.");
         }
 
         var pdfBytes = await DocumentFiles.ReadRequiredAsync(command.Pdf, "PDF del comprobante", [".pdf"], cancellationToken);
@@ -56,7 +57,7 @@ internal sealed class DocumentRegistrationService(
         if (command.EntryType == DocumentEntryType.WithPurchaseOrder)
         {
             if (command.OrderType is null || string.IsNullOrWhiteSpace(command.OrderNumber))
-                throw new ArgumentException("Indica el tipo y el número de la orden.");
+                throw new ValidationException("Indica el tipo y el número de la orden.");
             order = await sap.ValidateOrderAsync(company.Code, command.OrderType.Value, command.OrderNumber.Trim().ToUpperInvariant(), cancellationToken)
                 ?? throw new DocumentRejectedException("SAP no encontró la orden para la sociedad seleccionada o ya no tiene saldo por facturar.");
         }
@@ -66,7 +67,7 @@ internal sealed class DocumentRegistrationService(
         ApproverRecord? approver = null;
         if (needsApproval)
         {
-            if (command.ApproverId is null) throw new ArgumentException("Selecciona el área y el aprobador del documento.");
+            if (command.ApproverId is null) throw new ValidationException("Selecciona el área y el aprobador del documento.");
             approver = await access.RequireApproverAsync(command.ApproverId.Value, company, cancellationToken);
         }
 
@@ -147,13 +148,13 @@ internal sealed class DocumentRegistrationService(
     {
         var actor = await access.LoadActorAsync(userId, cancellationToken);
         if (!actor.IsInternal && !actor.IsAdmin)
-            throw new UnauthorizedAccessException("Los documentos especiales solo los registra personal interno.");
+            throw new ForbiddenException("Los documentos especiales solo los registra personal interno.");
 
         var company = await access.RequireCompanyAsync(actor, command.CompanyCode, cancellationToken);
         var ruc = command.ProviderRuc.Trim();
-        if (ruc.Length != 11 || !ruc.All(char.IsAsciiDigit)) throw new ArgumentException("El RUC del proveedor debe tener 11 dígitos.");
-        if (string.IsNullOrWhiteSpace(command.Number)) throw new ArgumentException("Ingresa el número del documento.");
-        if (command.Amount <= 0) throw new ArgumentException("El importe debe ser mayor que cero.");
+        if (ruc.Length != 11 || !ruc.All(char.IsAsciiDigit)) throw new ValidationException("El RUC del proveedor debe tener 11 dígitos.");
+        if (string.IsNullOrWhiteSpace(command.Number)) throw new ValidationException("Ingresa el número del documento.");
+        if (command.Amount <= 0) throw new ValidationException("El importe debe ser mayor que cero.");
         var pdfBytes = await DocumentFiles.ReadRequiredAsync(command.Pdf, "PDF del documento", [".pdf"], cancellationToken);
 
         var number = command.Number.Trim().ToUpperInvariant();

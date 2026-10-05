@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using WebProveedores.Application;
 using WebProveedores.Infrastructure.Auth;
 
 namespace WebProveedores.Api.Infrastructure;
@@ -21,7 +22,7 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
     public Guid Id =>
         Guid.TryParse(Principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? Principal.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id)
             ? id
-            : throw new UnauthorizedAccessException("La sesión no es válida.");
+            : throw new ForbiddenException("La sesión no es válida.");
 
     public bool IsPasswordChangeSession => Principal.HasClaim(SessionClaims.PasswordChangeOnly, "1");
 }

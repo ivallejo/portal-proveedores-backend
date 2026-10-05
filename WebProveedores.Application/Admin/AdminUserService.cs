@@ -3,6 +3,7 @@ using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Admin;
 
@@ -40,11 +41,11 @@ public sealed class AdminUserService(
         var username = request.Username.Trim();
         var email = request.Email.Trim().ToLowerInvariant();
         var ruc = string.IsNullOrWhiteSpace(request.Ruc) ? null : request.Ruc.Trim();
-        if (ruc is not null && !IsRuc(ruc)) throw new ArgumentException("El RUC debe tener 11 dígitos.");
-        if (!PasswordPolicy.IsSatisfiedBy(request.Password)) throw new ArgumentException(PasswordPolicy.Description);
-        if (await users.UsernameExistsAsync(username, cancellationToken)) throw new InvalidOperationException("Ya existe un usuario con ese nombre de usuario.");
-        if (await users.EmailExistsAsync(email, cancellationToken)) throw new InvalidOperationException("Ya existe un usuario con ese correo.");
-        if (ruc is not null && await users.RucExistsAsync(ruc, cancellationToken)) throw new InvalidOperationException("Ya existe un usuario con ese RUC.");
+        if (ruc is not null && !IsRuc(ruc)) throw new ValidationException("El RUC debe tener 11 dígitos.");
+        if (!PasswordPolicy.IsSatisfiedBy(request.Password)) throw new ValidationException(PasswordPolicy.Description);
+        if (await users.UsernameExistsAsync(username, cancellationToken)) throw new ConflictException("Ya existe un usuario con ese nombre de usuario.");
+        if (await users.EmailExistsAsync(email, cancellationToken)) throw new ConflictException("Ya existe un usuario con ese correo.");
+        if (ruc is not null && await users.RucExistsAsync(ruc, cancellationToken)) throw new ConflictException("Ya existe un usuario con ese RUC.");
 
         // La contraseña la define el administrador: es temporal y la persona debe cambiarla al ingresar.
         var user = new AppUser { Username = username, CompanyName = request.Name.Trim(), Ruc = ruc, PasswordSetAtUtc = Now, MustChangePassword = true };
@@ -62,10 +63,10 @@ public sealed class AdminUserService(
         if (user is null) return null;
 
         var email = request.Email.Trim().ToLowerInvariant();
-        if (await users.EmailUsedByOtherAsync(email, user.Id, cancellationToken)) throw new InvalidOperationException("Ese correo ya pertenece a otro usuario.");
+        if (await users.EmailUsedByOtherAsync(email, user.Id, cancellationToken)) throw new ConflictException("Ese correo ya pertenece a otro usuario.");
 
         var losesAdministrator = IsAdministrator(user) && !request.Roles.Contains(SecurityCatalog.AdministratorRole);
-        if (losesAdministrator && user.Id == actorId) throw new InvalidOperationException("No puedes quitarte el rol de administrador.");
+        if (losesAdministrator && user.Id == actorId) throw new ConflictException("No puedes quitarte el rol de administrador.");
         if (losesAdministrator && user.IsActive) await EnsureAnotherAdministratorAsync(user.Id, cancellationToken);
 
         user.CompanyName = request.Name.Trim();
@@ -84,7 +85,7 @@ public sealed class AdminUserService(
         if (user is null) return null;
         if (!request.IsActive && user.IsActive)
         {
-            if (user.Id == actorId) throw new InvalidOperationException("No puedes desactivar tu propia cuenta.");
+            if (user.Id == actorId) throw new ConflictException("No puedes desactivar tu propia cuenta.");
             if (IsAdministrator(user)) await EnsureAnotherAdministratorAsync(user.Id, cancellationToken);
         }
         user.IsActive = request.IsActive;
@@ -107,24 +108,24 @@ public sealed class AdminUserService(
     private async Task ApplyAccessAsync(AppUser user, IReadOnlyList<string> roleCodes, Guid? areaId, IReadOnlyList<string> companyCodes, CancellationToken cancellationToken)
     {
         var codes = roleCodes.Select(code => code.Trim()).Where(code => code.Length > 0).Distinct().ToArray();
-        if (codes.Length == 0) throw new ArgumentException("Asigna al menos un rol.");
+        if (codes.Length == 0) throw new ValidationException("Asigna al menos un rol.");
         var known = await referenceData.ListRolesAsync(cancellationToken);
         var unknown = codes.Where(code => known.All(role => role.Code != code)).ToArray();
-        if (unknown.Length > 0) throw new ArgumentException($"Rol no válido: {string.Join(", ", unknown)}.");
+        if (unknown.Length > 0) throw new ValidationException($"Rol no válido: {string.Join(", ", unknown)}.");
 
-        if (codes.Contains(SecurityCatalog.AreaApproverRole) && areaId is null) throw new ArgumentException("El aprobador de área necesita un área.");
-        if (codes.Contains(SecurityCatalog.ProviderRole) && !IsRuc(user.Ruc)) throw new ArgumentException("El proveedor necesita un RUC de 11 dígitos.");
+        if (codes.Contains(SecurityCatalog.AreaApproverRole) && areaId is null) throw new ValidationException("El aprobador de área necesita un área.");
+        if (codes.Contains(SecurityCatalog.ProviderRole) && !IsRuc(user.Ruc)) throw new ValidationException("El proveedor necesita un RUC de 11 dígitos.");
 
         var area = areaId is { } value
-            ? await referenceData.FindAreaAsync(value, cancellationToken) ?? throw new ArgumentException("El área seleccionada no es válida.")
+            ? await referenceData.FindAreaAsync(value, cancellationToken) ?? throw new ValidationException("El área seleccionada no es válida.")
             : null;
 
         var active = await referenceData.ListActiveCompaniesAsync(cancellationToken);
         var wanted = companyCodes.Select(code => code.Trim()).Where(code => code.Length > 0).Distinct().ToArray();
         var invalid = wanted.Where(code => active.All(company => company.Code != code)).ToArray();
-        if (invalid.Length > 0) throw new ArgumentException($"Sociedad no válida: {string.Join(", ", invalid)}.");
+        if (invalid.Length > 0) throw new ValidationException($"Sociedad no válida: {string.Join(", ", invalid)}.");
         // El administrador trabaja con todas las sociedades; los demás necesitan al menos una.
-        if (wanted.Length == 0 && !codes.Contains(SecurityCatalog.AdministratorRole)) throw new ArgumentException("Asigna al menos una sociedad.");
+        if (wanted.Length == 0 && !codes.Contains(SecurityCatalog.AdministratorRole)) throw new ValidationException("Asigna al menos una sociedad.");
 
         var roles = known.Where(role => codes.Contains(role.Code)).ToArray();
         foreach (var stale in user.UserRoles.Where(item => roles.All(role => role.Id != item.RoleId)).ToList())
@@ -142,7 +143,7 @@ public sealed class AdminUserService(
     private async Task EnsureAnotherAdministratorAsync(Guid userId, CancellationToken cancellationToken)
     {
         if (!await users.OtherActiveAdministratorExistsAsync(userId, cancellationToken))
-            throw new InvalidOperationException("Debe quedar al menos un administrador activo.");
+            throw new ConflictException("Debe quedar al menos un administrador activo.");
     }
 
     private static bool IsAdministrator(AppUser user) =>

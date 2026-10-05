@@ -21,8 +21,7 @@ public sealed class AuthController(
     [Authorize(Policy = Policies.UsersManage)]
     public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await registration.RegisterAsync(request, cancellationToken)); }
-        catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
+        return Ok(await registration.RegisterAsync(request, cancellationToken));
     }
 
     [HttpPost("login")]
@@ -30,16 +29,9 @@ public sealed class AuthController(
     [EnableRateLimiting(RateLimitPolicies.Login)]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await login.LoginAsync(request, cancellationToken);
-            return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
-        }
-        catch (AccountLockedException exception)
-        {
-            Response.Headers.RetryAfter = ((int)Math.Ceiling(exception.RetryAfter.TotalSeconds)).ToString();
-            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = $"Demasiados intentos fallidos. Vuelve a intentarlo en {Math.Max(1, (int)Math.Ceiling(exception.RetryAfter.TotalMinutes))} minuto(s) o recupera tu contraseña." });
-        }
+        // Una cuenta bloqueada lanza AccountLockedException: el manejador global responde 429 con Retry-After.
+        var response = await login.LoginAsync(request, cancellationToken);
+        return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
     }
 
     [HttpPost("validate-ruc")]
@@ -47,10 +39,7 @@ public sealed class AuthController(
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<ProviderLookupResponse>> ValidateRuc(ValidateRucRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await registration.ValidateRucAsync(request.Ruc, cancellationToken)); }
-        catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
-        catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
-        catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
+        return Ok(await registration.ValidateRucAsync(request.Ruc, cancellationToken));
     }
 
     [HttpPost("request-access-key")]
@@ -58,9 +47,7 @@ public sealed class AuthController(
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<AccessKeyResponse>> RequestAccessKey(RequestAccessKeyRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await registration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
-        catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
-        catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
+        return Ok(await registration.RequestAccessKeyAsync(request.Ruc, cancellationToken));
     }
 
     /// <summary>

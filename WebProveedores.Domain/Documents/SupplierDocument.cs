@@ -69,7 +69,7 @@ public sealed class SupplierDocument
     {
         EnsureStatus(DocumentStatus.PendingApproval, "El documento no está pendiente de aprobación.");
         if (string.IsNullOrWhiteSpace(reference))
-            throw new InvalidOperationException("Ingresa el número de pedido o de viaje para aprobar el documento.");
+            throw new DomainRuleException("Ingresa el número de pedido o de viaje para aprobar el documento.");
 
         var label = referenceType == Documents.ApprovalReferenceType.Trip ? "N° de viaje" : "N° de pedido";
         Status = DocumentStatus.PendingAccounting;
@@ -85,9 +85,9 @@ public sealed class SupplierDocument
     {
         EnsureStatus(DocumentStatus.PendingApproval, "Solo se pueden reasignar documentos pendientes de aprobación.");
         if (approverId == ApproverId)
-            throw new InvalidOperationException("El documento ya está asignado a ese aprobador.");
+            throw new DomainRuleException("El documento ya está asignado a ese aprobador.");
         if (string.IsNullOrWhiteSpace(reason))
-            throw new InvalidOperationException("Ingresa el motivo de la reasignación.");
+            throw new DomainRuleException("Ingresa el motivo de la reasignación.");
 
         AreaId = areaId;
         AreaName = areaName;
@@ -106,7 +106,7 @@ public sealed class SupplierDocument
             ? "El documento no está pendiente de aprobación."
             : "El documento no está pendiente de contabilización.");
         if (string.IsNullOrWhiteSpace(reason))
-            throw new InvalidOperationException("Ingresa el motivo del rechazo.");
+            throw new DomainRuleException("Ingresa el motivo del rechazo.");
 
         Status = DocumentStatus.Rejected;
         RejectedBy = stage;
@@ -119,7 +119,7 @@ public sealed class SupplierDocument
     {
         EnsureStatus(DocumentStatus.PendingAccounting, "El documento no está pendiente de contabilización.");
         if (string.IsNullOrWhiteSpace(reason))
-            throw new InvalidOperationException("Ingresa el motivo de la observación.");
+            throw new DomainRuleException("Ingresa el motivo de la observación.");
 
         Status = DocumentStatus.Observed;
         CloseCurrentEvent();
@@ -129,7 +129,7 @@ public sealed class SupplierDocument
 
     private void EnsureStatus(DocumentStatus expected, string message)
     {
-        if (Status != expected) throw new InvalidOperationException(message);
+        if (Status != expected) throw new DomainRuleException(message);
     }
 
     private void CloseCurrentEvent()

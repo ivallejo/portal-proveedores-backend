@@ -10,6 +10,7 @@ using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 
@@ -134,10 +135,10 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var reused = await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Password1" }, CancellationToken.None));
+        var reused = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Password1" }, CancellationToken.None));
         Assert.Contains("distinta", reused.Message);
         // Sin la sesión de cambio forzado (cambio voluntario) la contraseña actual es obligatoria.
-        await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
         Assert.True(user.MustChangePassword);
     }
 
@@ -152,7 +153,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
 
         Assert.Contains(expected, exception.Message);
         Assert.True(user.MustChangePassword);

@@ -9,6 +9,7 @@ using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
+using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 
@@ -149,7 +150,7 @@ public sealed class AuthServiceTests
         await db.SaveChangesAsync();
         var service = TestServices.Passwords(db, new FakeEmailSender());
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ConfirmPasswordResetAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => service.ConfirmPasswordResetAsync(
             new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = "activation-token", NewPassword = "abc123" }, PasswordTokenPurpose.Activation, CancellationToken.None));
 
         Assert.Null(db.PasswordResetTokens.Single().UsedAtUtc);
@@ -189,7 +190,7 @@ public sealed class AuthServiceTests
         }).Build());
         var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<ConflictException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
 
         Assert.Equal("El usuario ya se encuentra registrado.", exception.Message);
     }

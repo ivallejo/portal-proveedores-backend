@@ -1,5 +1,6 @@
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
@@ -21,7 +22,7 @@ internal sealed class DocumentQueryService(IDocumentRepository documents, Docume
             DocumentInbox.Mine when actor.IsProvider && !actor.IsAdmin => query with { OwnerRuc = actor.Ruc },
             DocumentInbox.Mine when !actor.IsAdmin => query with { RegisteredById = actor.Id },
             DocumentInbox.Mine => query,
-            _ => throw new UnauthorizedAccessException("No tienes acceso a esta bandeja."),
+            _ => throw new ForbiddenException("No tienes acceso a esta bandeja."),
         };
 
         var result = await documents.SearchAsync(query, cancellationToken);
@@ -38,7 +39,7 @@ internal sealed class DocumentQueryService(IDocumentRepository documents, Docume
     {
         var (_, document) = await access.LoadVisibleAsync(userId, documentId, cancellationToken);
         var attachment = document.Attachments.SingleOrDefault(item => item.Id == attachmentId)
-            ?? throw new KeyNotFoundException("El archivo no existe.");
+            ?? throw new NotFoundException("El archivo no existe.");
         var content = await storage.OpenReadAsync(attachment.StorageKey, cancellationToken);
         return new AttachmentContent(content, attachment.FileName, attachment.ContentType);
     }

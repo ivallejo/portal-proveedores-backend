@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application;
 
 namespace WebProveedores.Infrastructure.Documents;
 
@@ -27,7 +28,7 @@ public sealed class LocalFileStorage(IConfiguration configuration) : IFileStorag
     public Task<Stream> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
     {
         var path = Resolve(storageKey);
-        if (!File.Exists(path)) throw new KeyNotFoundException("El archivo no está disponible.");
+        if (!File.Exists(path)) throw new NotFoundException("El archivo no está disponible.");
         return Task.FromResult<Stream>(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read));
     }
 

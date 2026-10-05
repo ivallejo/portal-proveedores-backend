@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
@@ -11,18 +12,18 @@ internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, 
 
     public static async Task<byte[]> ReadRequiredAsync(UploadedFile? file, string label, string[] extensions, CancellationToken cancellationToken)
     {
-        if (file is null || file.Length == 0) throw new ArgumentException($"Adjunta el {label}.");
+        if (file is null || file.Length == 0) throw new ValidationException($"Adjunta el {label}.");
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!extensions.Contains(extension))
-            throw new ArgumentException($"El {label} debe ser {string.Join(" o ", extensions)}. Recibimos «{Path.GetFileName(file.FileName)}».");
-        if (file.Length > MaxFileBytes) throw new ArgumentException($"El {label} supera los 5 MB permitidos.");
+            throw new ValidationException($"El {label} debe ser {string.Join(" o ", extensions)}. Recibimos «{Path.GetFileName(file.FileName)}».");
+        if (file.Length > MaxFileBytes) throw new ValidationException($"El {label} supera los 5 MB permitidos.");
 
         using var buffer = new MemoryStream();
         await file.Content.CopyToAsync(buffer, cancellationToken);
         var bytes = buffer.ToArray();
-        if (bytes.Length > MaxFileBytes) throw new ArgumentException($"El {label} supera los 5 MB permitidos.");
+        if (bytes.Length > MaxFileBytes) throw new ValidationException($"El {label} supera los 5 MB permitidos.");
         if (!HasExpectedSignature(extension, bytes))
-            throw new ArgumentException($"El contenido del {label} no corresponde a un archivo {extension}.");
+            throw new ValidationException($"El contenido del {label} no corresponde a un archivo {extension}.");
         return bytes;
     }
 
@@ -30,7 +31,7 @@ internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, 
     public byte[] MergePdfs(IReadOnlyList<byte[]> pdfs)
     {
         try { return pdfMerger.Merge(pdfs); }
-        catch (InvalidDataException exception) { throw new ArgumentException(exception.Message); }
+        catch (InvalidDataException exception) { throw new ValidationException(exception.Message); }
     }
 
     public async Task AttachAsync(SupplierDocument document, AttachmentKind kind, UploadedFile file, byte[] bytes, List<string> stored, CancellationToken cancellationToken)

@@ -1,6 +1,7 @@
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
@@ -10,7 +11,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
     public async Task<DocumentActor> LoadActorAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = await users.FindByIdAsync(userId, cancellationToken);
-        if (user is null || !user.IsActive) throw new UnauthorizedAccessException("La sesión no es válida.");
+        if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
         var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Code).ToHashSet();
         var companies = user.UserCompanies.Select(item => item.CompanyId).ToHashSet();
@@ -27,7 +28,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
             || (actor.IsApprover && (document.ApproverId == actor.Id || (actor.AreaId is not null && document.AreaId == actor.AreaId && actor.HasCompany(document.CompanyId))))
             || (actor.IsProvider && document.ProviderRuc == actor.Ruc)
             || document.RegisteredById == actor.Id;
-        if (!visible) throw new KeyNotFoundException("El documento no existe.");
+        if (!visible) throw new NotFoundException("El documento no existe.");
         return (actor, document);
     }
 
@@ -37,7 +38,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
         var actor = await LoadActorAsync(userId, cancellationToken);
         var document = await RequireDocumentAsync(documentId, cancellationToken);
         if (!actor.IsAdmin && !(actor.IsApprover && document.ApproverId == actor.Id))
-            throw new UnauthorizedAccessException("Solo el aprobador asignado puede atender este documento.");
+            throw new ForbiddenException("Solo el aprobador asignado puede atender este documento.");
         return (actor, document);
     }
 
@@ -45,17 +46,17 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
     public async Task<(DocumentActor Actor, SupplierDocument Document)> LoadForAccountingAsync(Guid userId, Guid documentId, string deniedMessage, CancellationToken cancellationToken)
     {
         var actor = await LoadActorAsync(userId, cancellationToken);
-        if (!actor.IsAccounting && !actor.IsAdmin) throw new UnauthorizedAccessException(deniedMessage);
+        if (!actor.IsAccounting && !actor.IsAdmin) throw new ForbiddenException(deniedMessage);
         var document = await RequireDocumentAsync(documentId, cancellationToken);
-        if (!actor.HasCompany(document.CompanyId)) throw new UnauthorizedAccessException("No tienes asignada la sociedad de este documento.");
+        if (!actor.HasCompany(document.CompanyId)) throw new ForbiddenException("No tienes asignada la sociedad de este documento.");
         return (actor, document);
     }
 
     public async Task<Company> RequireCompanyAsync(DocumentActor actor, string code, CancellationToken cancellationToken)
     {
         var company = await documents.FindCompanyAsync(code.Trim(), cancellationToken);
-        if (company is not { IsActive: true }) throw new ArgumentException("La sociedad seleccionada no es válida.");
-        if (!actor.HasCompany(company.Id)) throw new UnauthorizedAccessException($"No tienes asignada la sociedad {company.Name}.");
+        if (company is not { IsActive: true }) throw new ValidationException("La sociedad seleccionada no es válida.");
+        if (!actor.HasCompany(company.Id)) throw new ForbiddenException($"No tienes asignada la sociedad {company.Name}.");
         return company;
     }
 
@@ -63,12 +64,12 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
     public async Task<ApproverRecord> RequireApproverAsync(Guid approverId, Company company, CancellationToken cancellationToken)
     {
         var approver = await documents.FindApproverAsync(approverId, cancellationToken)
-            ?? throw new ArgumentException("El aprobador seleccionado no es válido.");
+            ?? throw new ValidationException("El aprobador seleccionado no es válido.");
         if (!approver.CompanyCodes.Contains(company.Code))
-            throw new ArgumentException($"{approver.Name} no aprueba documentos de la sociedad {company.Name}.");
+            throw new ValidationException($"{approver.Name} no aprueba documentos de la sociedad {company.Name}.");
         return approver;
     }
 
     private async Task<SupplierDocument> RequireDocumentAsync(Guid documentId, CancellationToken cancellationToken) =>
-        await documents.FindAsync(documentId, cancellationToken) ?? throw new KeyNotFoundException("El documento no existe.");
+        await documents.FindAsync(documentId, cancellationToken) ?? throw new NotFoundException("El documento no existe.");
 }

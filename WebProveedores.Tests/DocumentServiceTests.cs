@@ -5,10 +5,12 @@ using PdfSharp.Pdf;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Documents;
+using WebProveedores.Domain;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 
@@ -55,7 +57,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000102", issuerRuc: "20999999999"), approverId: fixture.Approver.Id), CancellationToken.None));
 
         Assert.Contains("20999999999", exception.Message);
@@ -67,7 +69,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000103"), approverId: fixture.Approver.Id, includeCdr: false), CancellationToken.None));
         var result = await fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("E001-00000103"), approverId: fixture.Approver.Id, includeCdr: false), CancellationToken.None);
@@ -84,7 +86,7 @@ public sealed class DocumentServiceTests
         await Assert.ThrowsAsync<DocumentRejectedException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000104"), approverId: fixture.Approver.Id), CancellationToken.None));
         var fakePdf = Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000105"), approverId: fixture.Approver.Id) with { Pdf = File("factura.pdf", "no soy un pdf") };
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, fakePdf, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, fakePdf, CancellationToken.None));
     }
 
     [Fact]
@@ -92,7 +94,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111")), CancellationToken.None));
         var result = await fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111"), approverId: fixture.Approver.Id), CancellationToken.None);
@@ -109,9 +111,9 @@ public sealed class DocumentServiceTests
 
         var result = await fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000112", issuerRuc: "20111111111"), pettyCash: true), CancellationToken.None);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000113"), approverId: fixture.Approver.Id, pettyCash: true), CancellationToken.None));
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000114", issuerRuc: "20111111111"), orderNumber: "4500012873", pettyCash: true), CancellationToken.None));
 
         Assert.Equal(DocumentStatus.PendingAccounting, result.Status);
@@ -125,7 +127,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Registration.RegisterSpecialAsync(fixture.Provider.Id, Special("075-1"), CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Registration.RegisterSpecialAsync(fixture.Provider.Id, Special("075-1"), CancellationToken.None));
         var special = await fixture.Services.Registration.RegisterSpecialAsync(fixture.Internal.Id, Special("075-1"), CancellationToken.None);
 
         Assert.Equal("Boleto aéreo", special.DocumentType);
@@ -153,7 +155,7 @@ public sealed class DocumentServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var broken = File("roto.pdf", "%PDF-1.4 esto no es un pdf completo");
 
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000116"), approverId: fixture.Approver.Id, extras: [broken]), CancellationToken.None));
 
         Assert.Empty(fixture.Storage.Files);
@@ -179,7 +181,7 @@ public sealed class DocumentServiceTests
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000107"), approverId: fixture.Approver.Id), CancellationToken.None);
         var request = new ApproveDocumentRequest { ReferenceType = ApprovalReferenceType.Order, Reference = "ped-2026-01842" };
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Approvals.ApproveAsync(fixture.OtherApprover.Id, document.Id, request, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Approvals.ApproveAsync(fixture.OtherApprover.Id, document.Id, request, CancellationToken.None));
         var approved = await fixture.Services.Approvals.ApproveAsync(fixture.Approver.Id, document.Id, request, CancellationToken.None);
 
         Assert.Equal(DocumentStatus.PendingAccounting, approved.Status);
@@ -199,7 +201,7 @@ public sealed class DocumentServiceTests
         Assert.Equal("Jorge Paredes", reassigned.ApproverName);
         Assert.Equal("Corresponde a Finanzas", reassigned.History.Single(item => item.Title.StartsWith("Reasignado")).Note);
         Assert.Equal("jparedes@test.pe", fixture.Email.Recipients[^1]);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Approvals.RejectAsync(
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Approvals.RejectAsync(
             fixture.Approver.Id, document.Id, new RejectDocumentRequest { Reason = "x" }, CancellationToken.None));
     }
 
@@ -209,7 +211,7 @@ public sealed class DocumentServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000117"), approverId: fixture.Approver.Id), CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Services.Approvals.ReassignAsync(
+        await Assert.ThrowsAsync<DomainRuleException>(() => fixture.Services.Approvals.ReassignAsync(
             fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id, Reason = "  " }, CancellationToken.None));
     }
 
@@ -224,8 +226,8 @@ public sealed class DocumentServiceTests
 
         Assert.Equal(DocumentStatus.Observed, observed.Status);
         Assert.Equal("proveedor@test.pe", fixture.Email.Recipients[^1]);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Provider.Id, document.Id, request, CancellationToken.None));
+        await Assert.ThrowsAsync<DomainRuleException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Provider.Id, document.Id, request, CancellationToken.None));
     }
 
     [Fact]
@@ -242,7 +244,7 @@ public sealed class DocumentServiceTests
         Assert.Equal("F001-00000110", Assert.Single(approvals.Items).Number);
         Assert.Equal("F001-00000111", Assert.Single(accounting.Items).Number);
         Assert.Equal(2, mine.Total);
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Queries.SearchAsync(fixture.Provider.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Queries.SearchAsync(fixture.Provider.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None));
     }
 
     [Fact]
@@ -254,10 +256,10 @@ public sealed class DocumentServiceTests
         Assert.Equal("1001", Assert.Single(internalCompanies).Code);
         Assert.Equal(2, (await fixture.Services.Catalog.ListCompaniesAsync(fixture.Provider.Id, CancellationToken.None)).Count);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000120", issuerRuc: "20111111111"), approverId: fixture.OtherApprover.Id, companyCode: "1002"), CancellationToken.None));
         // El aprobador elegido también debe trabajar con la sociedad del documento.
-        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Services.Registration.RegisterAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000121"), approverId: fixture.Approver.Id, companyCode: "1002"), CancellationToken.None));
 
         var ultratag = await fixture.Services.Registration.RegisterAsync(
@@ -266,8 +268,8 @@ public sealed class DocumentServiceTests
         // Cuentas por pagar solo trabaja con Naviera: no ve ni puede observar el documento de Ultratag.
         var accounting = await fixture.Services.Queries.SearchAsync(fixture.Accounting.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None);
         Assert.Empty(accounting.Items);
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => fixture.Services.Queries.GetAsync(fixture.Accounting.Id, ultratag.Id, CancellationToken.None));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Services.Accounting.ObserveAsync(
+        await Assert.ThrowsAsync<NotFoundException>(() => fixture.Services.Queries.GetAsync(fixture.Accounting.Id, ultratag.Id, CancellationToken.None));
+        await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Accounting.ObserveAsync(
             fixture.Accounting.Id, ultratag.Id, new ObserveDocumentRequest { Reason = "Falta la guía de remisión", Email = "proveedor@test.pe" }, CancellationToken.None));
     }
 

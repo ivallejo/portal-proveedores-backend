@@ -4,6 +4,7 @@ using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Domain.Entities;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Auth;
 
@@ -28,7 +29,7 @@ public sealed partial class ProviderRegistrationService(
         // Una cuenta que nunca activó su contraseña (el correo no llegó o expiró) puede volver a registrarse.
         var existing = await users.FindByRucAsync(normalizedRuc, cancellationToken);
         if (existing?.PasswordSetAtUtc is not null)
-            throw new InvalidOperationException("El usuario ya se encuentra registrado.");
+            throw new ConflictException("El usuario ya se encuentra registrado.");
 
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
         return new(normalizedRuc, provider.CompanyName, ObfuscateEmail(provider.Correo!));
@@ -40,7 +41,7 @@ public sealed partial class ProviderRegistrationService(
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
         var user = await users.FindByRucAsync(normalizedRuc, cancellationToken);
         if (user?.PasswordSetAtUtc is not null)
-            throw new InvalidOperationException("Este RUC ya tiene una cuenta activa. Usa la opción 'Olvidé mi contraseña' para recuperar el acceso.");
+            throw new ConflictException("Este RUC ya tiene una cuenta activa. Usa la opción 'Olvidé mi contraseña' para recuperar el acceso.");
 
         var now = clock.GetUtcNow().UtcDateTime;
         var email = provider.Correo!.Trim().ToLowerInvariant();
@@ -91,7 +92,7 @@ public sealed partial class ProviderRegistrationService(
         var email = request.Email.Trim().ToLowerInvariant();
         var ruc = request.Ruc.Trim();
         if (await users.EmailExistsAsync(email, cancellationToken) || await users.RucExistsAsync(ruc, cancellationToken))
-            throw new InvalidOperationException("Ya existe un usuario registrado con ese correo o RUC.");
+            throw new ConflictException("Ya existe un usuario registrado con ese correo o RUC.");
 
         var user = new AppUser { Username = ruc, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = clock.GetUtcNow().UtcDateTime };
         user.PasswordHash = hasher.Hash(request.Password);
@@ -115,12 +116,12 @@ public sealed partial class ProviderRegistrationService(
     {
         var provider = await sapProvider.FindByRucAsync(ruc, cancellationToken);
         if (provider is null || string.IsNullOrWhiteSpace(provider.Correo) || string.IsNullOrWhiteSpace(provider.CompanyName))
-            throw new KeyNotFoundException("No encontramos información para el RUC indicado.");
+            throw new NotFoundException("No encontramos información para el RUC indicado.");
         return provider;
     }
 
     private static string NormalizeRuc(string ruc) =>
-        RucPattern().IsMatch(ruc.Trim()) ? ruc.Trim() : throw new KeyNotFoundException("Ingresa un RUC válido de 11 dígitos.");
+        RucPattern().IsMatch(ruc.Trim()) ? ruc.Trim() : throw new NotFoundException("Ingresa un RUC válido de 11 dígitos.");
 
     private static string ObfuscateEmail(string email)
     {

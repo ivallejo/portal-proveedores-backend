@@ -4,6 +4,7 @@ using WebProveedores.Application.Admin;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 
@@ -44,7 +45,7 @@ public sealed class AdminUserServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => fixture.Service.CreateAsync(new CreateUserRequest
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateAsync(new CreateUserRequest
         {
             Username = "nuevo",
             Email = "nuevo@ejemplo.test",
@@ -64,7 +65,7 @@ public sealed class AdminUserServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.CreateAsync(new CreateUserRequest
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateAsync(new CreateUserRequest
         {
             Username = "admin.uno",
             Email = "otro@ejemplo.test",
@@ -82,9 +83,9 @@ public sealed class AdminUserServiceTests
         var admin = fixture.Admin.Id;
         var other = fixture.OtherAdmin.Id;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.UpdateAsync(admin, admin, Update("admin1@ejemplo.test", SecurityCatalog.InternalUserRole), CancellationToken.None));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.SetStatusAsync(admin, admin, new UpdateUserStatusRequest(false), CancellationToken.None));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.UpdateAsync(admin, other, Update("admin1@ejemplo.test", SecurityCatalog.AdministratorRole), CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.UpdateAsync(admin, admin, Update("admin1@ejemplo.test", SecurityCatalog.InternalUserRole), CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetStatusAsync(admin, admin, new UpdateUserStatusRequest(false), CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.UpdateAsync(admin, other, Update("admin1@ejemplo.test", SecurityCatalog.AdministratorRole), CancellationToken.None));
 
         // Quitar el rol al otro administrador es válido mientras quede uno activo.
         var updated = await fixture.Service.UpdateAsync(admin, other, Update("dos@ejemplo.test", SecurityCatalog.AccountsPayableRole), CancellationToken.None);
@@ -93,7 +94,7 @@ public sealed class AdminUserServiceTests
         Assert.Equal("dos@ejemplo.test", updated.Email);
 
         // Ahora es el único: nadie puede desactivarlo.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.SetStatusAsync(other, admin, new UpdateUserStatusRequest(false), CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetStatusAsync(other, admin, new UpdateUserStatusRequest(false), CancellationToken.None));
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Entities;
+using WebProveedores.Application;
 
 namespace WebProveedores.Application.Auth;
 
@@ -18,16 +19,16 @@ public sealed class PasswordService(
     public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken)
     {
         var user = await users.FindTrackedByIdAsync(userId, cancellationToken);
-        if (user is null || !user.IsActive) throw new UnauthorizedAccessException("La sesión no es válida.");
+        if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
 
         // La sesión de cambio forzado se abrió con la contraseña temporal: no se vuelve a pedir.
         var forcedChange = user.MustChangePassword && passwordChangeSession;
         if (!forcedChange && (string.IsNullOrEmpty(request.CurrentPassword) || !hasher.Verify(user.PasswordHash, request.CurrentPassword)))
-            throw new ArgumentException("La contraseña actual no es correcta.");
+            throw new ValidationException("La contraseña actual no es correcta.");
         if (hasher.Verify(user.PasswordHash, request.NewPassword))
-            throw new ArgumentException("La nueva contraseña debe ser distinta de la actual.");
+            throw new ValidationException("La nueva contraseña debe ser distinta de la actual.");
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
-            throw new ArgumentException(PasswordPolicy.Description);
+            throw new ValidationException(PasswordPolicy.Description);
 
         var now = clock.GetUtcNow().UtcDateTime;
         user.PasswordHash = hasher.Hash(request.NewPassword);
@@ -61,7 +62,7 @@ public sealed class PasswordService(
     public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
-            throw new ArgumentException(PasswordPolicy.Description);
+            throw new ValidationException(PasswordPolicy.Description);
         var resetToken = await passwordTokens.FindValidAsync(request.Ruc.Trim(), AuthSupport.HashOneTimeToken(request.Token), purpose, cancellationToken);
         if (resetToken is null) return false;
 
