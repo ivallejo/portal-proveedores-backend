@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Application.Admin;
@@ -10,20 +12,33 @@ namespace WebProveedores.Api.Controllers;
 public sealed class AdminUsersController(IAdminUserService users) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AdminUserResponse>>> List(CancellationToken cancellationToken) => Ok(await users.ListAsync(cancellationToken));
+    public async Task<ActionResult<AdminUserPage>> Search([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        => Ok(await users.SearchAsync(search, page, pageSize, cancellationToken));
+
+    /// <summary>Roles, áreas y sociedades para los formularios.</summary>
+    [HttpGet("catalog")]
+    public async Task<ActionResult<AdminCatalogResponse>> Catalog(CancellationToken cancellationToken)
+        => Ok(await users.CatalogAsync(cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<AdminUserResponse>> Create(CreateUserRequest request, CancellationToken cancellationToken)
         => Ok(await users.CreateAsync(request, cancellationToken));
 
-    [HttpPut("{id:guid}/role")]
-    public async Task<ActionResult<AdminUserResponse>> AssignRole(Guid id, AssignRoleRequest request, CancellationToken cancellationToken)
-        => await users.AssignRoleAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
-
-    [HttpPut("{id:guid}/companies")]
-    public async Task<ActionResult<AdminUserResponse>> AssignCompanies(Guid id, AssignCompaniesRequest request, CancellationToken cancellationToken)
-        => await users.AssignCompaniesAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<AdminUserResponse>> Update(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
+        => await users.UpdateAsync(UserId, id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
 
     [HttpPatch("{id:guid}/status")]
-    public async Task<ActionResult<AdminUserResponse>> SetStatus(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken) => await users.SetStatusAsync(id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+    public async Task<ActionResult<AdminUserResponse>> SetStatus(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
+        => await users.SetStatusAsync(UserId, id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+
+    /// <summary>Quita el bloqueo temporal por intentos fallidos.</summary>
+    [HttpPost("{id:guid}/unlock")]
+    public async Task<ActionResult<AdminUserResponse>> Unlock(Guid id, CancellationToken cancellationToken)
+        => await users.UnlockAsync(id, cancellationToken) is { } result ? Ok(result) : NotFound();
+
+    private Guid UserId =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id)
+            ? id
+            : throw new UnauthorizedAccessException("La sesión no es válida.");
 }

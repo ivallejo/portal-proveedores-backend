@@ -12,7 +12,7 @@ Implementado:
 - Prevención de duplicidad de RUC.
 - Activación inicial y recuperación de contraseña por correo.
 - Usuarios, roles, áreas y múltiples correos en el modelo.
-- Administración básica de usuarios.
+- Administración de usuarios: multirol, área, sociedades, activación y desbloqueo.
 - SQL Server en Docker, migraciones EF Core, Swagger y health check.
 - Módulo de documentos: registro Con OC, Sin OC y documentos especiales, adjuntos en disco, historial, aprobación (aprobar, rechazar, reasignar) y Cuentas por pagar (rechazar, observar). Ver «Módulo de documentos».
 
@@ -234,7 +234,7 @@ Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con mi
 
 - Siempre: las sociedades base 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA, y los roles del catálogo. No hay administrador genérico: los administradores vienen del seed, y sin ninguno activo la API no arranca fuera de desarrollo (`Seed:RequireAdministrator`).
 - Desarrollo: `seed.development.json` (versionado, ficticio: áreas Operaciones, Logística, Compras, Finanzas, Contabilidad y usuarios `prueba.admin`, `prueba.aprobador`, `prueba.aprobador2`, `prueba.cxp`, `prueba.interno`). `scripts/reset-dev-db.sh` borra la base local (solo si la conexión apunta a localhost) para recrearla.
-- Sociedades por usuario (`UserCompanies`): cada usuario trabaja con una o varias sociedades (`"companies"` en el seed; si se omite, todas). Registrar documentos solo admite sus sociedades; las bandejas de Documentos y Contabilización y el detalle se filtran por ellas (lo propio —registrado, emitido con su RUC o asignado a él— siempre es visible). El aprobador elegido debe trabajar con la sociedad del documento. El administrador ve todas. Los proveedores nuevos reciben todas. Admin: `PUT /api/admin/users/{id}/companies`.
+- Sociedades por usuario (`UserCompanies`): cada usuario trabaja con una o varias sociedades (`"companies"` en el seed; si se omite, todas). Registrar documentos solo admite sus sociedades; las bandejas de Documentos y Contabilización y el detalle se filtran por ellas (lo propio —registrado, emitido con su RUC o asignado a él— siempre es visible). El aprobador elegido debe trabajar con la sociedad del documento. El administrador ve todas. Los proveedores nuevos reciben todas. Admin: `PUT /api/admin/users/{id}`.
 - Producción: `seed.production.json` (fuera de git) sobre una base nueva. `Seed:FilePath` relativo se busca en el directorio actual y en el padre.
 - Con un archivo de seed: sociedades con su RUC, áreas y **usuarios reales**. El archivo se busca en `Seed__FilePath`, o `seed.json` en el directorio actual o en el padre. Está ignorado por git porque contiene datos personales y contraseñas temporales; la plantilla es `seed.example.json`.
 - Cada usuario se crea con una **contraseña temporal** (`temporaryPassword` del usuario o `Seed__TemporaryPassword`; mínimo 8 caracteres con mayúscula, minúscula y número) y la marca `MustChangePassword`.
@@ -333,13 +333,15 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.
 
 ```text
-GET   /api/admin/users
-POST  /api/admin/users
-PUT   /api/admin/users/{id}/role
+GET   /api/admin/users?search=&page=&pageSize=   # paginado; busca por usuario, nombre, RUC o correo
+GET   /api/admin/users/catalog                   # roles, áreas y sociedades para los formularios
+POST  /api/admin/users                           # roles[], areaId, companyCodes[], contraseña temporal
+PUT   /api/admin/users/{id}                      # correo, nombre, roles[], areaId, companyCodes[] (reemplaza)
 PATCH /api/admin/users/{id}/status
+POST  /api/admin/users/{id}/unlock               # quita el bloqueo por intentos fallidos
 ```
 
-El modelo soporta múltiples roles, pero el endpoint actual `AssignRole` reemplaza la colección por un rol único. Antes de implementar edición multirol real, cambiar el contrato a una lista y proteger el último administrador activo.
+Reglas (`AdminUserService`): roles por código; el aprobador necesita área, el proveedor RUC de 11 dígitos y todo usuario que no sea administrador al menos una sociedad. El usuario y el RUC no se editan. Un administrador no puede desactivarse ni quitarse su rol, y nunca puede quedar el portal sin un administrador activo (409). La regla de contraseñas está en `PasswordPolicy`.
 
 ## Calidad validada
 
@@ -352,7 +354,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 34 passed (autenticación, bloqueo, seed, cambio de contraseña y documentos).
+- Tests: 44 passed (autenticación, bloqueo, seed, cambio de contraseña, documentos y administración de usuarios).
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 

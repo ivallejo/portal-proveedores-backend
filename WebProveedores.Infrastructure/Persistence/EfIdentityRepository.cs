@@ -29,9 +29,27 @@ public sealed class EfIdentityRepository(AppDbContext db) : IIdentityRepository
         db.PasswordResetTokens.Include(token => token.User).ThenInclude(user => user.Emails)
             .SingleOrDefaultAsync(token => token.User.Ruc == ruc && token.TokenHash == tokenHash && token.Purpose == purpose && token.UsedAtUtc == null && token.ExpiresAtUtc > DateTime.UtcNow, cancellationToken);
 
-    public async Task<IReadOnlyList<AppUser>> ListUsersAsync(CancellationToken cancellationToken) =>
-        await db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role).Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company)
-            .OrderBy(user => user.CompanyName).ToListAsync(cancellationToken);
+    public async Task<UserSearchResult> SearchUsersAsync(string? search, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = db.Users.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(user => user.Username.Contains(term) || user.CompanyName.Contains(term)
+                || (user.Ruc != null && user.Ruc.Contains(term)) || user.Emails.Any(email => email.Email.Contains(term)));
+        }
+        var total = await query.CountAsync(cancellationToken);
+        var items = await query
+            .Include(user => user.Emails)
+            .Include(user => user.Area)
+            .Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
+            .Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company)
+            .OrderBy(user => user.CompanyName).ThenBy(user => user.Username)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+        return new UserSearchResult(items, total);
+    }
 
     public async Task<IReadOnlyList<Domain.Documents.Company>> ListActiveCompaniesAsync(CancellationToken cancellationToken) =>
         await db.Companies.Where(company => company.IsActive).OrderBy(company => company.Code).ToListAsync(cancellationToken);
@@ -45,8 +63,21 @@ public sealed class EfIdentityRepository(AppDbContext db) : IIdentityRepository
     public Task<bool> UsernameExistsAsync(string username, CancellationToken cancellationToken) =>
         db.Users.AnyAsync(user => user.Username == username, cancellationToken);
 
-    public Task<Role?> FindRoleAsync(string value, CancellationToken cancellationToken) =>
-        db.Roles.SingleOrDefaultAsync(role => role.Code == value || role.Name == value, cancellationToken);
+    public async Task<IReadOnlyList<Role>> ListRolesAsync(CancellationToken cancellationToken) =>
+        await db.Roles.Where(role => role.IsActive).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Area>> ListActiveAreasAsync(CancellationToken cancellationToken) =>
+        await db.Areas.AsNoTracking().Where(area => area.IsActive).OrderBy(area => area.Name).ToListAsync(cancellationToken);
+
+    public Task<Area?> FindAreaAsync(Guid id, CancellationToken cancellationToken) =>
+        db.Areas.SingleOrDefaultAsync(area => area.Id == id && area.IsActive, cancellationToken);
+
+    public Task<bool> EmailUsedByOtherAsync(string email, Guid exceptUserId, CancellationToken cancellationToken) =>
+        db.UserEmails.AnyAsync(item => item.Email == email && item.UserId != exceptUserId, cancellationToken);
+
+    public Task<bool> OtherActiveAdministratorExistsAsync(Guid exceptUserId, CancellationToken cancellationToken) =>
+        db.Users.AnyAsync(user => user.Id != exceptUserId && user.IsActive
+            && user.UserRoles.Any(userRole => userRole.Role.Code == SecurityCatalog.AdministratorRole), cancellationToken);
 
     public Task<Role?> FindRoleByCodeAsync(string code, CancellationToken cancellationToken) =>
         db.Roles.SingleOrDefaultAsync(role => role.Code == code, cancellationToken);

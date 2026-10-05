@@ -87,8 +87,8 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
             throw new ArgumentException("La contraseña actual no es correcta.");
         if (request.NewPassword == request.CurrentPassword)
             throw new ArgumentException("La nueva contraseña debe ser distinta de la actual.");
-        if (!MeetsPasswordPolicy(request.NewPassword))
-            throw new ArgumentException("La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula y un número.");
+        if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
+            throw new ArgumentException(PasswordPolicy.Description);
 
         user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
         user.MustChangePassword = false;
@@ -111,9 +111,6 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
         var token = new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"], claims, expires: expires, signingCredentials: credentials);
         return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToResponse(user));
     }
-
-    private static bool MeetsPasswordPolicy(string password) =>
-        password.Length >= 8 && password.Any(char.IsUpper) && password.Any(char.IsLower) && password.Any(char.IsDigit);
 
     public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
     {
