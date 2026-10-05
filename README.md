@@ -149,7 +149,7 @@ La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentI
 
 Datos iniciales por entorno (el seed solo **crea** lo que falta; nunca modifica ni borra):
 
-- **Desarrollo / QA**: `seed.development.json` (versionado, datos ficticios `prueba.*`). En el `.env`: `Seed__FilePath=seed.development.json` y `Seed__TemporaryPassword`. Para empezar de cero: `./scripts/reset-dev-db.sh` (borra la base local y los adjuntos; al iniciar la API se migra y se carga el seed).
+- **Desarrollo / QA**: `seed.development.json` (versionado, datos ficticios `prueba.*`). En el `.env`: `Seed__FilePath=seed.development.json` y `Seed__TemporaryPassword`. Para empezar de cero: `scripts/reset-dev-db.sh --start` (detiene la API si está corriendo, borra la base local y los adjuntos, e inicia la API en `http://localhost:5080`, que migra y carga el seed). Sin `--start` solo borra; se puede ejecutar desde cualquier carpeta con su ruta completa.
 - **Producción**: base nueva + `seed.production.json` con los datos reales (ignorado por git; plantilla en `seed.example.json`), apuntado con `Seed__FilePath`. Después de la salida, los cambios se hacen desde las pantallas de Configuración, no con el seed. Nunca reutilizar la base de desarrollo.
 
 Cada usuario del seed debe cambiar su contraseña temporal al ingresar. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#datos-iniciales-seed).

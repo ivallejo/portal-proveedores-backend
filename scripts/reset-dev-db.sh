@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
-# Recrea la base LOCAL de desarrollo: la borra y, al iniciar la API, se aplican las migraciones
-# y se cargan los datos de seed.development.json. Nunca ejecutar contra producción.
+# Recrea la base LOCAL de desarrollo: detiene la API si está corriendo, borra la base y sus adjuntos,
+# y al iniciar la API se aplican las migraciones y se cargan los datos de seed.development.json.
+# Nunca ejecutar contra producción.
+#
+#   scripts/reset-dev-db.sh           # deja todo listo; inicias la API tú
+#   scripts/reset-dev-db.sh --start   # además inicia la API (Development) en esta terminal
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+start_api=false
+[ "${1:-}" = "--start" ] && start_api=true
 
 set -a; source .env; set +a
 database="${DATABASE_NAME:-WebProveedores}"
@@ -11,6 +18,14 @@ case "${ConnectionStrings__DefaultConnection:-}" in
   *localhost*|*127.0.0.1*) ;;
   *) echo "La cadena de conexión no apunta a localhost; no se borra nada." >&2; exit 1 ;;
 esac
+
+# Una API corriendo mantiene la conexión y no recrearía la base hasta reiniciarse.
+api_pids=$(pgrep -f "WebProveedores.Api" || true)
+if [ -n "$api_pids" ]; then
+  echo "Deteniendo la API en ejecución…"
+  kill $api_pids 2>/dev/null || true
+  sleep 2
+fi
 
 docker compose up -d sqlserver >/dev/null
 echo "Esperando a SQL Server…"
@@ -26,5 +41,13 @@ END" >/dev/null
 documents="${Storage__DocumentsPath:-App_Data/documents}"
 case "$documents" in /*|*..*) ;; *) rm -rf -- "WebProveedores.Api/$documents" ;; esac
 
-echo "Base «$database» eliminada. Inicia la API para recrearla con seed.development.json:"
-echo "  set -a && source .env && set +a && dotnet run --project WebProveedores.Api"
+echo "Base «$database» eliminada."
+if $start_api; then
+  echo "Iniciando la API (Development); se recrea la base con seed.development.json…"
+  # Mismo puerto que espera el frontend (environment.ts → http://localhost:5080).
+  ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS="${ASPNETCORE_URLS:-http://localhost:5080}" \
+    exec dotnet run --project WebProveedores.Api --no-launch-profile
+fi
+echo "Inicia la API para recrearla con seed.development.json:"
+echo "  cd $(pwd) && set -a && source .env && set +a && dotnet run --project WebProveedores.Api"
+echo "(o vuelve a ejecutar este script con --start)"
