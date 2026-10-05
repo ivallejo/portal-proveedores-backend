@@ -41,7 +41,7 @@ END" >/dev/null
 documents="${Storage__DocumentsPath:-App_Data/documents}"
 case "$documents" in /*|*..*) ;; *) rm -rf -- "WebProveedores.Api/$documents" ;; esac
 
-echo "Base «$database» eliminada."
+echo "Base «${database}» eliminada."
 if $start_api; then
   echo "Iniciando la API (Development); se recrea la base con seed.development.json…"
   # Mismo puerto que espera el frontend (environment.ts → http://localhost:5080).
