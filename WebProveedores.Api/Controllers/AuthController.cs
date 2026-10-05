@@ -97,6 +97,13 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de activación es inválido o ya venció." });
     }
 
+    /// <summary>Cambia la contraseña de quien tiene sesión y devuelve una sesión nueva.</summary>
+    [HttpPost("change-password")]
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.Sensitive)]
+    public async Task<ActionResult<AuthResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
+        Ok(await auth.ChangePasswordAsync(User, request, cancellationToken));
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) =>

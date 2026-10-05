@@ -24,7 +24,8 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
         var role = await FindRoleAsync(request.Role, cancellationToken);
         var username = string.IsNullOrWhiteSpace(request.Username) ? (ruc ?? email.Split('@')[0]) : request.Username.Trim();
         if (await db.UsernameExistsAsync(username, cancellationToken)) throw new InvalidOperationException("Ya existe un usuario con ese username.");
-        var user = new AppUser { Username = username, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = DateTime.UtcNow };
+        // La contraseña la define el administrador: es temporal y la persona debe cambiarla al ingresar.
+        var user = new AppUser { Username = username, CompanyName = request.CompanyName.Trim(), Ruc = ruc, PasswordSetAtUtc = DateTime.UtcNow, MustChangePassword = true };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         user.Emails.Add(new UserEmail { Email = email, IsPrimary = true });
         user.UserRoles.Add(new UserRole { Role = role });
@@ -35,7 +36,7 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
 
     public async Task<AdminUserResponse?> AssignRoleAsync(Guid id, AssignRoleRequest request, CancellationToken cancellationToken)
     {
-        var user = await db.FindByIdAsync(id, cancellationToken);
+        var user = await db.FindTrackedByIdAsync(id, cancellationToken);
         if (user is null) return null;
         var role = await FindRoleAsync(request.Role, cancellationToken);
         user.UserRoles.Clear();
@@ -47,7 +48,7 @@ public sealed class AdminUserService(IIdentityRepository db) : IAdminUserService
 
     public async Task<AdminUserResponse?> SetStatusAsync(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
     {
-        var user = await db.FindByIdAsync(id, cancellationToken);
+        var user = await db.FindTrackedByIdAsync(id, cancellationToken);
         if (user is null) return null;
         user.IsActive = request.IsActive;
         user.UpdatedAtUtc = DateTime.UtcNow;

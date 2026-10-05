@@ -147,6 +147,23 @@ app.UseExceptionHandler();
 app.UseCors("Frontend");
 app.UseRateLimiter();
 app.UseAuthentication();
+
+// Con contraseña temporal la sesión solo sirve para cambiarla (y consultar el propio usuario).
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (context.User.HasClaim(AuthService.PasswordChangeClaim, "1")
+        && path.StartsWithSegments("/api")
+        && !path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
+        && !path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new { code = "PASSWORD_CHANGE_REQUIRED", message = "Debes cambiar tu contraseña temporal antes de continuar." });
+        return;
+    }
+    await next();
+});
+
 app.UseAuthorization();
 
 app.MapControllers();

@@ -135,7 +135,7 @@ Los roles iniciales son `Proveedor`, `Usuario interno`, `Aprobador de área`, `G
 
 La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentItems`, `DocumentAttachments` y `DocumentEvents`. Los adjuntos se guardan en disco (`Storage__DocumentsPath`, por defecto `App_Data/documents`). Detalle de endpoints y reglas en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#módulo-de-documentos).
 
-Para probar todos los roles en local, agrega al `.env` `DemoData__Enabled=true` y `DemoData__Password=...`: al iniciar se crean áreas y usuarios de prueba (`colaborador`, `maria.torres`, `cxp`, proveedor `20512345678`, etc.).
+Para cargar los usuarios, áreas y RUC reales, copia `seed.example.json` como `seed.json` (ignorado por git), complétalo y define `Seed__TemporaryPassword` en el `.env` (o `temporaryPassword` por usuario). Al iniciar se crean solo los que falten; cada usuario debe cambiar su contraseña temporal al ingresar. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#datos-iniciales-seed).
 
 ## Estructura
 

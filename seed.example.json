@@ -1,0 +1,38 @@
+{
+  // Copia este archivo como seed.json (está ignorado por git) y reemplaza los datos de ejemplo.
+  // El seed solo CREA lo que falte: nunca modifica ni borra usuarios, áreas o sociedades existentes.
+  // Roles válidos: PROVIDER, INTERNAL_USER, AREA_APPROVER, ACCOUNTS_PAYABLE, ADMINISTRATOR.
+
+  "companies": [
+    { "code": "1001", "name": "Naviera Transoceánica", "ruc": "20000000001" },
+    { "code": "1002", "name": "Ultratag", "ruc": "20000000002" }
+  ],
+
+  "areas": ["Finanzas", "Logística", "Contabilidad"],
+
+  "users": [
+    {
+      "username": "maria.torres",
+      "name": "María Torres",
+      "email": "maria.torres@ejemplo.test",
+      "role": "AREA_APPROVER",
+      "area": "Finanzas"
+    },
+    {
+      "username": "cuentas.por.pagar",
+      "name": "Cuentas por pagar",
+      "email": "cxp@ejemplo.test",
+      "role": "ACCOUNTS_PAYABLE",
+      "area": "Contabilidad"
+    },
+    {
+      "username": "rocio.medina",
+      "name": "Rocío Medina",
+      "email": "rocio.medina@ejemplo.test",
+      "role": "INTERNAL_USER",
+      "area": "Contabilidad",
+      // Contraseña temporal propia de este usuario; si se omite se usa Seed__TemporaryPassword.
+      "temporaryPassword": "Cambiar_Esta_Clave_1"
+    }
+  ]
+}

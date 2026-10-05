@@ -12,6 +12,9 @@ namespace WebProveedores.Application.Auth;
 
 public sealed class AuthService(IIdentityRepository db, IConfiguration configuration, IEmailSender emailSender) : IAuthService
 {
+    /// <summary>Claim del JWT que indica que la contraseña es temporal.</summary>
+    public const string PasswordChangeClaim = "pwd_change";
+
     private static readonly AppUser DummyUser = new();
     private static readonly Lazy<string> DummyHash = new(() => new PasswordHasher<AppUser>().HashPassword(DummyUser, Guid.NewGuid().ToString("N")));
 
@@ -68,16 +71,47 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
             await db.SaveChangesAsync(cancellationToken);
         }
 
+        return IssueSession(user);
+    }
+
+    public async Task<AuthResponse> ChangePasswordAsync(ClaimsPrincipal principal, ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var id = principal.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (id is null || !Guid.TryParse(id, out var userId)) throw new UnauthorizedAccessException("La sesión no es válida.");
+        var user = await db.FindTrackedByIdAsync(userId, cancellationToken);
+        if (user is null || !user.IsActive) throw new UnauthorizedAccessException("La sesión no es válida.");
+
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+            throw new ArgumentException("La contraseña actual no es correcta.");
+        if (request.NewPassword == request.CurrentPassword)
+            throw new ArgumentException("La nueva contraseña debe ser distinta de la actual.");
+        if (!MeetsPasswordPolicy(request.NewPassword))
+            throw new ArgumentException("La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula y un número.");
+
+        user.PasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        user.MustChangePassword = false;
+        user.PasswordSetAtUtc = DateTime.UtcNow;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return IssueSession(user);
+    }
+
+    private AuthResponse IssueSession(AppUser user)
+    {
         var expires = DateTime.UtcNow.AddMinutes(configuration.GetValue("Jwt:AccessTokenMinutes", 30));
         var key = configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
-        var roles = RolesFor(user);
         var primaryEmail = PrimaryEmail(user);
         var claims = new List<Claim> { new(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new(ClaimTypes.Email, primaryEmail), new("username", user.Username), new("ruc", user.Ruc ?? string.Empty) };
+        // Con la contraseña temporal solo se permite cambiarla: la API lo exige leyendo este claim.
+        if (user.MustChangePassword) claims.Add(new Claim(PasswordChangeClaim, "1"));
         claims.AddRange(user.UserRoles.Where(item => item.Role.IsActive).Select(item => new Claim(ClaimTypes.Role, item.Role.Code)));
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"], claims, expires: expires, signingCredentials: credentials);
         return new AuthResponse(new JwtSecurityTokenHandler().WriteToken(token), expires, ToResponse(user));
     }
+
+    private static bool MeetsPasswordPolicy(string password) =>
+        password.Length >= 8 && password.Any(char.IsUpper) && password.Any(char.IsLower) && password.Any(char.IsDigit);
 
     public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
     {
@@ -123,7 +157,7 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
     }
 
     private static string PrimaryEmail(AppUser user) => user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.First(item => item.IsActive).Email;
-    private static UserResponse ToResponse(AppUser user) { var roles = RolesFor(user); return new(user.Id, user.Username, PrimaryEmail(user), user.CompanyName, user.Ruc ?? string.Empty, user.Area?.Name, roles.FirstOrDefault() ?? string.Empty, roles); }
+    private static UserResponse ToResponse(AppUser user) { var roles = RolesFor(user); return new(user.Id, user.Username, PrimaryEmail(user), user.CompanyName, user.Ruc ?? string.Empty, user.Area?.Name, roles.FirstOrDefault() ?? string.Empty, roles, user.MustChangePassword); }
     private static IReadOnlyList<string> RolesFor(AppUser user) => user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Name).OrderBy(name => name).ToArray();
     private static string MaskEmail(string email) { var parts = email.Split('@', 2); if (parts.Length != 2) return email; var local = parts[0]; return $"{local[..Math.Min(3, local.Length)]}*****{parts[1]}"; }
 }

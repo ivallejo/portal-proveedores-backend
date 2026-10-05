@@ -33,6 +33,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(user => user.PasswordHash).HasMaxLength(500).IsRequired();
             entity.HasIndex(user => user.PasswordSetAtUtc);
             entity.Property(user => user.FailedLoginCount).HasDefaultValue(0);
+            entity.Property(user => user.MustChangePassword).HasDefaultValue(false);
             entity.HasOne(user => user.Area).WithMany(area => area.Users).HasForeignKey(user => user.AreaId).OnDelete(DeleteBehavior.Restrict);
         });
 

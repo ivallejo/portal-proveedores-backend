@@ -23,7 +23,13 @@ public sealed class AccountLockedException(TimeSpan retryAfter) : Exception("Dem
 }
 
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAtUtc, UserResponse User);
-public sealed record UserResponse(Guid Id, string Username, string Email, string CompanyName, string Ruc, string? Area, string Role, IReadOnlyList<string> Roles);
+public sealed record UserResponse(Guid Id, string Username, string Email, string CompanyName, string Ruc, string? Area, string Role, IReadOnlyList<string> Roles, bool MustChangePassword = false);
+
+public sealed class ChangePasswordRequest
+{
+    [Required] public string CurrentPassword { get; init; } = string.Empty;
+    [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
+}
 public sealed class ValidateRucRequest
 {
     [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
@@ -58,6 +64,8 @@ public interface IAuthService
     Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
     Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
     Task<UserResponse?> GetCurrentUserAsync(System.Security.Claims.ClaimsPrincipal principal, CancellationToken cancellationToken);
+    /// <summary>Cambia la contraseña del usuario autenticado y devuelve una sesión nueva (sin la marca de cambio pendiente).</summary>
+    Task<AuthResponse> ChangePasswordAsync(System.Security.Claims.ClaimsPrincipal principal, ChangePasswordRequest request, CancellationToken cancellationToken);
 }
 
 public interface IOnlineRegistrationService

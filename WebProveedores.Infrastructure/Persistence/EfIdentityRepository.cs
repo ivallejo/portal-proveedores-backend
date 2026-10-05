@@ -21,6 +21,10 @@ public sealed class EfIdentityRepository(AppDbContext db) : IIdentityRepository
         db.Users.AsNoTracking().Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
             .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
+    public Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        db.Users.Include(user => user.Emails).Include(user => user.Area).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
+            .SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+
     public Task<PasswordResetToken?> FindValidTokenAsync(string ruc, string tokenHash, PasswordTokenPurpose purpose, CancellationToken cancellationToken) =>
         db.PasswordResetTokens.Include(token => token.User).ThenInclude(user => user.Emails)
             .SingleOrDefaultAsync(token => token.User.Ruc == ruc && token.TokenHash == tokenHash && token.Purpose == purpose && token.UsedAtUtc == null && token.ExpiresAtUtc > DateTime.UtcNow, cancellationToken);

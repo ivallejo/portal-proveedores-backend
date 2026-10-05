@@ -149,8 +149,8 @@ Sap__BaseUrl
 Sap__Client
 Sap__BasicToken
 Storage__DocumentsPath
-DemoData__Enabled
-DemoData__Password
+Seed__FilePath
+Seed__TemporaryPassword
 Security__RequireHttps
 Security__UseForwardedHeaders
 Security__MaxFailedLogins
@@ -230,9 +230,23 @@ Errores: `ArgumentException` → 400, `UnauthorizedAccessException` → 403, `Ke
 
 Documentos especiales: van directo a *PendingAccounting* (confirmado en los flujos actualizados). El estado `Accounted` (Contabilizado) existe en el modelo pero los flujos actuales no lo usan; el Servicio 03 queda para una fase posterior.
 
-### Datos de prueba
+### Datos iniciales (seed)
 
-`ReferenceDataSeeder` crea siempre las sociedades 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA (sin RUC hasta confirmarlo). Con `DemoData__Enabled=true` y `DemoData__Password` crea áreas y un usuario por rol: `colaborador`, `maria.torres`, `jorge.paredes`, `ana.rios`, `carlos.vega`, `cxp` y el proveedor `20512345678`. Nunca modifica registros existentes. No habilitar en producción.
+Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con migraciones** (las migraciones solo cambian el esquema). Es idempotente: solo crea lo que falta y nunca modifica ni borra registros existentes.
+
+- Siempre: las sociedades base 1001 Naviera Transoceánica, 1002 Ultratag, 1003 Petral y 1007 RENADSA, y los roles y el administrador (`AdminBootstrapper`).
+- Con un archivo de seed: sociedades con su RUC, áreas y **usuarios reales**. El archivo se busca en `Seed__FilePath`, o `seed.json` en el directorio actual o en el padre. Está ignorado por git porque contiene datos personales y contraseñas temporales; la plantilla es `seed.example.json`.
+- Cada usuario se crea con una **contraseña temporal** (`temporaryPassword` del usuario o `Seed__TemporaryPassword`; mínimo 8 caracteres con mayúscula, minúscula y número) y la marca `MustChangePassword`.
+- Si el archivo tiene errores (rol desconocido, correo inválido, área inexistente, contraseña débil…) el arranque falla y lista todos los problemas, sin crear nada.
+- No hay usuarios de demostración en el código.
+
+### Contraseña temporal
+
+Los usuarios sembrados y los creados por el administrador (`POST /api/admin/users`) deben cambiar la clave al ingresar:
+
+- El login devuelve `user.mustChangePassword = true` y un JWT con el claim `pwd_change`.
+- Con ese claim la API responde **403 `PASSWORD_CHANGE_REQUIRED`** a todo salvo `POST /api/auth/change-password` y `GET /api/auth/me`.
+- `POST /api/auth/change-password` (`currentPassword`, `newPassword`) valida la clave actual, exige que la nueva sea distinta y cumpla la política (mínimo 8, mayúscula, minúscula y número), quita la marca y devuelve una **sesión nueva** sin el claim.
 
 ## Endpoints de autenticación
 
@@ -241,6 +255,7 @@ Base: `/api/auth`.
 | Método | Endpoint | Auth | Uso |
 |---|---|---|---|
 | POST | `/login` | Anónimo | Login por identifier/RUC/username/correo |
+| POST | `/change-password` | JWT | Cambia la contraseña (obligatorio con clave temporal) |
 | POST | `/register` | Anónimo | Registro tradicional |
 | POST | `/validate-ruc` | Anónimo | Duplicidad y consulta SAP |
 | POST | `/request-access-key` | Anónimo | Prepara proveedor y envía activación |
@@ -307,6 +322,7 @@ Migraciones actuales:
 20261004181709_AddSupplierDocuments
 20261004193728_AddPettyCashFlag
 20261004233933_AddLoginLockout
+20261005032256_AddMustChangePassword
 ```
 
 No borrar migraciones ni el volumen Docker para resolver errores de conexión. Primero revisar contenedor, credenciales y connection string.
@@ -335,7 +351,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 25 passed (autenticación, bloqueo de cuentas y documentos).
+- Tests: 34 passed (autenticación, bloqueo, seed, cambio de contraseña y documentos).
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 

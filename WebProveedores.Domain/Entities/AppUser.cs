@@ -13,6 +13,9 @@ public sealed class AppUser
     public DateTime? UpdatedAtUtc { get; set; }
     public DateTime? PasswordSetAtUtc { get; set; }
 
+    /// <summary>La contraseña actual es temporal: debe cambiarla antes de usar el portal.</summary>
+    public bool MustChangePassword { get; set; }
+
     /// <summary>Intentos de acceso fallidos desde el último ingreso correcto.</summary>
     public int FailedLoginCount { get; set; }
 
