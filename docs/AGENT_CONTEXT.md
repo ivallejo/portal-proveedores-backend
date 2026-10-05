@@ -372,7 +372,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 44 passed (autenticación, bloqueo, seed, cambio de contraseña, documentos y administración de usuarios).
+- Tests: 69 passed. Unitarios con EF InMemory y dobles (autenticación, bloqueo, seed, contraseñas, documentos, administración, dominio, correo) y de integración contra SQL Server real con Testcontainers (`Tests/Integration`: traducción de consultas, índices únicos, migraciones). Los de integración necesitan Docker; para omitirlos: `dotnet test WebProveedores.slnx --filter "Category!=Integration"`.
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 
