@@ -83,9 +83,12 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
         var user = await db.FindTrackedByIdAsync(userId, cancellationToken);
         if (user is null || !user.IsActive) throw new UnauthorizedAccessException("La sesión no es válida.");
 
-        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+        // La sesión de cambio forzado (claim pwd_change) se abrió con la contraseña temporal: no se vuelve a pedir.
+        var forcedChange = user.MustChangePassword && principal.HasClaim(PasswordChangeClaim, "1");
+        if (!forcedChange && (string.IsNullOrEmpty(request.CurrentPassword)
+            || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed))
             throw new ArgumentException("La contraseña actual no es correcta.");
-        if (request.NewPassword == request.CurrentPassword)
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.NewPassword) != PasswordVerificationResult.Failed)
             throw new ArgumentException("La nueva contraseña debe ser distinta de la actual.");
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
             throw new ArgumentException(PasswordPolicy.Description);

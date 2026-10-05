@@ -27,7 +27,11 @@ public sealed record UserResponse(Guid Id, string Username, string Email, string
 
 public sealed class ChangePasswordRequest
 {
-    [Required] public string CurrentPassword { get; init; } = string.Empty;
+    /// <summary>
+    /// Obligatoria en el cambio voluntario. En el cambio forzado de la contraseña temporal no se pide:
+    /// la sesión se abrió con ella y solo permite cambiar la contraseña.
+    /// </summary>
+    public string? CurrentPassword { get; init; }
     [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
 }
 public sealed class ValidateRucRequest
