@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Abstractions.Auth;
@@ -12,7 +13,11 @@ public sealed partial class LogEmailSender(ILogger<LogEmailSender> logger) : IEm
 {
     public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
     {
-        var links = Links().Matches(body).Select(match => match.Groups[1].Value).Distinct();
+        // Solo los enlaces de acción (no fuentes ni estilos), decodificados para poder copiarlos.
+        var links = Links().Matches(body)
+            .Select(match => WebUtility.HtmlDecode(match.Groups[1].Value))
+            .Where(link => !link.Contains("fonts.g", StringComparison.Ordinal))
+            .Distinct();
         logger.LogWarning("Correo NO enviado (Smtp:Enabled=false) a {Recipient}: «{Subject}». Enlaces: {Links}",
             recipient, subject, string.Join(" ", links));
         return Task.CompletedTask;

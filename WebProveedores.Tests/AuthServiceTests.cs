@@ -141,6 +141,22 @@ public sealed class AuthServiceTests
     }
 
     [Fact]
+    public async Task ConfirmPasswordResetAsync_applies_the_password_policy_and_keeps_the_token()
+    {
+        await using var db = CreateContext();
+        var user = CreateUser("20523682789", "activation-user", "Proveedor Activación", "activation@demo.test");
+        db.Users.Add(user);
+        db.PasswordResetTokens.Add(CreateToken(user, "activation-token", PasswordTokenPurpose.Activation));
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ConfirmPasswordResetAsync(
+            new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = "activation-token", NewPassword = "abc123" }, PasswordTokenPurpose.Activation, CancellationToken.None));
+
+        Assert.Null(db.PasswordResetTokens.Single().UsedAtUtc);
+    }
+
+    [Fact]
     public async Task RequestPasswordResetAsync_creates_password_reset_token_and_sends_email()
     {
         await using var db = CreateContext();

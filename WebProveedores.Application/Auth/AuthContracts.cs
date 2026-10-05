@@ -52,7 +52,7 @@ public sealed class PasswordResetConfirmRequest
 {
     [Required, RegularExpression(@"^\d{11}$")] public string Ruc { get; init; } = string.Empty;
     [Required] public string Token { get; init; } = string.Empty;
-    [Required, MinLength(6)] public string NewPassword { get; init; } = string.Empty;
+    [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
 }
 
 public sealed record PasswordResetResponse(bool Sent, string MaskedEmail);

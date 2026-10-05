@@ -135,6 +135,8 @@ public sealed class AuthService(IIdentityRepository db, IConfiguration configura
 
     public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
+        if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
+            throw new ArgumentException(PasswordPolicy.Description);
         var tokenHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
         var resetToken = await db.FindValidTokenAsync(request.Ruc.Trim(), tokenHash, purpose, cancellationToken);
         if (resetToken is null) return false;
