@@ -164,6 +164,7 @@ public sealed class AuthServiceTests
     {
         await using var db = CreateContext();
         var user = CreateUser("20523682780", "registered", "Proveedor Registrado", "registered@demo.test");
+        user.PasswordSetAtUtc = DateTime.UtcNow;
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var sap = new SapProviderClient(new HttpClient(new ThrowingHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -176,6 +177,25 @@ public sealed class AuthServiceTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
 
         Assert.Equal("El usuario ya se encuentra registrado.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ValidateRucAsync_allows_retrying_a_registration_that_was_never_activated()
+    {
+        await using var db = CreateContext();
+        var pending = CreateUser("20100003199", "20100003199", "Proveedor sin activar", "pendiente@demo.test");
+        pending.PasswordSetAtUtc = null;
+        db.Users.Add(pending);
+        await db.SaveChangesAsync();
+        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Sap:BaseUrl"] = "http://sap.invalid",
+            ["Sap:BasicToken"] = "test-token",
+        }).Build());
+        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+
+        // No lo rechaza como «ya registrado»: sigue a la consulta en SAP (aquí caído).
+        await Assert.ThrowsAsync<ServiceUnavailableException>(() => service.ValidateRucAsync("20100003199", CancellationToken.None));
     }
 
     [Fact]

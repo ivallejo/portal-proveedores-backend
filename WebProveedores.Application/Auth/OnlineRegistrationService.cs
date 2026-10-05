@@ -20,7 +20,9 @@ public sealed class OnlineRegistrationService(
     public async Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken)
     {
         var normalizedRuc = NormalizeRuc(ruc);
-        if (await db.UserExistsByRucAsync(normalizedRuc, cancellationToken))
+        // Una cuenta que nunca activó su contraseña (el correo no llegó o expiró) puede volver a registrarse.
+        var existing = await db.FindByRucAsync(normalizedRuc, cancellationToken);
+        if (existing?.PasswordSetAtUtc is not null)
             throw new InvalidOperationException("El usuario ya se encuentra registrado.");
 
         var provider = await FindProviderAsync(normalizedRuc, cancellationToken);
