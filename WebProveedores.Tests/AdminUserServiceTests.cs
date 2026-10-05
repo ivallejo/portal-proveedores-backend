@@ -155,7 +155,7 @@ public sealed class AdminUserServiceTests
             fixture.Admin = Admin("admin.uno", "admin1@ejemplo.test");
             fixture.OtherAdmin = Admin("admin2", "admin2@ejemplo.test");
             await db.SaveChangesAsync();
-            fixture.Service = new AdminUserService(new EfIdentityRepository(db));
+            fixture.Service = TestServices.Admin(db);
             return fixture;
         }
 

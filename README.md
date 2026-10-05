@@ -164,6 +164,6 @@ WebProveedores.Infrastructure # EF Core, autenticación y persistencia
 WebProveedores.Tests          # Pruebas automatizadas
 ```
 
-La capa `Application` no depende de EF Core. Los casos de uso utilizan abstracciones como `IIdentityRepository`, `IEmailSender` e `IProviderDirectory`; sus implementaciones viven en `Infrastructure`.
+Arquitectura hexagonal: `Application` solo depende de `Domain` y de puertos (`IUserRepository`, `ITokenIssuer`, `IPasswordHasher`, `IEmailSender`, `IProviderDirectory`…); sus implementaciones viven en `Infrastructure`. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md).
 
 Si la API no conecta con SQL Server, verificar Docker, el estado `healthy` de `docker compose ps` y que la contraseña de `.env` coincida con `ConnectionStrings__DefaultConnection`. Para errores desde el frontend, confirmar el puerto `5080` y CORS para `http://localhost:4200`.

@@ -3,22 +3,15 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using WebProveedores.Api.Infrastructure;
+using WebProveedores.Application;
 using WebProveedores.Application.Auth;
-using WebProveedores.Application.Admin;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
-using WebProveedores.Application.Abstractions.Documents;
-using WebProveedores.Application.Documents;
-using WebProveedores.Api.Controllers;
 using WebProveedores.Domain.Entities;
+using WebProveedores.Infrastructure;
+using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Email;
 using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Infrastructure.Providers;
-using WebProveedores.Infrastructure.Documents;
-using WebProveedores.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,44 +23,16 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => policy.WithOrigins(builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:4200"]).AllowAnyHeader().AllowAnyMethod()));
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
-builder.Services.AddScoped<IIdentityRepository, EfIdentityRepository>();
-builder.Services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15))
-    // Reintentos con espera, corte de circuito y tiempos máximos ante caídas de SAP.
-    .AddStandardResilienceHandler(options =>
-    {
-        options.Retry.MaxRetryAttempts = 2;
-        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-        options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(20);
-    });
-builder.Services.AddScoped<IProviderDirectory>(services => services.GetRequiredService<SapProviderClient>());
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IOnlineRegistrationService, OnlineRegistrationService>();
-// Modo de correo (Email:Mode): Send en producción, Redirect al buzón de pruebas fuera de ella. Se valida al arrancar.
-var emailSettings = EmailSettings.Resolve(builder.Configuration, builder.Environment.IsProduction());
-builder.Services.AddSingleton(emailSettings);
-builder.Services.AddScoped<SmtpEmailSender>();
-builder.Services.AddScoped<IEmailSender>(services => emailSettings.Mode switch
-{
-    EmailMode.Send => services.GetRequiredService<SmtpEmailSender>(),
-    EmailMode.Redirect => new RedirectingEmailSender(services.GetRequiredService<SmtpEmailSender>(), emailSettings.TestRecipient!),
-    _ => ActivatorUtilities.CreateInstance<LogEmailSender>(services),
-});
-builder.Services.AddScoped<IAdminUserService, AdminUserService>();
-builder.Services.AddScoped<ReferenceDataSeeder>();
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<IDocumentRepository, EfDocumentRepository>();
-builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
-builder.Services.AddSingleton<IPdfMerger, PdfSharpMerger>();
-// Servicios SAP 01/02 simulados hasta contar con los endpoints reales.
-builder.Services.AddSingleton<ISapDocumentGateway, MockSapDocumentGateway>();
-builder.Services.AddScoped<IDocumentService, DocumentService>();
-builder.Services.AddScoped<DatabaseInitializer>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
+builder.Services.AddApplication(
+    new PortalSettings(builder.Configuration["Frontend:BaseUrl"] ?? "http://localhost:4200"),
+    new LoginLockoutSettings(builder.Configuration.GetValue("Security:MaxFailedLogins", 5), builder.Configuration.GetValue("Security:LockoutMinutes", 15)));
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment.IsProduction());
+var jwt = JwtSettings.From(builder.Configuration);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
-    var key = builder.Configuration["Jwt:SigningKey"] ?? throw new InvalidOperationException("Jwt:SigningKey no está configurado.");
-    options.TokenValidationParameters = new TokenValidationParameters { ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), ValidateIssuer = true, ValidIssuer = builder.Configuration["Jwt:Issuer"], ValidateAudience = true, ValidAudience = builder.Configuration["Jwt:Audience"], ValidateLifetime = true, ClockSkew = TimeSpan.FromSeconds(30) };
+    options.TokenValidationParameters = new TokenValidationParameters { ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), ValidateIssuer = true, ValidIssuer = jwt.Issuer, ValidateAudience = true, ValidAudience = jwt.Audience, ValidateLifetime = true, ClockSkew = TimeSpan.FromSeconds(30) };
 });
 builder.Services.AddAuthorization(options =>
 {
@@ -117,7 +82,7 @@ if (builder.Configuration.GetValue("Security:UseForwardedHeaders", false))
 }
 
 var app = builder.Build();
-app.Logger.LogInformation("Correo: modo {EmailMode}", emailSettings.Describe());
+app.Logger.LogInformation("Correo: modo {EmailMode}", app.Services.GetRequiredService<EmailSettings>().Describe());
 
 using (var scope = app.Services.CreateScope())
 {
@@ -161,7 +126,7 @@ app.UseAuthentication();
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path;
-    if (context.User.HasClaim(AuthService.PasswordChangeClaim, "1")
+    if (context.User.HasClaim(SessionClaims.PasswordChangeOnly, "1")
         && path.StartsWithSegments("/api")
         && !path.Equals("/api/auth/change-password", StringComparison.OrdinalIgnoreCase)
         && !path.Equals("/api/auth/me", StringComparison.OrdinalIgnoreCase))

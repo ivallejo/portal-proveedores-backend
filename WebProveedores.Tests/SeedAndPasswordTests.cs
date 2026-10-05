@@ -8,6 +8,7 @@ using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
+using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests;
@@ -112,18 +113,18 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var login = await service.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None);
+        var login = await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None);
         Assert.NotNull(login);
         Assert.True(login.User.MustChangePassword);
-        Assert.Contains(new JwtSecurityTokenHandler().ReadJwtToken(login.AccessToken).Claims, claim => claim.Type == AuthService.PasswordChangeClaim);
+        Assert.Contains(new JwtSecurityTokenHandler().ReadJwtToken(login.AccessToken).Claims, claim => claim.Type == SessionClaims.PasswordChangeOnly);
 
         // La sesión de cambio forzado no vuelve a pedir la contraseña temporal.
-        var changed = await service.ChangePasswordAsync(Principal(user, forcedChange: true), new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None);
+        var changed = await service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None);
 
         Assert.False(changed.User.MustChangePassword);
-        Assert.DoesNotContain(new JwtSecurityTokenHandler().ReadJwtToken(changed.AccessToken).Claims, claim => claim.Type == AuthService.PasswordChangeClaim);
-        Assert.Null(await service.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
-        Assert.NotNull(await service.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Nueva_Clave_2" }, CancellationToken.None));
+        Assert.DoesNotContain(new JwtSecurityTokenHandler().ReadJwtToken(changed.AccessToken).Claims, claim => claim.Type == SessionClaims.PasswordChangeOnly);
+        Assert.Null(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
+        Assert.NotNull(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Nueva_Clave_2" }, CancellationToken.None));
     }
 
     [Fact]
@@ -133,10 +134,10 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var reused = await Assert.ThrowsAsync<ArgumentException>(() => service.ChangePasswordAsync(Principal(user, forcedChange: true), new ChangePasswordRequest { NewPassword = "Password1" }, CancellationToken.None));
+        var reused = await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Password1" }, CancellationToken.None));
         Assert.Contains("distinta", reused.Message);
         // Sin la sesión de cambio forzado (cambio voluntario) la contraseña actual es obligatoria.
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ChangePasswordAsync(Principal(user), new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
         Assert.True(user.MustChangePassword);
     }
 
@@ -151,11 +152,11 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.ChangePasswordAsync(Principal(user), new ChangePasswordRequest { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
 
         Assert.Contains(expected, exception.Message);
         Assert.True(user.MustChangePassword);
-        Assert.NotNull(await service.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
+        Assert.NotNull(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
     }
 
     private const string ValidSeed = """
@@ -182,16 +183,8 @@ public sealed class SeedAndPasswordTests : IDisposable
         return new ReferenceDataSeeder(db, new ConfigurationBuilder().AddInMemoryCollection(settings).Build(), NullLogger<ReferenceDataSeeder>.Instance);
     }
 
-    private static AuthService CreateAuth(AppDbContext db) => new(
-        new EfIdentityRepository(db),
-        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Jwt:SigningKey"] = "test-signing-key-with-at-least-32-characters",
-            ["Jwt:Issuer"] = "test-issuer",
-            ["Jwt:Audience"] = "test-audience",
-            ["Frontend:BaseUrl"] = "http://localhost:4200",
-        }).Build(),
-        new NoEmail());
+    private static (LoginService Login, PasswordService Passwords) CreateAuth(AppDbContext db) =>
+        (TestServices.Login(db), TestServices.Passwords(db, new NoEmail()));
 
     private static async Task<AppUser> AddUserAsync(AppDbContext db, bool mustChange)
     {
@@ -203,11 +196,6 @@ public sealed class SeedAndPasswordTests : IDisposable
         await db.SaveChangesAsync();
         return user;
     }
-
-    private static ClaimsPrincipal Principal(AppUser user, bool forcedChange = false) =>
-        new(new ClaimsIdentity(forcedChange
-            ? [new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), new Claim(AuthService.PasswordChangeClaim, "1")]
-            : [new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString())], "test"));
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase($"seed-tests-{Guid.NewGuid():N}").Options);
 

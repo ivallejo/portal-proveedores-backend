@@ -21,7 +21,7 @@ public sealed class AuthServiceTests
         var user = CreateUser("20523682785", "proveedor", "Proveedor Andino SAC", "proveedor@demo.test");
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Login(db);
 
         var response = await service.LoginAsync(new LoginRequest { Identifier = "20523682785", Password = "Password1" }, CancellationToken.None);
 
@@ -37,7 +37,7 @@ public sealed class AuthServiceTests
         var user = CreateUser("20523682790", "lock-user", "Proveedor Bloqueo", "lock@demo.test");
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Login(db);
         var wrong = new LoginRequest { Identifier = "lock-user", Password = "incorrecta" };
 
         for (var attempt = 0; attempt < 5; attempt++)
@@ -64,7 +64,7 @@ public sealed class AuthServiceTests
         var user = CreateUser("20523682791", "counter-user", "Proveedor Contador", "counter@demo.test");
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Login(db);
 
         for (var attempt = 0; attempt < 3; attempt++)
             await service.LoginAsync(new LoginRequest { Identifier = "counter-user", Password = "mala" }, CancellationToken.None);
@@ -78,7 +78,7 @@ public sealed class AuthServiceTests
     public async Task LoginAsync_returns_null_for_unknown_users_without_locking_anything()
     {
         await using var db = CreateContext();
-        var service = CreateService(db);
+        var service = TestServices.Login(db);
 
         for (var attempt = 0; attempt < 7; attempt++)
             Assert.Null(await service.LoginAsync(new LoginRequest { Identifier = "no-existe", Password = "x" }, CancellationToken.None));
@@ -92,7 +92,7 @@ public sealed class AuthServiceTests
         user.IsActive = false;
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Login(db);
 
         var response = await service.LoginAsync(new LoginRequest { Identifier = "inactive", Password = "Password1" }, CancellationToken.None);
 
@@ -108,7 +108,7 @@ public sealed class AuthServiceTests
         const string token = "activation-token";
         db.PasswordResetTokens.Add(CreateToken(user, token, PasswordTokenPurpose.Activation));
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Passwords(db, new FakeEmailSender());
 
         var confirmed = await service.ConfirmPasswordResetAsync(
             new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" },
@@ -128,7 +128,7 @@ public sealed class AuthServiceTests
         const string token = "reset-token";
         db.PasswordResetTokens.Add(CreateToken(user, token, PasswordTokenPurpose.PasswordReset));
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Passwords(db, new FakeEmailSender());
         var request = new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" };
 
         var firstConfirmation = await service.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, CancellationToken.None);
@@ -147,7 +147,7 @@ public sealed class AuthServiceTests
         db.Users.Add(user);
         db.PasswordResetTokens.Add(CreateToken(user, "activation-token", PasswordTokenPurpose.Activation));
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var service = TestServices.Passwords(db, new FakeEmailSender());
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.ConfirmPasswordResetAsync(
             new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = "activation-token", NewPassword = "abc123" }, PasswordTokenPurpose.Activation, CancellationToken.None));
@@ -163,7 +163,7 @@ public sealed class AuthServiceTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
         var emailSender = new FakeEmailSender();
-        var service = CreateService(db, emailSender);
+        var service = TestServices.Passwords(db, emailSender);
 
         var response = await service.RequestPasswordResetAsync(new PasswordResetRequest { Ruc = user.Ruc! }, CancellationToken.None);
 
@@ -187,7 +187,7 @@ public sealed class AuthServiceTests
             ["Sap:BaseUrl"] = "http://sap.invalid",
             ["Sap:BasicToken"] = "test-token",
         }).Build());
-        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+        var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
 
@@ -207,7 +207,7 @@ public sealed class AuthServiceTests
             ["Sap:BaseUrl"] = "http://sap.invalid",
             ["Sap:BasicToken"] = "test-token",
         }).Build());
-        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+        var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         // No lo rechaza como «ya registrado»: sigue a la consulta en SAP (aquí caído).
         await Assert.ThrowsAsync<ServiceUnavailableException>(() => service.ValidateRucAsync("20100003199", CancellationToken.None));
@@ -222,24 +222,11 @@ public sealed class AuthServiceTests
             ["Sap:BaseUrl"] = "http://sap.invalid",
             ["Sap:BasicToken"] = "test-token",
         }).Build());
-        var service = new OnlineRegistrationService(new EfIdentityRepository(db), new FakeEmailSender(), sap, new ConfigurationBuilder().Build());
+        var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         var exception = await Assert.ThrowsAsync<ServiceUnavailableException>(() => service.ValidateRucAsync("20100003199", CancellationToken.None));
 
         Assert.Contains("SAP", exception.Message);
-    }
-
-    private static AuthService CreateService(AppDbContext db, IEmailSender? emailSender = null)
-    {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Jwt:SigningKey"] = "test-signing-key-with-at-least-32-characters",
-            ["Jwt:Issuer"] = "test-issuer",
-            ["Jwt:Audience"] = "test-audience",
-            ["Jwt:AccessTokenMinutes"] = "30",
-            ["Frontend:BaseUrl"] = "http://localhost:4200",
-        }).Build();
-        return new AuthService(new EfIdentityRepository(db), configuration, emailSender ?? new FakeEmailSender());
     }
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()

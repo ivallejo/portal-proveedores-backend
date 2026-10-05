@@ -9,14 +9,19 @@ namespace WebProveedores.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(IAuthService auth, IOnlineRegistrationService onlineRegistration, ILogger<AuthController> logger) : ControllerBase
+public sealed class AuthController(
+    ILoginService login,
+    IPasswordService passwords,
+    IProviderRegistrationService registration,
+    ICurrentUser currentUser,
+    ILogger<AuthController> logger) : ControllerBase
 {
     /// <summary>Alta directa de proveedores. El registro de proveedores es por RUC (request-access-key); esta vía es solo administrativa.</summary>
     [HttpPost("register")]
     [Authorize(Policy = Policies.UsersManage)]
     public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await auth.RegisterAsync(request, cancellationToken)); }
+        try { return Ok(await registration.RegisterAsync(request, cancellationToken)); }
         catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
     }
 
@@ -27,7 +32,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     {
         try
         {
-            var response = await auth.LoginAsync(request, cancellationToken);
+            var response = await login.LoginAsync(request, cancellationToken);
             return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
         }
         catch (AccountLockedException exception)
@@ -42,7 +47,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<ProviderLookupResponse>> ValidateRuc(ValidateRucRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await onlineRegistration.ValidateRucAsync(request.Ruc, cancellationToken)); }
+        try { return Ok(await registration.ValidateRucAsync(request.Ruc, cancellationToken)); }
         catch (InvalidOperationException exception) { return Conflict(new { message = exception.Message }); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
         catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
@@ -53,7 +58,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<AccessKeyResponse>> RequestAccessKey(RequestAccessKeyRequest request, CancellationToken cancellationToken)
     {
-        try { return Ok(await onlineRegistration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
+        try { return Ok(await registration.RequestAccessKeyAsync(request.Ruc, cancellationToken)); }
         catch (KeyNotFoundException exception) { return NotFound(new { message = exception.Message }); }
         catch (HttpRequestException) { return StatusCode(502, new { message = "No fue posible consultar la información del proveedor en SAP." }); }
     }
@@ -69,7 +74,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     {
         try
         {
-            await auth.RequestPasswordResetAsync(request, cancellationToken);
+            await passwords.RequestPasswordResetAsync(request, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -84,7 +89,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmPasswordReset(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
-        var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, cancellationToken);
+        var confirmed = await passwords.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, cancellationToken);
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de recuperación es inválido o ya venció." });
     }
 
@@ -93,7 +98,7 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmActivation(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
-        var confirmed = await auth.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.Activation, cancellationToken);
+        var confirmed = await passwords.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.Activation, cancellationToken);
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de activación es inválido o ya venció." });
     }
 
@@ -102,10 +107,10 @@ public sealed class AuthController(IAuthService auth, IOnlineRegistrationService
     [Authorize]
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<AuthResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
-        Ok(await auth.ChangePasswordAsync(User, request, cancellationToken));
+        Ok(await passwords.ChangePasswordAsync(currentUser.Id, currentUser.IsPasswordChangeSession, request, cancellationToken));
 
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) =>
-        await auth.GetCurrentUserAsync(User, cancellationToken) is { } user ? Ok(user) : Unauthorized();
+        await login.GetCurrentUserAsync(currentUser.Id, cancellationToken) is { } user ? Ok(user) : Unauthorized();
 }

@@ -61,19 +61,27 @@ public sealed class PasswordResetConfirmRequest
 
 public sealed record PasswordResetResponse(bool Sent, string MaskedEmail);
 
-public interface IAuthService
+public interface ILoginService
 {
-    Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
-    Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
-    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
-    Task<UserResponse?> GetCurrentUserAsync(System.Security.Claims.ClaimsPrincipal principal, CancellationToken cancellationToken);
-    /// <summary>Cambia la contraseña del usuario autenticado y devuelve una sesión nueva (sin la marca de cambio pendiente).</summary>
-    Task<AuthResponse> ChangePasswordAsync(System.Security.Claims.ClaimsPrincipal principal, ChangePasswordRequest request, CancellationToken cancellationToken);
+    Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
-public interface IOnlineRegistrationService
+public interface IPasswordService
+{
+    /// <summary>
+    /// Cambia la contraseña del usuario en sesión y devuelve una sesión nueva (sin la marca de cambio pendiente).
+    /// <paramref name="passwordChangeSession"/>: la sesión se abrió con la contraseña temporal.
+    /// </summary>
+    Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken);
+    Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
+    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
+}
+
+public interface IProviderRegistrationService
 {
     Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken);
     Task<AccessKeyResponse> RequestAccessKeyAsync(string ruc, CancellationToken cancellationToken);
+    /// <summary>Alta directa con contraseña (solo administrador).</summary>
+    Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
 }

@@ -1,7 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebProveedores.Api.Infrastructure;
 using WebProveedores.Application.Admin;
 
 namespace WebProveedores.Api.Controllers;
@@ -9,7 +8,7 @@ namespace WebProveedores.Api.Controllers;
 [ApiController]
 [Route("api/admin/users")]
 [Authorize(Policy = "Users.Manage")]
-public sealed class AdminUsersController(IAdminUserService users) : ControllerBase
+public sealed class AdminUsersController(IAdminUserService users, ICurrentUser currentUser) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<AdminUserPage>> Search([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
@@ -37,8 +36,5 @@ public sealed class AdminUsersController(IAdminUserService users) : ControllerBa
     public async Task<ActionResult<AdminUserResponse>> Unlock(Guid id, CancellationToken cancellationToken)
         => await users.UnlockAsync(id, cancellationToken) is { } result ? Ok(result) : NotFound();
 
-    private Guid UserId =>
-        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id)
-            ? id
-            : throw new UnauthorizedAccessException("La sesión no es válida.");
+    private Guid UserId => currentUser.Id;
 }

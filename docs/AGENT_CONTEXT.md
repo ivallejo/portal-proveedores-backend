@@ -46,46 +46,46 @@ WebProveedores.Tests
     Pruebas automatizadas
 ```
 
-Regla principal: `Application` no depende de EF Core. Los casos de uso dependen de `IIdentityRepository`, `IEmailSender` e `IProviderDirectory`; `Infrastructure` implementa esos puertos.
+Arquitectura hexagonal (puertos y adaptadores):
+
+- `Application` **solo** depende de `Domain` y de abstracciones (`Microsoft.Extensions.DependencyInjection.Abstractions`, `Logging.Abstractions`). No conoce EF Core, ASP.NET, JWT, `IConfiguration` ni el hasher: los usa a través de puertos en `Application/Abstractions` (`IUserRepository`, `IPasswordTokenRepository`, `IReferenceDataReader`, `IUnitOfWork`, `IDocumentRepository`, `ITokenIssuer`, `IPasswordHasher`, `IEmailSender`, `IProviderDirectory`, `ISapDocumentGateway`, `IFileStorage`, `IPdfMerger`). La configuración llega como registros tipados (`PortalSettings`, `LoginLockoutSettings`) y la hora por `TimeProvider`.
+- `Infrastructure` implementa los puertos y se registra con `AddInfrastructure(configuration, isProduction)`; `Application` con `AddApplication(...)`. `Program.cs` solo compone y arma el pipeline HTTP.
+- `Api` traduce HTTP ↔ casos de uso. El usuario de la petición se obtiene de `ICurrentUser` (no leer claims en los controladores).
+- Un servicio por caso de uso (S/I de SOLID): `LoginService`, `PasswordService`, `ProviderRegistrationService`, `AdminUserService`; en documentos `DocumentCatalogService`, `DocumentRegistrationService`, `DocumentQueryService`, `DocumentApprovalService`, `DocumentAccountingService`, con piezas internas compartidas (`DocumentAccess` para roles/sociedades, `DocumentFiles`, `DocumentNotifier`, `DocumentMapper`).
 
 ```text
-Controller -> Application service -> Application abstraction
-                                      -> Infrastructure adapter
-                                      -> Domain entity
+Controller -> ICurrentUser + servicio de caso de uso (Application)
+                 -> puertos (Application/Abstractions) <- adaptadores (Infrastructure)
+                 -> entidades y reglas (Domain)
 ```
 
-No colocar consultas EF, SMTP, HttpClient SAP ni lógica de hash dentro de controllers.
+No colocar consultas EF, SMTP, HttpClient SAP, JWT ni lógica de hash dentro de controllers ni de `Application`.
 
 ## Estructura importante
 
 ```text
 WebProveedores.Api/
-├── Controllers/AuthController.cs
-├── Controllers/AdminUsersController.cs
-├── Infrastructure/GlobalExceptionHandler.cs
+├── Controllers/ (Auth, AdminUsers, Documents, Catalog, DocumentForms)
+├── Infrastructure/ (CurrentUser, Policies, RateLimitPolicies, GlobalExceptionHandler)
 └── Program.cs
 
 WebProveedores.Application/
-├── Auth/AuthService.cs
-├── Auth/OnlineRegistrationService.cs
-├── Auth/AuthContracts.cs
-├── Auth/EmailTemplates.cs
+├── DependencyInjection.cs              # AddApplication
+├── Abstractions/ (Auth, Persistence, Documents, Providers)
+├── Auth/ (LoginService, PasswordService, ProviderRegistrationService, PasswordPolicy, AuthSettings, contratos y plantillas)
 ├── Admin/AdminUserService.cs
-└── Abstractions/
+└── Documents/ (servicios por caso de uso, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader)
 
-WebProveedores.Domain/Entities/
-├── AppUser.cs
-├── UserEmail.cs
-├── UserRole.cs
-├── Role.cs
-├── Area.cs
-└── PasswordResetToken.cs
+WebProveedores.Domain/
+├── Entities/ (AppUser, UserEmail, UserRole, UserCompany, Role, Area, PasswordResetToken, SecurityCatalog)
+└── Documents/ (SupplierDocument con sus reglas de estado, Company, enums)
 
 WebProveedores.Infrastructure/
-├── Persistence/AppDbContext.cs
-├── Persistence/EfIdentityRepository.cs
-├── Persistence/DatabaseInitializer.cs
+├── DependencyInjection.cs              # AddInfrastructure
+├── Auth/ (JwtTokenIssuer, JwtSettings, SessionClaims, IdentityPasswordHasher)
+├── Persistence/ (AppDbContext, Configurations, EfUserRepository, EfPasswordTokenRepository, EfReferenceDataReader, EfUnitOfWork, EfDocumentRepository, seeder)
 ├── Providers/SapProviderClient.cs
+├── Documents/ (LocalFileStorage, PdfSharpMerger, MockSapDocumentGateway)
 ├── Email/ (EmailSettings, SmtpEmailSender, RedirectingEmailSender, LogEmailSender)
 └── Migrations/
 ```
@@ -183,7 +183,7 @@ Capas:
 
 ```text
 Domain/Documents          SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, Company
-Application/Documents     DocumentService, UblDocumentReader (XML UBL 2.1 sin DTD), contratos y plantillas de correo
+Application/Documents     Servicios por caso de uso (catálogo, registro, consultas, aprobación, contabilidad), UblDocumentReader (XML UBL 2.1 sin DTD), contratos y plantillas de correo
 Application/Abstractions  IDocumentRepository, IFileStorage, ISapDocumentGateway
 Infrastructure            EfDocumentRepository, LocalFileStorage, MockSapDocumentGateway, ReferenceDataSeeder
 Api                       DocumentsController (api/documents), CatalogController (api/catalog)
