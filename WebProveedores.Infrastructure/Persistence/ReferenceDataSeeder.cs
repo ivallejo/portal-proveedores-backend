@@ -20,13 +20,13 @@ namespace WebProveedores.Infrastructure.Persistence;
 /// </summary>
 public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configuration, IPasswordHasher hasher, TimeProvider clock, ILogger<ReferenceDataSeeder> logger)
 {
-    /// <summary>Sociedades del grupo: código de sociedad SAP, razón social y RUC (confirmados con SAP).</summary>
-    private static readonly (string Code, string Name, string Ruc)[] BaseCompanies =
+    /// <summary>Sociedades del grupo: código de sociedad SAP, razón social, RUC (confirmados con SAP) y correo de facturación.</summary>
+    private static readonly (string Code, string Name, string Ruc, string? BillingEmail)[] BaseCompanies =
     [
-        ("1001", "Naviera Transoceánica S.A.", "20522163890"),
-        ("1002", "Petrolera Transoceánica S.A.", "20100126606"),
-        ("1003", "Naviera Petral S.A.", "20511922578"),
-        ("1007", "Representaciones Navieras y Aduaneras S.A.C.", "20100245796"),
+        ("1001", "Naviera Transoceánica S.A.", "20522163890", "facturacionreceptor1@navitranso.com"),
+        ("1002", "Petrolera Transoceánica S.A.", "20100126606", "facturacionreceptor@petranso.com"),
+        ("1003", "Naviera Petral S.A.", "20511922578", "facturacionreceptor@petral.com.pe"),
+        ("1007", "Representaciones Navieras y Aduaneras S.A.C.", "20100245796", null),
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -69,11 +69,16 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
     private async Task SeedBaseCompaniesAsync(CancellationToken cancellationToken)
     {
         var existing = await db.Companies.ToDictionaryAsync(company => company.Code, cancellationToken);
-        foreach (var (code, name, ruc) in BaseCompanies)
+        foreach (var (code, name, ruc, billingEmail) in BaseCompanies)
         {
-            if (!existing.TryGetValue(code, out var company)) db.Companies.Add(new Company { Code = code, Name = name, Ruc = ruc });
-            // Como con el archivo de seed, solo se completa el RUC que falta; nunca se cambia uno existente.
-            else if (string.IsNullOrWhiteSpace(company.Ruc)) company.Ruc = ruc;
+            if (!existing.TryGetValue(code, out var company))
+            {
+                db.Companies.Add(new Company { Code = code, Name = name, Ruc = ruc, BillingEmail = billingEmail });
+                continue;
+            }
+            // Como con el archivo de seed, solo se completa lo que falta; nunca se cambia un dato existente.
+            if (string.IsNullOrWhiteSpace(company.Ruc)) company.Ruc = ruc;
+            if (string.IsNullOrWhiteSpace(company.BillingEmail)) company.BillingEmail = billingEmail;
         }
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -113,6 +118,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         {
             if (string.IsNullOrWhiteSpace(company.Code)) errors.Add("Hay una sociedad sin código.");
             if (company.Ruc is { Length: > 0 } ruc && !IsRuc(ruc)) errors.Add($"La sociedad «{company.Code}» tiene un RUC que no es de 11 dígitos.");
+            if (company.BillingEmail is { Length: > 0 } email && !email.Contains('@')) errors.Add($"La sociedad «{company.Code}» tiene un correo de facturación inválido.");
         }
         foreach (var duplicate in seed.Users.GroupBy(user => user.Username?.Trim().ToLowerInvariant()).Where(group => group.Count() > 1))
             errors.Add($"El usuario «{duplicate.Key}» está repetido.");
@@ -147,7 +153,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             var code = item.Code.Trim();
             if (!companies.TryGetValue(code, out var company))
             {
-                company = new Company { Code = code, Name = item.Name?.Trim() is { Length: > 0 } name ? name : code, Ruc = item.Ruc?.Trim() };
+                company = new Company { Code = code, Name = item.Name?.Trim() is { Length: > 0 } name ? name : code, Ruc = item.Ruc?.Trim(), BillingEmail = item.BillingEmail?.Trim().ToLowerInvariant() };
                 db.Companies.Add(company);
                 companies[code] = company;
             }
@@ -159,6 +165,8 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             {
                 logger.LogWarning("La sociedad {Code} ya tiene otro RUC; el seed no lo modifica.", code);
             }
+            if (string.IsNullOrWhiteSpace(company.BillingEmail) && !string.IsNullOrWhiteSpace(item.BillingEmail))
+                company.BillingEmail = item.BillingEmail.Trim().ToLowerInvariant();
         }
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -230,6 +238,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         public string Code { get; init; } = string.Empty;
         public string? Name { get; init; }
         public string? Ruc { get; init; }
+        public string? BillingEmail { get; init; }
     }
 
     private sealed class SeedUser

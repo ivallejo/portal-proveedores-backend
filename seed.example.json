@@ -4,7 +4,8 @@
   // El seed solo CREA lo que falte: nunca modifica ni borra usuarios, áreas o sociedades existentes.
   // Roles válidos: PROVIDER, INTERNAL_USER, AREA_APPROVER, ACCOUNTS_PAYABLE, ADMINISTRATOR.
 
-  // Las cuatro sociedades base (1001, 1002, 1003, 1007) ya vienen con su RUC; aquí solo se agregan otras.
+  // Las cuatro sociedades base (1001, 1002, 1003, 1007) ya vienen con su RUC y correo de facturación; aquí solo se agregan otras:
+  // { "code": "2001", "name": "Otra sociedad S.A.", "ruc": "20xxxxxxxxx", "billingEmail": "facturacion@ejemplo.test" }
   "companies": [],
 
   "areas": ["Finanzas", "Logística", "Contabilidad"],

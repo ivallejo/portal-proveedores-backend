@@ -68,7 +68,8 @@ public sealed class ObserveDocumentRequest
 
 public sealed record OrderValidationResponse(string Number, OrderType OrderType, string Description, decimal Balance);
 
-public sealed record CompanyResponse(string Code, string Name, string? Ruc);
+/// <param name="BillingEmail">Correo de facturación de la sociedad (recepción de comprobantes electrónicos).</param>
+public sealed record CompanyResponse(string Code, string Name, string? Ruc, string? BillingEmail);
 
 public sealed record AreaResponse(Guid Id, string Name, IReadOnlyList<ApproverResponse> Approvers);
 

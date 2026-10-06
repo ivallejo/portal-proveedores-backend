@@ -43,6 +43,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         Assert.Equal(2, await db.Users.CountAsync());
         // Las sociedades base traen su RUC real; el archivo agrega otras.
         Assert.Equal("20522163890", (await db.Companies.SingleAsync(company => company.Code == "1001")).Ruc);
+        Assert.Equal("facturacionreceptor1@navitranso.com", (await db.Companies.SingleAsync(company => company.Code == "1001")).BillingEmail);
         Assert.Equal("20000000001", (await db.Companies.SingleAsync(company => company.Code == "2001")).Ruc);
         Assert.Equal(5, await db.Companies.CountAsync());
         Assert.Equal(SecurityCatalog.Roles.Count, await db.Roles.CountAsync());

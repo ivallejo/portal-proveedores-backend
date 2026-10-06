@@ -16,5 +16,6 @@ internal sealed class CompanyConfiguration : IEntityTypeConfiguration<Company>
         entity.Property(company => company.Code).HasMaxLength(20).IsRequired();
         entity.Property(company => company.Name).HasMaxLength(200).IsRequired();
         entity.Property(company => company.Ruc).HasMaxLength(11);
+        entity.Property(company => company.BillingEmail).HasMaxLength(320);
     }
 }

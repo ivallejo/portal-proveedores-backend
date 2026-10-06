@@ -5,7 +5,7 @@ namespace WebProveedores.Application.Documents;
 /// <summary>Entidades del dominio → respuestas de la API.</summary>
 internal static class DocumentMapper
 {
-    public static CompanyResponse ToResponse(Company company) => new(company.Code, company.Name, company.Ruc);
+    public static CompanyResponse ToResponse(Company company) => new(company.Code, company.Name, company.Ruc, company.BillingEmail);
 
     public static DocumentSummaryResponse ToSummary(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName,
