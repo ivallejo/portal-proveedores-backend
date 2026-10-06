@@ -25,6 +25,17 @@ public static class EmailTemplates
         showValue: false,
         actionLabel: "Cambiar mi contraseña");
 
+    public static string EmailVerification(string name, string email, string verifyUrl) => Layout(
+        $"Hola, {Encode(name)}",
+        string.Empty,
+        $"Agregaste {Encode(email)} a tu perfil del Portal de Proveedores. Confirma que es tuyo con el siguiente botón.",
+        string.Empty,
+        string.Empty,
+        "Este enlace vence en 24 horas. Si no fuiste tú, ignora este mensaje.",
+        verifyUrl,
+        showValue: false,
+        actionLabel: "Verificar mi correo");
+
     private static string Layout(string title, string greeting, string description, string valueLabel, string value, string note, string? actionUrl = null, bool showValue = true, string actionLabel = "Crear mi contraseña") => $"""
         <!doctype html>
         <html lang="es">

@@ -19,6 +19,8 @@ public interface IUserRepository
     Task<bool> EmailUsedByOtherAsync(string email, Guid exceptUserId, CancellationToken cancellationToken);
     /// <summary>Hay otro administrador activo además de <paramref name="exceptUserId"/>.</summary>
     Task<bool> OtherActiveAdministratorExistsAsync(Guid exceptUserId, CancellationToken cancellationToken);
+    /// <summary>Correo con un enlace de verificación vigente (con seguimiento, incluye al usuario).</summary>
+    Task<UserEmail?> FindEmailByVerificationTokenAsync(string tokenHash, DateTime now, CancellationToken cancellationToken);
     void Add(AppUser user);
 }
 

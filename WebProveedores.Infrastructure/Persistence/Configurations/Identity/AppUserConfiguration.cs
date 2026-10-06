@@ -16,7 +16,10 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         entity.HasIndex(user => user.AreaId);
         entity.Property(user => user.Username).HasMaxLength(80).IsRequired();
         entity.Property(user => user.CompanyName).HasMaxLength(200).IsRequired();
+        entity.Property(user => user.FirstName).HasMaxLength(100);
+        entity.Property(user => user.LastName).HasMaxLength(100);
         entity.Property(user => user.Ruc).HasMaxLength(20);
+        entity.Ignore(user => user.IsProvider);
         entity.Property(user => user.PasswordHash).HasMaxLength(500).IsRequired();
         entity.HasIndex(user => user.PasswordSetAtUtc);
         entity.Property(user => user.FailedLoginCount).HasDefaultValue(0);

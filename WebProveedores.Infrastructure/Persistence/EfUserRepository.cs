@@ -11,7 +11,7 @@ public sealed class EfUserRepository(AppDbContext db) : IUserRepository
             .Include(user => user.Emails)
             .Include(user => user.Area)
             .Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
-            .SingleOrDefaultAsync(user => user.Username == identifier || user.Ruc == identifier || user.Emails.Any(email => email.Email == normalizedEmail), cancellationToken);
+            .SingleOrDefaultAsync(user => user.Username == identifier || user.Ruc == identifier || user.Emails.Any(email => email.Email == normalizedEmail && email.VerifiedAtUtc != null), cancellationToken);
 
     public Task<AppUser?> FindByRucAsync(string ruc, CancellationToken cancellationToken) =>
         db.Users.Include(user => user.Emails).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
@@ -57,12 +57,16 @@ public sealed class EfUserRepository(AppDbContext db) : IUserRepository
         db.Users.AnyAsync(user => user.Id != exceptUserId && user.IsActive
             && user.UserRoles.Any(userRole => userRole.Role.Code == SecurityCatalog.AdministratorRole), cancellationToken);
 
+    public Task<UserEmail?> FindEmailByVerificationTokenAsync(string tokenHash, DateTime now, CancellationToken cancellationToken) =>
+        db.UserEmails.Include(email => email.User)
+            .SingleOrDefaultAsync(email => email.VerificationTokenHash == tokenHash && email.VerificationExpiresAtUtc > now, cancellationToken);
+
     public void Add(AppUser user) => db.Users.Add(user);
 
     /// <summary>Correos, área, roles y sociedades: lo que define qué puede hacer el usuario.</summary>
     private static IQueryable<AppUser> WithAccess(IQueryable<AppUser> users) => users
         .Include(user => user.Emails)
-        .Include(user => user.Area)
+        .Include(user => user.Area).ThenInclude(area => area!.Company)
         .Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
         .Include(user => user.UserCompanies).ThenInclude(userCompany => userCompany.Company);
 }

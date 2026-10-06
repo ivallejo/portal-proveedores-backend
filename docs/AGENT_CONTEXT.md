@@ -375,6 +375,24 @@ PATCH /api/admin/areas/{id}/status              # desactivar: ya no se asigna a 
 - No se elimina nada: solo se activa o desactiva.
 - El correo de facturación de la sociedad va **en copia** de los avisos al proveedor (rechazo y observación). `IEmailSender` acepta `copyTo`; en modo Redirect las copias no salen y se indican en el aviso del correo de prueba.
 
+## Mi perfil
+
+`IProfileService` (`ProfileController`, cualquier usuario con sesión):
+
+```text
+GET    /api/profile                              # datos, roles, área, sociedades, correos, fechas
+PUT    /api/profile                              # proveedor: businessName (≥ 3); interno: firstName + lastName (solo letras)
+POST   /api/profile/emails                       # { email, type: work|billing|personal } → pendiente de verificación, envía enlace
+POST   /api/profile/emails/{id}/verification     # reenvía el enlace (24 h)
+POST   /api/profile/emails/{id}/primary          # solo correos verificados
+DELETE /api/profile/emails/{id}                  # el principal no se elimina
+POST   /api/profile/emails/verify                # sin sesión: { token } del enlace `/?emailToken=…`
+```
+
+- El cambio de contraseña sigue en `POST /api/auth/change-password` (devuelve una sesión nueva).
+- Un correo solo sirve para **ingresar** si está verificado. Los correos creados por el administrador, el seed o SAP nacen verificados (la migración `ProfileEmailsAndNames` marcó los existentes).
+- `AppUser.FirstName/LastName` (personal interno): `CompanyName` guarda el nombre completo para el resto del sistema.
+
 ## Administración de usuarios
 
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.

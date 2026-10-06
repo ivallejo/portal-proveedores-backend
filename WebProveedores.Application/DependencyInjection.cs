@@ -4,6 +4,7 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Organization;
 using WebProveedores.Application.Payments;
+using WebProveedores.Application.Profile;
 
 namespace WebProveedores.Application;
 
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IProviderRegistrationService, ProviderRegistrationService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IProfileService, ProfileService>();
 
         services.AddScoped<DocumentAccess>();
         services.AddScoped<DocumentFiles>();

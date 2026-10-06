@@ -15,6 +15,9 @@ public sealed class AppUser
     public string Username { get; private set; } = string.Empty;
     /// <summary>Nombre de la persona o razón social del proveedor.</summary>
     public string CompanyName { get; private set; } = string.Empty;
+    /// <summary>Nombres y apellidos del personal interno; <see cref="CompanyName"/> guarda el nombre completo.</summary>
+    public string? FirstName { get; private set; }
+    public string? LastName { get; private set; }
     public string? Ruc { get; private set; }
     public string PasswordHash { get; private set; } = string.Empty;
     public Guid? AreaId { get; private set; }
@@ -58,12 +61,16 @@ public sealed class AppUser
             PasswordSetAtUtc = activated ? now : null,
             MustChangePassword = temporaryPassword,
         };
-        user.Emails.Add(new UserEmail { UserId = user.Id, Email = email.Trim().ToLowerInvariant(), IsPrimary = true, CreatedAtUtc = now });
+        // Lo ingresó quien crea la cuenta (administrador, seed o SAP): se da por verificado.
+        user.Emails.Add(new UserEmail { UserId = user.Id, Email = email.Trim().ToLowerInvariant(), IsPrimary = true, CreatedAtUtc = now, VerifiedAtUtc = now });
         return user;
     }
 
     public string PrimaryEmail =>
         Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
+
+    /// <summary>Cuenta de proveedor: se identifica con su RUC.</summary>
+    public bool IsProvider => Ruc is not null;
 
     public bool HasRole(string code) => UserRoles.Any(item => item.Role?.Code == code);
 
@@ -116,10 +123,65 @@ public sealed class AppUser
         CompanyName = name.Trim();
         var normalized = email.Trim().ToLowerInvariant();
         var primary = Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive) ?? Emails.FirstOrDefault(item => item.IsActive);
-        if (primary is null) Emails.Add(new UserEmail { UserId = Id, Email = normalized, IsPrimary = true, CreatedAtUtc = now });
-        else primary.Email = normalized;
+        if (primary is null) Emails.Add(new UserEmail { UserId = Id, Email = normalized, IsPrimary = true, CreatedAtUtc = now, VerifiedAtUtc = now });
+        else if (primary.Email != normalized)
+        {
+            primary.Email = normalized;
+            primary.Verify(now);
+        }
         UpdatedAtUtc = now;
     }
+
+    // ——— Mi perfil ———
+
+    /// <summary>Razón social del proveedor.</summary>
+    public void RenameBusiness(string businessName, DateTime now)
+    {
+        if (!IsProvider) throw new DomainRuleException("Solo un proveedor tiene razón social.");
+        CompanyName = businessName.Trim();
+        UpdatedAtUtc = now;
+    }
+
+    /// <summary>Nombres y apellidos del personal interno.</summary>
+    public void SetPersonName(string firstName, string lastName, DateTime now)
+    {
+        if (IsProvider) throw new DomainRuleException("Un proveedor se identifica con su razón social.");
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
+        CompanyName = $"{FirstName} {LastName}".Trim();
+        UpdatedAtUtc = now;
+    }
+
+    /// <summary>Correo adicional, pendiente de verificación.</summary>
+    public UserEmail AddEmail(string email, EmailType type, DateTime now)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        if (Emails.Any(item => item.Email == normalized)) throw new DomainRuleException("Este correo ya está registrado en tu perfil.");
+        var added = new UserEmail { UserId = Id, Email = normalized, Type = type, CreatedAtUtc = now };
+        Emails.Add(added);
+        UpdatedAtUtc = now;
+        return added;
+    }
+
+    /// <summary>El correo principal recibe las notificaciones y los enlaces de recuperación: debe estar verificado.</summary>
+    public void MakePrimary(Guid emailId, DateTime now)
+    {
+        var email = OwnEmail(emailId);
+        if (!email.IsVerified) throw new DomainRuleException("Verifica el correo antes de hacerlo principal.");
+        foreach (var item in Emails) item.IsPrimary = item.Id == emailId;
+        UpdatedAtUtc = now;
+    }
+
+    public void RemoveEmail(Guid emailId, DateTime now)
+    {
+        var email = OwnEmail(emailId);
+        if (email.IsPrimary) throw new DomainRuleException("El correo principal no se puede eliminar.");
+        Emails.Remove(email);
+        UpdatedAtUtc = now;
+    }
+
+    public UserEmail OwnEmail(Guid emailId) =>
+        Emails.FirstOrDefault(item => item.Id == emailId) ?? throw new DomainRuleException("El correo no pertenece a tu perfil.");
 
     /// <summary>Registro online repetido de una cuenta aún no activada: datos de SAP actualizados y cuenta activa.</summary>
     public void RefreshPendingProvider(string name, string email, DateTime now)
