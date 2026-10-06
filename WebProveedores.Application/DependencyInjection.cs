@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Payments;
 
 namespace WebProveedores.Application;
 
@@ -26,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentQueryService, DocumentQueryService>();
         services.AddScoped<IDocumentApprovalService, DocumentApprovalService>();
         services.AddScoped<IDocumentAccountingService, DocumentAccountingService>();
+        services.AddScoped<IPaymentQueryService, PaymentQueryService>();
         return services;
     }
 }

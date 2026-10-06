@@ -7,4 +7,5 @@ public static class Policies
     public const string DocumentsRegister = "Documents.Register";
     public const string DocumentsApprove = "Documents.Approve";
     public const string DocumentsAccount = "Documents.Account";
+    public const string PaymentsView = "Payments.View";
 }

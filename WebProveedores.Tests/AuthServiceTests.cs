@@ -183,11 +183,7 @@ public sealed class AuthServiceTests
         var user = CreateUser("20523682780", "registered", "Proveedor Registrado", "registered@demo.test", activated: true);
         db.Users.Add(user);
         await db.SaveChangesAsync();
-        var sap = new SapProviderClient(new HttpClient(new ThrowingHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Sap:BaseUrl"] = "http://sap.invalid",
-            ["Sap:BasicToken"] = "test-token",
-        }).Build());
+        var sap = new SapProviderClient(new HttpClient(new ThrowingHandler()), new SapSettings("http://sap.invalid", "200", "test-token"));
         var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         var exception = await Assert.ThrowsAsync<ConflictException>(() => service.ValidateRucAsync(user.Ruc!, CancellationToken.None));
@@ -202,11 +198,7 @@ public sealed class AuthServiceTests
         var pending = CreateUser("20100003199", "20100003199", "Proveedor sin activar", "pendiente@demo.test");
         db.Users.Add(pending);
         await db.SaveChangesAsync();
-        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Sap:BaseUrl"] = "http://sap.invalid",
-            ["Sap:BasicToken"] = "test-token",
-        }).Build());
+        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new SapSettings("http://sap.invalid", "200", "test-token"));
         var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         // No lo rechaza como «ya registrado»: sigue a la consulta en SAP (aquí caído).
@@ -217,11 +209,7 @@ public sealed class AuthServiceTests
     public async Task ValidateRucAsync_reports_sap_outages_as_service_unavailable()
     {
         await using var db = CreateContext();
-        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Sap:BaseUrl"] = "http://sap.invalid",
-            ["Sap:BasicToken"] = "test-token",
-        }).Build());
+        var sap = new SapProviderClient(new HttpClient(new UnreachableHandler()), new SapSettings("http://sap.invalid", "200", "test-token"));
         var service = TestServices.Registration(db, new FakeEmailSender(), sap);
 
         var exception = await Assert.ThrowsAsync<ServiceUnavailableException>(() => service.ValidateRucAsync("20100003199", CancellationToken.None));

@@ -1,27 +1,17 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Providers;
 
 namespace WebProveedores.Infrastructure.Providers;
 
-public sealed class SapProviderClient(HttpClient httpClient, IConfiguration configuration) : IProviderDirectory
+public sealed class SapProviderClient(HttpClient httpClient, SapSettings settings) : IProviderDirectory
 {
     public async Task<SapProviderRecord?> FindByRucAsync(string ruc, CancellationToken cancellationToken)
     {
-        var baseUrl = configuration["Sap:BaseUrl"]?.TrimEnd('/');
-        var sapClient = configuration["Sap:Client"] ?? "200";
-        var basicToken = configuration["Sap:BasicToken"];
-
-        if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(basicToken))
-            throw new InvalidOperationException("La integración con SAP no está configurada.");
-
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"{baseUrl}/sap/bc/zconsruc?sap-client={Uri.EscapeDataString(sapClient)}&ruc={Uri.EscapeDataString(ruc)}");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basicToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, settings.Url("zconsruc", $"ruc={Uri.EscapeDataString(ruc)}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", settings.BasicToken);
 
         try
         {

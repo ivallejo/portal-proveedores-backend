@@ -346,6 +346,16 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 
 `Sap:DocumentServices` elige la implementación de los servicios 01/02. Hoy solo existe `Simulated` (`MockSapDocumentGateway`); fuera de producción es el valor por defecto, en producción hay que declararlo explícitamente o la API no arranca. El log de arranque avisa que están simulados.
 
+## Orden de pago y Estado de factura
+
+Consultas en línea a SAP con el mismo `Sap:BaseUrl` (puerto `ISapPaymentsGateway`, adaptador `SapPaymentsClient`):
+
+- `GET /api/payment-orders?from=&to=&ruc=&company=` → servicio `zconsopago` (órdenes con sus comprobantes, retención, detracción y constancias).
+- `GET /api/invoices?from=&to=&ruc=&company=&number=` → servicio `zconsfactu` (estado SAP tal cual: Recepcionado, Pagado, Documento Anulado…).
+- SAP recibe `RUC`, `fechad` y `fechah` (dd/MM/yyyy) y devuelve fechas `yyyyMMdd` («00000000» = vacía) e importes como texto. El número llega como «01-F008-…» (prefijo = tipo SUNAT).
+- Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; CxP y el administrador deben indicar `ruc`. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 3 años.
+- La orden trae el código de sociedad (`zbukr`); la factura solo el RUC de la sociedad (`ruc_adqui`), así que filtrar facturas por sociedad requiere que la sociedad tenga RUC en el catálogo.
+
 ## Administración de usuarios
 
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.

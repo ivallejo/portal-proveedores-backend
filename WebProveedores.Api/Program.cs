@@ -41,6 +41,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.DocumentsRegister, policy => policy.RequireRole(SecurityCatalog.ProviderRole, SecurityCatalog.InternalUserRole, SecurityCatalog.AdministratorRole));
     options.AddPolicy(Policies.DocumentsApprove, policy => policy.RequireRole(SecurityCatalog.AreaApproverRole, SecurityCatalog.AdministratorRole));
     options.AddPolicy(Policies.DocumentsAccount, policy => policy.RequireRole(SecurityCatalog.AccountsPayableRole, SecurityCatalog.AdministratorRole));
+    options.AddPolicy(Policies.PaymentsView, policy => policy.RequireRole(SecurityCatalog.ProviderRole, SecurityCatalog.AccountsPayableRole, SecurityCatalog.AdministratorRole));
 });
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

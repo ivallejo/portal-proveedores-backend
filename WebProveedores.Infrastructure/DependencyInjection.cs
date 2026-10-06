@@ -41,15 +41,12 @@ public static class DependencyInjection
         services.AddSingleton<IPdfMerger, PdfSharpMerger>();
 
         // SAP: consulta de proveedores real, con reintentos y corte de circuito; servicios 01/02 según Sap:DocumentServices.
-        services.AddHttpClient<SapProviderClient>(client => client.Timeout = TimeSpan.FromSeconds(15))
-            .AddStandardResilienceHandler(options =>
-            {
-                options.Retry.MaxRetryAttempts = 2;
-                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(10);
-                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(30);
-                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(20);
-            });
+        services.AddSingleton(SapSettings.From(configuration));
+        AddSapClient<SapProviderClient>(services);
         services.AddScoped<IProviderDirectory>(provider => provider.GetRequiredService<SapProviderClient>());
+        // Pagos y facturas devuelven más datos: más tiempo por intento.
+        AddSapClient<SapPaymentsClient>(services, attemptSeconds: 25, totalSeconds: 60);
+        services.AddScoped<ISapPaymentsGateway>(provider => provider.GetRequiredService<SapPaymentsClient>());
         var sapDocuments = SapDocumentSettings.Resolve(configuration, isProduction);
         services.AddSingleton(sapDocuments);
         services.AddSingleton<ISapDocumentGateway, MockSapDocumentGateway>();
@@ -66,4 +63,15 @@ public static class DependencyInjection
         });
         return services;
     }
+
+    /// <summary>Cliente HTTP de SAP con reintentos, tiempos máximos y corte de circuito ante caídas.</summary>
+    private static void AddSapClient<TClient>(IServiceCollection services, int attemptSeconds = 10, int totalSeconds = 30) where TClient : class =>
+        services.AddHttpClient<TClient>(client => client.Timeout = TimeSpan.FromSeconds(totalSeconds + 5))
+            .AddStandardResilienceHandler(options =>
+            {
+                options.Retry.MaxRetryAttempts = 2;
+                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(attemptSeconds);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(totalSeconds);
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(Math.Max(20, attemptSeconds * 2));
+            });
 }
