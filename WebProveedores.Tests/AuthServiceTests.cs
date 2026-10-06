@@ -242,7 +242,7 @@ public sealed class AuthServiceTests
         public string? Recipient { get; private set; }
         public string? Body { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
         {
             Recipient = recipient;
             Body = body;

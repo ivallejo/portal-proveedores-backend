@@ -78,6 +78,18 @@ public sealed class EmailSettingsTests
         Assert.EndsWith("<p>Hola</p>", inner.Body);
     }
 
+    [Fact]
+    public async Task Redirect_does_not_send_copies_but_reports_them()
+    {
+        var inner = new CapturingSender();
+
+        await new RedirectingEmailSender(inner, "pruebas@ejemplo.test").SendAsync(
+            "proveedor@real.pe", "Documento observado", "<p>Hola</p>", CancellationToken.None, isHtml: true, copyTo: ["facturacion@sociedad.pe"]);
+
+        Assert.Null(inner.CopyTo);
+        Assert.Contains("copia: facturacion@sociedad.pe", inner.Body);
+    }
+
     private static IConfiguration Config(params (string Key, string? Value)[] values)
     {
         var settings = new Dictionary<string, string?>(Smtp);
@@ -90,10 +102,11 @@ public sealed class EmailSettingsTests
         public string? Recipient { get; private set; }
         public string? Subject { get; private set; }
         public string? Body { get; private set; }
+        public IReadOnlyList<string>? CopyTo { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
         {
-            (Recipient, Subject, Body) = (recipient, subject, body);
+            (Recipient, Subject, Body, CopyTo) = (recipient, subject, body, copyTo);
             return Task.CompletedTask;
         }
     }

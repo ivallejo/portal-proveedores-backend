@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Organization;
 using WebProveedores.Application.Payments;
 
 namespace WebProveedores.Application;
@@ -18,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IProviderRegistrationService, ProviderRegistrationService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
 
         services.AddScoped<DocumentAccess>();
         services.AddScoped<DocumentFiles>();

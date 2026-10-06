@@ -48,7 +48,7 @@ public sealed record AdminUserPage(IReadOnlyList<AdminUserResponse> Items, int T
 
 public sealed record AdminOption(string Code, string Name);
 
-public sealed record AdminAreaOption(Guid Id, string Name);
+public sealed record AdminAreaOption(Guid Id, string Name, string CompanyCode, string CompanyName);
 
 /// <summary>Opciones de los formularios de usuario.</summary>
 public sealed record AdminCatalogResponse(IReadOnlyList<AdminOption> Roles, IReadOnlyList<AdminAreaOption> Areas, IReadOnlyList<AdminOption> Companies);

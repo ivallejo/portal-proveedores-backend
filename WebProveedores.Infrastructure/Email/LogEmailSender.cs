@@ -11,15 +11,15 @@ namespace WebProveedores.Infrastructure.Email;
 /// </summary>
 public sealed partial class LogEmailSender(ILogger<LogEmailSender> logger) : IEmailSender
 {
-    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
+    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
     {
         // Solo los enlaces de acción (no fuentes ni estilos), decodificados para poder copiarlos.
         var links = Links().Matches(body)
             .Select(match => WebUtility.HtmlDecode(match.Groups[1].Value))
             .Where(link => !link.Contains("fonts.g", StringComparison.Ordinal))
             .Distinct();
-        logger.LogWarning("Correo NO enviado (Email:Mode=Log) a {Recipient}: «{Subject}». Enlaces: {Links}",
-            recipient, subject, string.Join(" ", links));
+        logger.LogWarning("Correo NO enviado (Email:Mode=Log) a {Recipient} (copia: {CopyTo}): «{Subject}». Enlaces: {Links}",
+            recipient, string.Join(", ", copyTo ?? []), subject, string.Join(" ", links));
         return Task.CompletedTask;
     }
 

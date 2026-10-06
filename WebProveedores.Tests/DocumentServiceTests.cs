@@ -368,9 +368,9 @@ public sealed class DocumentServiceTests
             var fixture = new Fixture(db);
             var roles = SecurityCatalog.Roles.ToDictionary(role => role.Key, role => new Role { Code = role.Key, Name = role.Value });
             db.Roles.AddRange(roles.Values);
-            var finance = new Area { Code = "FINANZAS", Name = "Finanzas" };
-            db.Areas.Add(finance);
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = CompanyRuc };
+            var finance = new Area { Code = "FINANZAS", Name = "Finanzas", Company = naviera, CompanyId = naviera.Id };
+            db.Areas.Add(finance);
             // Petrolera sin RUC: el receptor del XML no se valida para ella.
             var petrolera = new Company { Code = "1002", Name = "Petrolera Transoceánica" };
             db.Companies.AddRange(naviera, petrolera);
@@ -404,7 +404,7 @@ public sealed class DocumentServiceTests
     {
         public List<string> Recipients { get; } = [];
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
         {
             Recipients.Add(recipient);
             return Task.CompletedTask;

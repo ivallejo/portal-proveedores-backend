@@ -12,17 +12,22 @@ internal sealed class DocumentNotifier(IEmailSender emailSender, ILogger<Documen
         SendAsync(email, $"Documento por aprobar: {document.Number}",
             DocumentEmailTemplates.PendingApproval(approverName, document.Number, document.ProviderName, companyName, FormatAmount(document), reason), cancellationToken);
 
+    /// <summary>Aviso al proveedor, con copia al correo de facturación de la sociedad.</summary>
     public Task RejectedAsync(string email, SupplierDocument document, string reason, CancellationToken cancellationToken) =>
         SendAsync(email, $"Documento rechazado: {document.Number}",
-            DocumentEmailTemplates.Rejected(document.ProviderName, document.Number, reason), cancellationToken);
+            DocumentEmailTemplates.Rejected(document.ProviderName, document.Number, reason), cancellationToken, CompanyCopy(document));
 
+    /// <summary>Aviso al proveedor, con copia al correo de facturación de la sociedad.</summary>
     public Task ObservedAsync(string email, SupplierDocument document, string reason, CancellationToken cancellationToken) =>
         SendAsync(email, $"Documento observado: {document.Number}",
-            DocumentEmailTemplates.Observed(document.ProviderName, document.Number, reason), cancellationToken);
+            DocumentEmailTemplates.Observed(document.ProviderName, document.Number, reason), cancellationToken, CompanyCopy(document));
 
-    private async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
+    private static IReadOnlyList<string>? CompanyCopy(SupplierDocument document) =>
+        string.IsNullOrWhiteSpace(document.Company?.BillingEmail) ? null : [document.Company.BillingEmail];
+
+    private async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, IReadOnlyList<string>? copyTo = null)
     {
-        try { await emailSender.SendAsync(recipient, subject, body, cancellationToken, isHtml: true); }
+        try { await emailSender.SendAsync(recipient, subject, body, cancellationToken, isHtml: true, copyTo); }
         catch (Exception exception) { logger.LogWarning(exception, "No se pudo enviar el correo «{Subject}»", subject); }
     }
 

@@ -14,10 +14,10 @@ public sealed class EfReferenceDataReader(AppDbContext db) : IReferenceDataReade
         await db.Roles.Where(role => role.IsActive).ToListAsync(cancellationToken);
 
     public Task<Area?> FindAreaAsync(Guid id, CancellationToken cancellationToken) =>
-        db.Areas.SingleOrDefaultAsync(area => area.Id == id && area.IsActive, cancellationToken);
+        db.Areas.Include(area => area.Company).SingleOrDefaultAsync(area => area.Id == id && area.IsActive, cancellationToken);
 
     public async Task<IReadOnlyList<Area>> ListActiveAreasAsync(CancellationToken cancellationToken) =>
-        await db.Areas.Where(area => area.IsActive).OrderBy(area => area.Name).ToListAsync(cancellationToken);
+        await db.Areas.Include(area => area.Company).Where(area => area.IsActive).OrderBy(area => area.Name).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Company>> ListActiveCompaniesAsync(CancellationToken cancellationToken) =>
         await db.Companies.Where(company => company.IsActive).OrderBy(company => company.Code).ToListAsync(cancellationToken);

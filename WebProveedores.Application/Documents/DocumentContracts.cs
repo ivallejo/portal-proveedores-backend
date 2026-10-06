@@ -71,7 +71,8 @@ public sealed record OrderValidationResponse(string Number, OrderType OrderType,
 /// <param name="BillingEmail">Correo de facturación de la sociedad (recepción de comprobantes electrónicos).</param>
 public sealed record CompanyResponse(string Code, string Name, string? Ruc, string? BillingEmail);
 
-public sealed record AreaResponse(Guid Id, string Name, IReadOnlyList<ApproverResponse> Approvers);
+/// <param name="CompanyCode">Sociedad a la que pertenece el área.</param>
+public sealed record AreaResponse(Guid Id, string Name, string CompanyCode, IReadOnlyList<ApproverResponse> Approvers);
 
 /// <summary>Aprobador con las sociedades en las que puede aprobar (el frontend filtra por la sociedad del documento).</summary>
 public sealed record ApproverResponse(Guid Id, string Name, string Email, IReadOnlyList<string> CompanyCodes);

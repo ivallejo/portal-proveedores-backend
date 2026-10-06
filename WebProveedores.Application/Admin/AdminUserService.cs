@@ -31,7 +31,7 @@ public sealed class AdminUserService(
         var roles = (await referenceData.ListRolesAsync(cancellationToken))
             .OrderBy(role => SecurityCatalog.Roles.Keys.ToList().IndexOf(role.Code))
             .Select(role => new AdminOption(role.Code, role.Name)).ToArray();
-        var areas = (await referenceData.ListActiveAreasAsync(cancellationToken)).Select(area => new AdminAreaOption(area.Id, area.Name)).ToArray();
+        var areas = (await referenceData.ListActiveAreasAsync(cancellationToken)).Select(area => new AdminAreaOption(area.Id, area.Name, area.Company.Code, area.Company.Name)).ToArray();
         var companies = (await referenceData.ListActiveCompaniesAsync(cancellationToken)).Select(company => new AdminOption(company.Code, company.Name)).ToArray();
         return new AdminCatalogResponse(roles, areas, companies);
     }

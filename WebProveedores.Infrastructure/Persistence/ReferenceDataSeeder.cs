@@ -123,7 +123,20 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         foreach (var duplicate in seed.Users.GroupBy(user => user.Username?.Trim().ToLowerInvariant()).Where(group => group.Count() > 1))
             errors.Add($"El usuario «{duplicate.Key}» está repetido.");
 
-        var areaNames = seed.Areas.Select(area => area.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var companyCodesForAreas = BaseCompanies.Select(company => company.Code).Concat(seed.Companies.Select(company => company.Code.Trim())).ToHashSet();
+        foreach (var area in seed.Areas)
+        {
+            if (string.IsNullOrWhiteSpace(area.Name)) errors.Add("Hay un área sin nombre.");
+            else if (string.IsNullOrWhiteSpace(area.Company)) errors.Add($"El área «{area.Name}» necesita «company» (código de la sociedad a la que pertenece).");
+            else if (!companyCodesForAreas.Contains(area.Company.Trim())) errors.Add($"El área «{area.Name}» usa la sociedad «{area.Company}», que no existe.");
+        }
+        foreach (var duplicate in seed.Areas.GroupBy(area => $"{area.Company?.Trim()}:{area.Name?.Trim().ToLowerInvariant()}").Where(group => group.Count() > 1))
+            errors.Add($"El área «{duplicate.First().Name}» está repetida en la misma sociedad.");
+        var areaNames = seed.Areas.Where(area => !string.IsNullOrWhiteSpace(area.Name))
+            .SelectMany(area => new[] { area.Name.Trim(), $"{area.Company?.Trim()}:{area.Name.Trim()}" })
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var ambiguousAreas = seed.Areas.Where(area => !string.IsNullOrWhiteSpace(area.Name)).GroupBy(area => area.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var companyCodes = BaseCompanies.Select(company => company.Code).Concat(seed.Companies.Select(company => company.Code.Trim())).ToHashSet();
         foreach (var user in seed.Users)
         {
@@ -136,6 +149,8 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             if (user.Role == SecurityCatalog.AreaApproverRole && string.IsNullOrWhiteSpace(user.Area)) errors.Add($"El aprobador «{label}» necesita un área.");
             if (!string.IsNullOrWhiteSpace(user.Area) && !areaNames.Contains(user.Area.Trim()))
                 errors.Add($"El usuario «{label}» usa el área «{user.Area}», que no está en la lista «areas».");
+            else if (!string.IsNullOrWhiteSpace(user.Area) && ambiguousAreas.Contains(user.Area.Trim()))
+                errors.Add($"El área «{user.Area}» existe en varias sociedades: indícala como «CÓDIGO:Nombre» en el usuario «{label}».");
             foreach (var code in user.Companies ?? [])
                 if (!companyCodes.Contains(code.Trim())) errors.Add($"El usuario «{label}» usa la sociedad «{code}», que no es una sociedad base ni está en «companies».");
             if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
@@ -173,9 +188,16 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     private async Task ApplyAreasAsync(SeedFile seed, CancellationToken cancellationToken)
     {
-        var existing = (await db.Areas.Select(area => area.Name).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in seed.Areas.Select(area => area.Trim()).Where(name => name.Length > 0 && !existing.Contains(name)).Distinct(StringComparer.OrdinalIgnoreCase))
-            db.Areas.Add(new Area { Code = CodeFor(name), Name = name });
+        var companies = await db.Companies.ToDictionaryAsync(company => company.Code, cancellationToken);
+        var existing = (await db.Areas.Select(area => new { area.CompanyId, area.Code }).ToListAsync(cancellationToken))
+            .Select(area => (area.CompanyId, area.Code)).ToHashSet();
+        foreach (var item in seed.Areas)
+        {
+            var company = companies[item.Company!.Trim()];
+            var code = Area.CodeFor(item.Name);
+            if (!existing.Add((company.Id, code))) continue;
+            db.Areas.Add(new Area { Code = code, Name = item.Name.Trim(), Description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(), CompanyId = company.Id, Company = company });
+        }
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -183,7 +205,16 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
     {
         var roles = await db.Roles.ToDictionaryAsync(role => role.Code, cancellationToken);
         var companies = await db.Companies.Where(company => company.IsActive).ToListAsync(cancellationToken);
-        var areas = await db.Areas.ToDictionaryAsync(area => area.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        var areaList = await db.Areas.Include(area => area.Company).ToListAsync(cancellationToken);
+        // «Operaciones» o, si el nombre se repite entre sociedades, «1001:Operaciones».
+        Area FindArea(string reference)
+        {
+            var parts = reference.Trim().Split(':', 2);
+            var matches = parts.Length == 2
+                ? areaList.Where(area => area.Company.Code == parts[0].Trim() && string.Equals(area.Name, parts[1].Trim(), StringComparison.OrdinalIgnoreCase)).ToList()
+                : areaList.Where(area => string.Equals(area.Name, parts[0], StringComparison.OrdinalIgnoreCase)).ToList();
+            return matches.Count == 1 ? matches[0] : throw new InvalidOperationException($"El área «{reference}» no existe o se repite entre sociedades: usa «CÓDIGO:Nombre».");
+        }
         var usernames = (await db.Users.Select(user => user.Username).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var now = clock.GetUtcNow().UtcDateTime;
         var created = 0;
@@ -203,7 +234,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
             var password = item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!;
             var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true);
-            user.AssignArea(string.IsNullOrWhiteSpace(item.Area) ? null : areas[item.Area.Trim()]);
+            user.AssignArea(string.IsNullOrWhiteSpace(item.Area) ? null : FindArea(item.Area));
             user.SetRoles([role]);
             user.SetCompanies(item.Companies is null ? companies : companies.Where(company => item.Companies.Any(code => code.Trim() == company.Code)));
             db.Users.Add(user);
@@ -218,18 +249,18 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
     private static bool IsRuc(string? value) => value is { Length: 11 } && value.All(char.IsAsciiDigit);
 
 
-    private static string CodeFor(string name)
+    /// <summary>Área del archivo de seed: nombre, código de su sociedad y descripción opcional.</summary>
+    private sealed class SeedArea
     {
-        var normalized = name.Normalize(NormalizationForm.FormD)
-            .Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark);
-        var code = string.Concat(normalized).ToUpperInvariant();
-        return string.Concat(code.Select(character => char.IsLetterOrDigit(character) ? character : '_')).Trim('_');
+        public string Name { get; init; } = string.Empty;
+        public string? Company { get; init; }
+        public string? Description { get; init; }
     }
 
     private sealed class SeedFile
     {
         public List<SeedCompany> Companies { get; init; } = [];
-        public List<string> Areas { get; init; } = [];
+        public List<SeedArea> Areas { get; init; } = [];
         public List<SeedUser> Users { get; init; } = [];
     }
 

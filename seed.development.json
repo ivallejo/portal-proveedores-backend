@@ -5,7 +5,14 @@
   // Producción usa seed.production.json (fuera de git); ver seed.example.json.
   // «companies» limita las sociedades del usuario; si se omite, trabaja con todas.
 
-  "areas": ["Operaciones", "Logística", "Compras", "Finanzas", "Contabilidad"],
+  // Cada área pertenece a una sociedad (código SAP).
+  "areas": [
+    { "name": "Operaciones", "company": "1001", "description": "Operación de la flota y de los servicios marítimos." },
+    { "name": "Logística", "company": "1001", "description": "Compras, almacén y abastecimiento." },
+    { "name": "Compras", "company": "1001" },
+    { "name": "Finanzas", "company": "1001", "description": "Tesorería, presupuesto y pagos." },
+    { "name": "Contabilidad", "company": "1001", "description": "Registro y contabilización de comprobantes." }
+  ],
 
   "users": [
     {

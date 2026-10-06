@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordTokenRepository, EfPasswordTokenRepository>();
         services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
         services.AddScoped<IDocumentRepository, EfDocumentRepository>();
         services.AddScoped<ReferenceDataSeeder>();
         services.AddScoped<DatabaseInitializer>();

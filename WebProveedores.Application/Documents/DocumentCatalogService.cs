@@ -15,11 +15,12 @@ internal sealed class DocumentCatalogService(IDocumentRepository documents, Docu
     {
         var approvers = await documents.ListApproversAsync(cancellationToken);
         return approvers
-            .GroupBy(approver => (approver.AreaId, approver.AreaName))
+            .GroupBy(approver => (approver.AreaId, approver.AreaName, approver.AreaCompanyCode))
             .OrderBy(group => group.Key.AreaName)
             .Select(group => new AreaResponse(
                 group.Key.AreaId,
                 group.Key.AreaName,
+                group.Key.AreaCompanyCode,
                 group.OrderBy(item => item.Name).Select(item => new ApproverResponse(item.UserId, item.Name, item.Email, item.CompanyCodes)).ToArray()))
             .ToArray();
     }

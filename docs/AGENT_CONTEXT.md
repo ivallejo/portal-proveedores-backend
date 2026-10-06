@@ -356,6 +356,25 @@ Consultas en línea a SAP con el mismo `Sap:BaseUrl` (desarrollo `vhnzsds4ci`, p
 - Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; CxP y el administrador deben indicar `ruc`. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 3 años.
 - La orden trae el código de sociedad (`zbukr`); la factura solo el RUC de la sociedad (`ruc_adqui`), así que filtrar facturas por sociedad requiere que la sociedad tenga RUC en el catálogo.
 
+## Configuración › Sociedades y Áreas
+
+`IOrganizationService` (`OrganizationController`, solo administrador):
+
+```text
+GET   /api/admin/companies?search=&active=      # con número de áreas y de usuarios
+POST  /api/admin/companies                      # código 2-5 alfanumérico único, RUC 11 dígitos con 20 y único, razón social, correo
+PUT   /api/admin/companies/{id}
+PATCH /api/admin/companies/{id}/status          # desactivar: sale de los filtros y no se registran documentos; áreas e historial se conservan
+GET   /api/admin/areas?search=&active=&companyId=
+POST  /api/admin/areas                          # sociedad activa, nombre único dentro de la sociedad, descripción opcional
+PUT   /api/admin/areas/{id}
+PATCH /api/admin/areas/{id}/status              # desactivar: ya no se asigna a nuevos usuarios; los actuales la conservan
+```
+
+- Cada área pertenece a una sociedad (`Area.CompanyId`); su clave (`Area.CodeFor`) es única dentro de la sociedad. En el seed: `{ "name", "company", "description" }`; un usuario indica el área por nombre o, si se repite entre sociedades, como `CÓDIGO:Nombre`.
+- No se elimina nada: solo se activa o desactiva.
+- El correo de facturación de la sociedad va **en copia** de los avisos al proveedor (rechazo y observación). `IEmailSender` acepta `copyTo`; en modo Redirect las copias no salen y se indican en el aviso del correo de prueba.
+
 ## Administración de usuarios
 
 Base: `/api/admin/users`. Requiere policy `Users.Manage`.

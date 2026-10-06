@@ -72,6 +72,22 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     }
 
     [Fact]
+    public async Task Organization_lists_count_areas_and_users_in_sql()
+    {
+        var data = await SeedAsync();
+        await using var db = sql.CreateContext();
+        var repository = new EfOrganizationRepository(db);
+
+        var naviera = (await repository.ListCompaniesAsync(CancellationToken.None)).Single(item => item.Company.Id == data.Naviera.Id);
+        var area = (await repository.ListAreasAsync(CancellationToken.None)).Single(item => item.Area.Id == data.Area.Id);
+
+        Assert.Equal((1, 3), (naviera.AreaCount, naviera.UserCount));
+        Assert.Equal((data.Naviera.Code, 1), (area.Area.Company.Code, area.UserCount));
+        Assert.True(await repository.AreaCodeExistsAsync(data.Naviera.Id, data.Area.Code, null, CancellationToken.None));
+        Assert.False(await repository.AreaCodeExistsAsync(data.Ultratag.Id, data.Area.Code, null, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Password_token_is_found_only_while_valid_and_unused()
     {
         var data = await SeedAsync();
@@ -117,7 +133,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
 
         var naviera = new Company { Code = $"N{suffix[..6]}", Name = $"Naviera {suffix}" };
         var ultratag = new Company { Code = $"U{suffix[..6]}", Name = $"Ultratag {suffix}" };
-        var area = new Area { Code = $"AREA_{suffix}", Name = $"Área {suffix}" };
+        var area = new Area { Code = $"AREA_{suffix}", Name = $"Área {suffix}", Company = naviera, CompanyId = naviera.Id };
         db.Companies.AddRange(naviera, ultratag);
         db.Areas.Add(area);
 

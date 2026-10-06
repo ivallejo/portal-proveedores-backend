@@ -78,7 +78,7 @@ public sealed class SeedAndPasswordTests : IDisposable
     {
         await using var db = CreateContext();
         await File.WriteAllTextAsync(seedPath, """
-            { "areas": ["Finanzas"],
+            { "areas": [{ "name": "Finanzas", "company": "1001" }],
               "users": [
                 { "username": "a", "name": "A", "email": "sin-arroba", "role": "INVENTADO" },
                 { "username": "b", "name": "B", "email": "b@x.test", "role": "AREA_APPROVER", "area": "Otra", "temporaryPassword": "corta" },
@@ -166,7 +166,7 @@ public sealed class SeedAndPasswordTests : IDisposable
         {
           // comentario permitido
           "companies": [ { "code": "2001", "name": "Sociedad adicional", "ruc": "20000000001" } ],
-          "areas": ["Finanzas", "Logística"],
+          "areas": [{ "name": "Finanzas", "company": "1001" }, { "name": "Logística", "company": "1003", "description": "Abastecimiento" }],
           "users": [
             { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas", "companies": ["1001", "1003"] },
             { "username": "rocio.medina", "name": "Rocío Medina", "email": "rocio@ejemplo.test", "role": "INTERNAL_USER", "temporaryPassword": "Propia_Clave_9" }
@@ -202,6 +202,6 @@ public sealed class SeedAndPasswordTests : IDisposable
 
     private sealed class NoEmail : IEmailSender
     {
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false) => Task.CompletedTask;
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null) => Task.CompletedTask;
     }
 }

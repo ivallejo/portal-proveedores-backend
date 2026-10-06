@@ -107,6 +107,7 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
             user.Emails.Where(email => email.IsActive).OrderByDescending(email => email.IsPrimary).Select(email => email.Email).FirstOrDefault() ?? string.Empty,
             user.AreaId!.Value,
             user.Area!.Name,
+            user.Area.Company.Code,
             user.UserCompanies.Select(userCompany => userCompany.Company.Code).ToList());
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>
