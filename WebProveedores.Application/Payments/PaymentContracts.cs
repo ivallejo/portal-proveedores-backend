@@ -30,7 +30,8 @@ public sealed record PaidDocumentResponse(
     decimal Detraction,
     decimal Paid,
     string? RetentionDocument,
-    string? DetractionCertificate);
+    string? DetractionCertificate,
+    string? DetractionRate);
 
 public sealed record InvoiceStatusResponse(
     string Number,

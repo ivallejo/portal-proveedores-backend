@@ -28,7 +28,7 @@ public sealed class PaymentQueryTests
             {"xblnr":"01-F008-00002578","bldat":"20260201","wrbtr":"236.00","qbshb":"7.08","detra":"0.00","rwbtr":"228.92","comp_reten":"",
              "info_detracc":"","doc_ret":{"serie":"R001","numero":"00001234"},"doc_det":{"const_detrac":""}},
             {"xblnr":"08-F008-00010601","bldat":"00000000","wrbtr":"224.54","qbshb":"0.00","detra":"27.03","rwbtr":"197.51","comp_reten":"",
-             "info_detracc":"316991800","doc_ret":{"serie":"","numero":""},"doc_det":{"const_detrac":"316991800"}}]}]
+             "info_detracc":"316991800","doc_ret":{"serie":"","numero":""},"doc_det":{"const_detrac":"316991800","porc_det":"12.0 %"}}]}]
         """;
 
     // Formato real de zconsfactu (datos ficticios).
@@ -50,7 +50,7 @@ public sealed class PaymentQueryTests
         var (invoice, debitNote) = (order.Documents[0], order.Documents[1]);
         Assert.Equal(new SapDocumentNumber("01", "F008-00002578"), invoice.Document);
         Assert.Equal(("R001-00001234", 7.08m, 228.92m), (invoice.RetentionDocument!, invoice.Retention, invoice.Paid));
-        Assert.Equal(("08", "316991800", 27.03m), (debitNote.Document.TypeCode, debitNote.DetractionCertificate!, debitNote.Detraction));
+        Assert.Equal(("08", "316991800", 27.03m, "12.0 %"), (debitNote.Document.TypeCode, debitNote.DetractionCertificate!, debitNote.Detraction, debitNote.DetractionRate!));
         Assert.Null(debitNote.IssuedAt);
     }
 

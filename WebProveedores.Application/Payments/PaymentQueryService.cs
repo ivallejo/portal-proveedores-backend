@@ -43,7 +43,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
                     PaymentMethod(order.PaymentMethodCode), order.Bank, order.Account, order.PaymentDocument,
                     order.Documents.Select(document => new PaidDocumentResponse(
                         document.Document.Number, DocumentType(document.Document.TypeCode), document.IssuedAt, document.Amount,
-                        document.Retention, document.Detraction, document.Paid, document.RetentionDocument, document.DetractionCertificate)).ToArray());
+                        document.Retention, document.Detraction, document.Paid, document.RetentionDocument, document.DetractionCertificate, document.DetractionRate)).ToArray());
             })
             .ToArray();
     }

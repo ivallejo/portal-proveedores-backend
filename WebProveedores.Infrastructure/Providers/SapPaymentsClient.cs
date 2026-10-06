@@ -35,7 +35,8 @@ public sealed class SapPaymentsClient(HttpClient httpClient, SapSettings setting
                 ParseAmount(detail.Detra),
                 ParseAmount(detail.Rwbtr),
                 RetentionDocument(detail),
-                Clean(detail.DocDet?.ConstDetrac) ?? Clean(detail.InfoDetracc))).ToArray())).ToArray();
+                Clean(detail.DocDet?.ConstDetrac) ?? Clean(detail.InfoDetracc),
+                Clean(detail.DocDet?.PorcDet))).ToArray())).ToArray();
     }
 
     public async Task<IReadOnlyList<SapInvoice>> FindInvoicesAsync(string providerRuc, DateOnly from, DateOnly to, CancellationToken cancellationToken)
@@ -148,6 +149,7 @@ public sealed class SapPaymentsClient(HttpClient httpClient, SapSettings setting
     private sealed class DetractionRow
     {
         [JsonPropertyName("const_detrac")] public string? ConstDetrac { get; init; }
+        [JsonPropertyName("porc_det")] public string? PorcDet { get; init; }
     }
 
     private sealed class InvoiceRow

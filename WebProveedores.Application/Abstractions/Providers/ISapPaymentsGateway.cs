@@ -36,7 +36,9 @@ public sealed record SapPaidDocument(
     decimal Detraction,
     decimal Paid,
     string? RetentionDocument,
-    string? DetractionCertificate);
+    string? DetractionCertificate,
+    /// <summary>Tasa de la detracción tal como la informa SAP («12.0 %»).</summary>
+    string? DetractionRate);
 
 /// <summary>Factura del proveedor con su estado en SAP (Recepcionado, Pagado, Documento Anulado…).</summary>
 public sealed record SapInvoice(
