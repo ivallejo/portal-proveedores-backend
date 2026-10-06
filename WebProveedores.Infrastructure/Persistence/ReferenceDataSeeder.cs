@@ -20,12 +20,13 @@ namespace WebProveedores.Infrastructure.Persistence;
 /// </summary>
 public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configuration, IPasswordHasher hasher, TimeProvider clock, ILogger<ReferenceDataSeeder> logger)
 {
-    private static readonly (string Code, string Name)[] BaseCompanies =
+    /// <summary>Sociedades del grupo: código de sociedad SAP, razón social y RUC (confirmados con SAP).</summary>
+    private static readonly (string Code, string Name, string Ruc)[] BaseCompanies =
     [
-        ("1001", "Naviera Transoceánica"),
-        ("1002", "Ultratag"),
-        ("1003", "Petral"),
-        ("1007", "RENADSA"),
+        ("1001", "Naviera Transoceánica S.A.", "20522163890"),
+        ("1002", "Petrolera Transoceánica S.A.", "20100126606"),
+        ("1003", "Naviera Petral S.A.", "20511922578"),
+        ("1007", "Representaciones Navieras y Aduaneras S.A.C.", "20100245796"),
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -67,9 +68,13 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     private async Task SeedBaseCompaniesAsync(CancellationToken cancellationToken)
     {
-        var existing = await db.Companies.Select(company => company.Code).ToListAsync(cancellationToken);
-        foreach (var (code, name) in BaseCompanies.Where(company => !existing.Contains(company.Code)))
-            db.Companies.Add(new Company { Code = code, Name = name });
+        var existing = await db.Companies.ToDictionaryAsync(company => company.Code, cancellationToken);
+        foreach (var (code, name, ruc) in BaseCompanies)
+        {
+            if (!existing.TryGetValue(code, out var company)) db.Companies.Add(new Company { Code = code, Name = name, Ruc = ruc });
+            // Como con el archivo de seed, solo se completa el RUC que falta; nunca se cambia uno existente.
+            else if (string.IsNullOrWhiteSpace(company.Ruc)) company.Ruc = ruc;
+        }
         await db.SaveChangesAsync(cancellationToken);
     }
 

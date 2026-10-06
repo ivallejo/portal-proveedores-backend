@@ -262,15 +262,15 @@ public sealed class DocumentServiceTests
         await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000121"), approverId: fixture.Approver.Id, companyCode: "1002"), CancellationToken.None));
 
-        var ultratag = await fixture.Services.Registration.RegisterAsync(
+        var petrolera = await fixture.Services.Registration.RegisterAsync(
             fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000122"), orderNumber: "4500012873", companyCode: "1002"), CancellationToken.None);
 
-        // Cuentas por pagar solo trabaja con Naviera: no ve ni puede observar el documento de Ultratag.
+        // Cuentas por pagar solo trabaja con Naviera: no ve ni puede observar el documento de Petrolera.
         var accounting = await fixture.Services.Queries.SearchAsync(fixture.Accounting.Id, DocumentInbox.Accounting, null, null, 1, 10, CancellationToken.None);
         Assert.Empty(accounting.Items);
-        await Assert.ThrowsAsync<NotFoundException>(() => fixture.Services.Queries.GetAsync(fixture.Accounting.Id, ultratag.Id, CancellationToken.None));
+        await Assert.ThrowsAsync<NotFoundException>(() => fixture.Services.Queries.GetAsync(fixture.Accounting.Id, petrolera.Id, CancellationToken.None));
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Accounting.ObserveAsync(
-            fixture.Accounting.Id, ultratag.Id, new ObserveDocumentRequest { Reason = "Falta la guía de remisión", Email = "proveedor@test.pe" }, CancellationToken.None));
+            fixture.Accounting.Id, petrolera.Id, new ObserveDocumentRequest { Reason = "Falta la guía de remisión", Email = "proveedor@test.pe" }, CancellationToken.None));
     }
 
     [Fact]
@@ -371,9 +371,9 @@ public sealed class DocumentServiceTests
             var finance = new Area { Code = "FINANZAS", Name = "Finanzas" };
             db.Areas.Add(finance);
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = CompanyRuc };
-            // Ultratag sin RUC: el receptor del XML no se valida para ella.
-            var ultratag = new Company { Code = "1002", Name = "Ultratag" };
-            db.Companies.AddRange(naviera, ultratag);
+            // Petrolera sin RUC: el receptor del XML no se valida para ella.
+            var petrolera = new Company { Code = "1002", Name = "Petrolera Transoceánica" };
+            db.Companies.AddRange(naviera, petrolera);
 
             AppUser User(string name, string email, string role, Area? area = null, string? ruc = null, params Company[] companies)
             {
@@ -385,11 +385,11 @@ public sealed class DocumentServiceTests
                 return user;
             }
 
-            // Solo el proveedor y el segundo aprobador trabajan también con Ultratag.
-            fixture.Provider = User("Andes Suministros", "proveedor@test.pe", SecurityCatalog.ProviderRole, ruc: ProviderRuc, companies: [naviera, ultratag]);
+            // Solo el proveedor y el segundo aprobador trabajan también con Petrolera.
+            fixture.Provider = User("Andes Suministros", "proveedor@test.pe", SecurityCatalog.ProviderRole, ruc: ProviderRuc, companies: [naviera, petrolera]);
             fixture.Internal = User("Rocío Medina", "rmedina@test.pe", SecurityCatalog.InternalUserRole);
             fixture.Approver = User("María Torres", "mtorres@test.pe", SecurityCatalog.AreaApproverRole, finance);
-            fixture.OtherApprover = User("Jorge Paredes", "jparedes@test.pe", SecurityCatalog.AreaApproverRole, finance, companies: [naviera, ultratag]);
+            fixture.OtherApprover = User("Jorge Paredes", "jparedes@test.pe", SecurityCatalog.AreaApproverRole, finance, companies: [naviera, petrolera]);
             fixture.Accounting = User("Cuentas por pagar", "cxp@test.pe", SecurityCatalog.AccountsPayableRole);
             await db.SaveChangesAsync();
 

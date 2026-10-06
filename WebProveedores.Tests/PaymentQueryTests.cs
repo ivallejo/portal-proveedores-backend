@@ -161,10 +161,10 @@ public sealed class PaymentQueryTests
             var fixture = new Fixture(db);
             var roles = SecurityCatalog.Roles.ToDictionary(role => role.Key, role => new Role { Code = role.Key, Name = role.Value });
             db.Roles.AddRange(roles.Values);
-            // Naviera con RUC conocido; Ultratag (1002) todavía sin RUC.
+            // Naviera con RUC conocido; Petrolera (1002) todavía sin RUC.
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = "20100126606" };
-            var ultratag = new Company { Code = "1002", Name = "Ultratag" };
-            db.Companies.AddRange(naviera, ultratag);
+            var petrolera = new Company { Code = "1002", Name = "Petrolera Transoceánica" };
+            db.Companies.AddRange(naviera, petrolera);
 
             AppUser User(string username, string role, string? ruc, params Company[] companies)
             {
@@ -175,7 +175,7 @@ public sealed class PaymentQueryTests
                 return user;
             }
 
-            fixture.Provider = User("proveedor", SecurityCatalog.ProviderRole, ProviderRuc, naviera, ultratag);
+            fixture.Provider = User("proveedor", SecurityCatalog.ProviderRole, ProviderRuc, naviera, petrolera);
             fixture.Accounting = User("cxp", SecurityCatalog.AccountsPayableRole, null, naviera);
             fixture.Internal = User("interno", SecurityCatalog.InternalUserRole, null, naviera);
             await db.SaveChangesAsync();

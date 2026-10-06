@@ -41,13 +41,15 @@ public sealed class SeedAndPasswordTests : IDisposable
         var own = await db.Users.SingleAsync(user => user.Username == "rocio.medina");
         Assert.Equal(PasswordVerificationResult.Success, new PasswordHasher<AppUser>().VerifyHashedPassword(own, own.PasswordHash, "Propia_Clave_9"));
         Assert.Equal(2, await db.Users.CountAsync());
-        Assert.Equal("20000000001", (await db.Companies.SingleAsync(company => company.Code == "1001")).Ruc);
-        Assert.Equal(4, await db.Companies.CountAsync());
+        // Las sociedades base traen su RUC real; el archivo agrega otras.
+        Assert.Equal("20522163890", (await db.Companies.SingleAsync(company => company.Code == "1001")).Ruc);
+        Assert.Equal("20000000001", (await db.Companies.SingleAsync(company => company.Code == "2001")).Ruc);
+        Assert.Equal(5, await db.Companies.CountAsync());
         Assert.Equal(SecurityCatalog.Roles.Count, await db.Roles.CountAsync());
         Assert.Equal(2, await db.Areas.CountAsync());
         // «companies» limita las sociedades; si se omite, el usuario trabaja con todas.
         Assert.Equal(["1001", "1003"], await db.Set<UserCompany>().Where(item => item.UserId == approver.Id).Select(item => item.Company.Code).OrderBy(code => code).ToListAsync());
-        Assert.Equal(4, await db.Set<UserCompany>().CountAsync(item => item.UserId == own.Id));
+        Assert.Equal(5, await db.Set<UserCompany>().CountAsync(item => item.UserId == own.Id));
     }
 
     [Fact]
@@ -162,7 +164,7 @@ public sealed class SeedAndPasswordTests : IDisposable
     private const string ValidSeed = """
         {
           // comentario permitido
-          "companies": [ { "code": "1001", "ruc": "20000000001" } ],
+          "companies": [ { "code": "2001", "name": "Sociedad adicional", "ruc": "20000000001" } ],
           "areas": ["Finanzas", "Logística"],
           "users": [
             { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas", "companies": ["1001", "1003"] },

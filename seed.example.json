@@ -4,10 +4,8 @@
   // El seed solo CREA lo que falte: nunca modifica ni borra usuarios, áreas o sociedades existentes.
   // Roles válidos: PROVIDER, INTERNAL_USER, AREA_APPROVER, ACCOUNTS_PAYABLE, ADMINISTRATOR.
 
-  "companies": [
-    { "code": "1001", "name": "Naviera Transoceánica", "ruc": "20000000001" },
-    { "code": "1002", "name": "Ultratag", "ruc": "20000000002" }
-  ],
+  // Las cuatro sociedades base (1001, 1002, 1003, 1007) ya vienen con su RUC; aquí solo se agregan otras.
+  "companies": [],
 
   "areas": ["Finanzas", "Logística", "Contabilidad"],
 
