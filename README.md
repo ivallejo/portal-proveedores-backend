@@ -52,10 +52,10 @@ La configuración se valida al arrancar y el log indica el modo activo (`Correo:
 
 **Producción con Gmail:** cuenta dedicada al portal (no personal) con verificación en dos pasos y contraseña de aplicación, guardada como secreto del servidor; `Email__Mode=Send` (o sin definir) y sin `Email__TestRecipient`. Límite aproximado: 500 correos/día (cuenta gratuita) o 2 000 (Google Workspace). Para cambiar de proveedor más adelante basta otra implementación de `IEmailSender`.
 
-Para consultar la información del proveedor durante el registro online, configurar también el servicio SAP:
+Servicios SAP (consulta de RUC, órdenes de pago y estado de facturas). Desarrollo usa `vhnzsds4ci` y producción `vhnzsps4ci`; `appsettings.json` no trae URL, así que producción debe configurarla explícitamente:
 
 ```env
-Sap__BaseUrl=http://vhnzsps4ci.sap.navitranso.com:8000
+Sap__BaseUrl=http://vhnzsds4ci.sap.navitranso.com:8000
 Sap__Client=200
 Sap__BasicToken=tu-token-base64-de-sap
 ```

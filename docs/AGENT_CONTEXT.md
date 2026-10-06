@@ -348,7 +348,7 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 
 ## Orden de pago y Estado de factura
 
-Consultas en línea a SAP con el mismo `Sap:BaseUrl` (puerto `ISapPaymentsGateway`, adaptador `SapPaymentsClient`):
+Consultas en línea a SAP con el mismo `Sap:BaseUrl` (desarrollo `vhnzsds4ci`, producción `vhnzsps4ci`; `appsettings.json` no trae URL, la de desarrollo está en `appsettings.Development.json`) (puerto `ISapPaymentsGateway`, adaptador `SapPaymentsClient`):
 
 - `GET /api/payment-orders?from=&to=&ruc=&company=` → servicio `zconsopago` (órdenes con sus comprobantes, retención, detracción y constancias).
 - `GET /api/invoices?from=&to=&ruc=&company=&number=` → servicio `zconsfactu` (estado SAP tal cual: Recepcionado, Pagado, Documento Anulado…).
