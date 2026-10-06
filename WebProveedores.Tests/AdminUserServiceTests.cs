@@ -200,6 +200,7 @@ public sealed class AdminUserServiceTests
             var fixture = new Fixture(db);
             var roles = SecurityCatalog.Roles.ToDictionary(role => role.Key, role => new Role { Code = role.Key, Name = role.Value });
             db.Roles.AddRange(roles.Values);
+            TestMenus.Seed(db, roles);
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica" };
             db.Companies.AddRange(naviera, new Company { Code = "1002", Name = "Petrolera Transoceánica" });
             fixture.Finanzas = new Area { Code = "FINANZAS", Name = "Finanzas", Company = naviera, CompanyId = naviera.Id };

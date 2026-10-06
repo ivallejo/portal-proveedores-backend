@@ -6,6 +6,7 @@ using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Profile;
+using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Persistence;
@@ -41,7 +42,7 @@ internal static class TestServices
     public static DocumentServices Documents(AppDbContext db, IFileStorage storage, IEmailSender email)
     {
         var repository = new EfDocumentRepository(db);
-        var access = new DocumentAccess(repository, new EfUserRepository(db));
+        var access = new DocumentAccess(repository, new EfUserRepository(db), new EfAccessRepository(db));
         var notifier = new DocumentNotifier(email, NullLogger<DocumentNotifier>.Instance);
         var files = new DocumentFiles(storage, new PdfSharpMerger(), TimeProvider.System, NullLogger<DocumentFiles>.Instance);
         var sap = new MockSapDocumentGateway();
@@ -51,6 +52,22 @@ internal static class TestServices
             new DocumentQueryService(repository, access, storage),
             new DocumentApprovalService(repository, access, notifier, TimeProvider.System),
             new DocumentAccountingService(repository, access, notifier, TimeProvider.System));
+    }
+}
+
+/// <summary>Opciones de menú del sistema con sus roles base, como las crea el arranque (los permisos salen de ellas).</summary>
+internal static class TestMenus
+{
+    public static void Seed(AppDbContext db, IReadOnlyDictionary<string, Role> roles)
+    {
+        var menus = new Dictionary<string, MenuOption>();
+        foreach (var entry in MenuCatalog.System)
+        {
+            var menu = new MenuOption { Code = entry.Code, Name = entry.Name, Route = entry.Route, Icon = entry.Icon, Order = entry.Order, Parent = entry.Parent is null ? null : menus[entry.Parent] };
+            foreach (var code in entry.Roles.Where(roles.ContainsKey)) menu.RoleMenus.Add(new RoleMenu { Role = roles[code], MenuOption = menu });
+            menus[entry.Code] = menu;
+            db.MenuOptions.Add(menu);
+        }
     }
 }
 

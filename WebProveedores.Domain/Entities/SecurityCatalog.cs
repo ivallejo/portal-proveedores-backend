@@ -16,4 +16,13 @@ public static class SecurityCatalog
         [AccountsPayableRole] = "Gestor de cuentas por pagar",
         [AdministratorRole] = "Administrador",
     };
+
+    public static readonly IReadOnlyDictionary<string, string> Descriptions = new Dictionary<string, string>
+    {
+        [ProviderRole] = "Consulta órdenes, pagos y facturas; registra documentos.",
+        [InternalUserRole] = "Registra documentos sin orden de compra y documentos especiales.",
+        [AreaApproverRole] = "Revisa y aprueba documentos sin orden de compra.",
+        [AccountsPayableRole] = "Contabiliza, observa o rechaza documentos aprobados.",
+        [AdministratorRole] = "Acceso total, incluida la configuración del portal.",
+    };
 }

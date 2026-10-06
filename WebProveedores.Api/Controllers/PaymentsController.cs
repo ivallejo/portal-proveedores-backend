@@ -9,11 +9,12 @@ namespace WebProveedores.Api.Controllers;
 /// <summary>Órdenes de pago y estado de facturas del proveedor (consultas en línea a SAP).</summary>
 [ApiController]
 [Route("api")]
-[Authorize(Policy = Policies.PaymentsView)]
+[Authorize]
 public sealed class PaymentsController(IPaymentQueryService payments, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Pagos realizados entre dos fechas. El proveedor consulta su RUC; CxP y el administrador indican <c>ruc</c>.</summary>
     [HttpGet("payment-orders")]
+    [Authorize(Policy = Policies.PaymentOrdersView)]
     public async Task<ActionResult<IReadOnlyList<PaymentOrderResponse>>> PaymentOrders(
         [FromQuery, Required] DateOnly from,
         [FromQuery, Required] DateOnly to,
@@ -24,6 +25,7 @@ public sealed class PaymentsController(IPaymentQueryService payments, ICurrentUs
 
     /// <summary>Facturas emitidas entre dos fechas con su estado en SAP.</summary>
     [HttpGet("invoices")]
+    [Authorize(Policy = Policies.InvoicesView)]
     public async Task<ActionResult<IReadOnlyList<InvoiceStatusResponse>>> Invoices(
         [FromQuery, Required] DateOnly from,
         [FromQuery, Required] DateOnly to,

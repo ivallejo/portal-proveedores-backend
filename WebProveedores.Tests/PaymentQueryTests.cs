@@ -160,6 +160,7 @@ public sealed class PaymentQueryTests
             var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase($"payments-{Guid.NewGuid():N}").Options);
             var fixture = new Fixture(db);
             var roles = SecurityCatalog.Roles.ToDictionary(role => role.Key, role => new Role { Code = role.Key, Name = role.Value });
+            TestMenus.Seed(db, roles);
             db.Roles.AddRange(roles.Values);
             // Naviera con RUC conocido; Petrolera (1002) todavía sin RUC.
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = "20100126606" };
@@ -180,7 +181,7 @@ public sealed class PaymentQueryTests
             fixture.Internal = User("interno", SecurityCatalog.InternalUserRole, null, naviera);
             await db.SaveChangesAsync();
 
-            var access = new DocumentAccess(new EfDocumentRepository(db), new EfUserRepository(db));
+            var access = new DocumentAccess(new EfDocumentRepository(db), new EfUserRepository(db), new EfAccessRepository(db));
             fixture.Service = new PaymentQueryService(fixture.Sap, access, new EfReferenceDataReader(db));
             return fixture;
         }

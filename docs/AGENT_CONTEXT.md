@@ -393,6 +393,26 @@ POST   /api/profile/emails/verify                # sin sesión: { token } del en
 - Un correo solo sirve para **ingresar** si está verificado. Los correos creados por el administrador, el seed o SAP nacen verificados (la migración `ProfileEmailsAndNames` marcó los existentes).
 - `AppUser.FirstName/LastName` (personal interno): `CompanyName` guarda el nombre completo para el resto del sistema.
 
+## Roles, permisos y menús
+
+Los **permisos son opciones de menú** (`MenuOption.Code`, dos niveles). Cada rol tiene sus opciones (`RoleMenus`); el arranque crea las opciones del sistema que falten (`MenuCatalog.System`) con sus roles base y no toca las existentes.
+
+```text
+GET   /api/navigation                    # menú de quien tiene sesión (árbol)
+GET   /api/admin/roles                   # con usuarios y opciones (menuIds)
+POST  /api/admin/roles                   # { name, description, menuIds[] }
+PUT   /api/admin/roles/{id}
+PATCH /api/admin/roles/{id}/status
+GET   /api/admin/menus                   # lista plana: cada menú principal y debajo sus submenús
+POST  /api/admin/menus                   # { name, route, icon, order, parentId }
+PUT   /api/admin/menus/{id}
+PATCH /api/admin/menus/{id}/status
+```
+
+- Autorización: cada endpoint pide la opción de su pantalla (`Policies`, `MenuPermissionHandler` consulta la base en cada petición, así que los cambios aplican sin volver a ingresar). Ej.: aprobar → `DOCUMENTS`; contabilizar → `ACCOUNTING`; registrar → `REGISTER_DOCUMENTS`; Configuración › Usuarios → `SETTINGS_USERS`.
+- Documentos: lo que el usuario puede hacer sale de sus permisos (`DocumentActor`); el proveedor se reconoce por su RUC y el rol Administrador ve todo. Los aprobadores elegibles son usuarios internos cuyo rol (no administrador) tiene `DOCUMENTS`.
+- Reglas: un submenú arrastra a su menú principal; el rol Administrador no se desactiva y conserva Configuración, Roles y permisos y Menús, que tampoco se desactivan. Las opciones del sistema conservan código, ruta y nivel. Una opción nueva se asigna al Administrador. Roles nuevos: personal interno (el rol Proveedor es solo para cuentas con RUC).
+
 ## Configuración › Usuarios
 
 Base: `/api/admin/users` (`AdminUserService`, policy `Users.Manage`).

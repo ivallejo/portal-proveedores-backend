@@ -15,5 +15,6 @@ internal sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         entity.Property(role => role.Code).HasMaxLength(50).IsRequired();
         entity.Property(role => role.Name).HasMaxLength(120).IsRequired();
         entity.Property(role => role.Description).HasMaxLength(300);
+        entity.Ignore(role => role.IsSystem);
     }
 }

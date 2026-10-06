@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using WebProveedores.Application.Access;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
@@ -22,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<IProviderRegistrationService, ProviderRegistrationService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<INavigationService, NavigationService>();
+        services.AddScoped<IAccessAdminService, AccessAdminService>();
         services.AddScoped<EmailVerifications>();
         services.AddScoped<IProfileService, ProfileService>();
 

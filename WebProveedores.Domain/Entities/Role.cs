@@ -9,4 +9,8 @@ public sealed class Role
     public bool IsActive { get; set; } = true;
 
     public ICollection<UserRole> UserRoles { get; set; } = [];
+    public ICollection<RoleMenu> RoleMenus { get; set; } = [];
+
+    /// <summary>Rol base del portal (proveedor, interno, aprobador, cuentas por pagar, administrador).</summary>
+    public bool IsSystem => SecurityCatalog.Roles.ContainsKey(Code);
 }

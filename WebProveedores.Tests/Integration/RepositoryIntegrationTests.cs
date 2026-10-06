@@ -159,6 +159,22 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     }
 
     [Fact]
+    public async Task Permissions_and_roles_translate_to_sql()
+    {
+        var data = await SeedAsync();
+        await using var db = sql.CreateContext();
+        var access = new EfAccessRepository(db);
+
+        var permissions = await access.PermissionsOfAsync(data.Approver.Id, CancellationToken.None);
+        var roles = await access.ListRolesAsync(CancellationToken.None);
+
+        Assert.Contains(MenuCatalog.Documents, permissions);
+        Assert.DoesNotContain(MenuCatalog.Accounting, permissions);
+        Assert.True(roles.Single(item => item.Role.Code == SecurityCatalog.AreaApproverRole).UserCount > 0);
+        Assert.NotEmpty((await access.ListMenusAsync(CancellationToken.None)).Single(menu => menu.Code == MenuCatalog.Home).RoleMenus);
+    }
+
+    [Fact]
     public async Task Organization_lists_count_areas_and_users_in_sql()
     {
         var data = await SeedAsync();
@@ -220,6 +236,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         var roles = await db.Roles.ToDictionaryAsync(role => role.Code);
         foreach (var (code, name) in SecurityCatalog.Roles.Where(role => !roles.ContainsKey(role.Key)))
             db.Roles.Add(roles[code] = new Role { Code = code, Name = name });
+        if (!await db.MenuOptions.AnyAsync()) TestMenus.Seed(db, roles);
 
         var naviera = new Company { Code = $"N{suffix[..6]}", Name = $"Naviera {suffix}" };
         var ultratag = new Company { Code = $"U{suffix[..6]}", Name = $"Ultratag {suffix}" };

@@ -99,7 +99,10 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
         where (userId == null || user.Id == userId)
               && user.IsActive
               && user.AreaId != null
-              && user.UserRoles.Any(userRole => userRole.Role.Code == SecurityCatalog.AreaApproverRole && userRole.Role.IsActive)
+              && user.Ruc == null
+              // Aprobador: su rol (que no sea el de administrador) tiene la opción Documentos.
+              && user.UserRoles.Any(userRole => userRole.Role.IsActive && userRole.Role.Code != SecurityCatalog.AdministratorRole
+                  && userRole.Role.RoleMenus.Any(item => item.MenuOption.Code == MenuCatalog.Documents && item.MenuOption.IsActive))
         orderby user.CompanyName
         select new ApproverRecord(
             user.Id,

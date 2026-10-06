@@ -39,6 +39,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await SeedRolesAsync(cancellationToken);
+        await SeedMenusAsync(cancellationToken);
         await SeedBaseCompaniesAsync(cancellationToken);
 
         var path = ResolveSeedFile();
@@ -60,10 +61,44 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken)
     {
-        var existing = await db.Roles.Select(role => role.Code).ToListAsync(cancellationToken);
-        foreach (var role in SecurityCatalog.Roles.Where(role => !existing.Contains(role.Key)))
-            db.Roles.Add(new Role { Code = role.Key, Name = role.Value });
+        var existing = await db.Roles.ToDictionaryAsync(role => role.Code, cancellationToken);
+        foreach (var (code, name) in SecurityCatalog.Roles)
+        {
+            if (!existing.TryGetValue(code, out var role)) db.Roles.Add(role = new Role { Code = code, Name = name });
+            role.Description ??= SecurityCatalog.Descriptions[code];
+        }
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Crea las opciones del sistema que falten y se las asigna a sus roles base. Las existentes no se tocan:
+    /// el administrador puede haber cambiado nombres, íconos, orden o permisos.
+    /// </summary>
+    private async Task SeedMenusAsync(CancellationToken cancellationToken)
+    {
+        var menus = await db.MenuOptions.ToDictionaryAsync(menu => menu.Code, cancellationToken);
+        var roles = await db.Roles.ToDictionaryAsync(role => role.Code, cancellationToken);
+        var created = 0;
+        foreach (var entry in MenuCatalog.System)
+        {
+            if (menus.ContainsKey(entry.Code)) continue;
+            var menu = new MenuOption
+            {
+                Code = entry.Code,
+                Name = entry.Name,
+                Route = entry.Route,
+                Icon = entry.Icon,
+                Order = entry.Order,
+                Parent = entry.Parent is null ? null : menus[entry.Parent],
+                CreatedAtUtc = clock.GetUtcNow().UtcDateTime,
+            };
+            foreach (var code in entry.Roles) menu.RoleMenus.Add(new RoleMenu { Role = roles[code], MenuOption = menu });
+            db.MenuOptions.Add(menu);
+            menus[entry.Code] = menu;
+            created++;
+        }
+        await db.SaveChangesAsync(cancellationToken);
+        if (created > 0) logger.LogInformation("Menús del sistema: {Created} opción(es) creada(s).", created);
     }
 
     private async Task SeedBaseCompaniesAsync(CancellationToken cancellationToken)

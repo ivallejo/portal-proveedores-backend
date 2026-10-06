@@ -9,6 +9,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<Area> Areas => Set<Area>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<MenuOption> MenuOptions => Set<MenuOption>();
+    public DbSet<RoleMenu> RoleMenus => Set<RoleMenu>();
     public DbSet<UserEmail> UserEmails => Set<UserEmail>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -35,14 +36,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 {
     options.TokenValidationParameters = new TokenValidationParameters { ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)), ValidateIssuer = true, ValidIssuer = jwt.Issuer, ValidateAudience = true, ValidAudience = jwt.Audience, ValidateLifetime = true, ClockSkew = TimeSpan.FromSeconds(30) };
 });
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(Policies.UsersManage, policy => policy.RequireRole(SecurityCatalog.AdministratorRole));
-    options.AddPolicy(Policies.DocumentsRegister, policy => policy.RequireRole(SecurityCatalog.ProviderRole, SecurityCatalog.InternalUserRole, SecurityCatalog.AdministratorRole));
-    options.AddPolicy(Policies.DocumentsApprove, policy => policy.RequireRole(SecurityCatalog.AreaApproverRole, SecurityCatalog.AdministratorRole));
-    options.AddPolicy(Policies.DocumentsAccount, policy => policy.RequireRole(SecurityCatalog.AccountsPayableRole, SecurityCatalog.AdministratorRole));
-    options.AddPolicy(Policies.PaymentsView, policy => policy.RequireRole(SecurityCatalog.ProviderRole, SecurityCatalog.AccountsPayableRole, SecurityCatalog.AdministratorRole));
-});
+// Cada endpoint pide la opción de menú de su pantalla (Configuración › Roles y permisos).
+builder.Services.AddAuthorization(options => options.AddMenuPolicies());
+builder.Services.AddScoped<IAuthorizationHandler, MenuPermissionHandler>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

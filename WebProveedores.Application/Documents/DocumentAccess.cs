@@ -6,7 +6,7 @@ using WebProveedores.Application;
 namespace WebProveedores.Application.Documents;
 
 /// <summary>Carga al actor y aplica quién puede ver o atender cada documento (roles y sociedades).</summary>
-internal sealed class DocumentAccess(IDocumentRepository documents, IUserRepository users)
+internal sealed class DocumentAccess(IDocumentRepository documents, IUserRepository users, IAccessRepository access)
 {
     public async Task<DocumentActor> LoadActorAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -15,7 +15,8 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
         var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Code).ToHashSet();
         var companies = user.UserCompanies.Select(item => item.CompanyId).ToHashSet();
-        return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles, companies);
+        var permissions = await access.PermissionsOfAsync(user.Id, cancellationToken);
+        return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles, permissions, companies);
     }
 
     /// <summary>Lo propio (registrado, emitido con su RUC o asignado a él) siempre es visible; lo demás, solo en sus sociedades.</summary>
