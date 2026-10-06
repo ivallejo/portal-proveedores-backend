@@ -16,8 +16,12 @@
 
   "users": [
     {
-      "username": "maria.torres",
-      "name": "María Torres",
+      // Personal interno: el DNI es su usuario de acceso (puede usar «username» = DNI).
+      "username": "45678123",
+      "name": "María Torres Vega",
+      "dni": "45678123",
+      "firstName": "María",
+      "lastName": "Torres Vega",
       "email": "maria.torres@ejemplo.test",
       "role": "AREA_APPROVER",
       "area": "Finanzas",

@@ -19,6 +19,8 @@ public sealed class AppUser
     public string? FirstName { get; private set; }
     public string? LastName { get; private set; }
     public string? Ruc { get; private set; }
+    /// <summary>DNI del personal interno (8 dígitos); es también su usuario de acceso.</summary>
+    public string? Dni { get; private set; }
     public string PasswordHash { get; private set; } = string.Empty;
     public Guid? AreaId { get; private set; }
     public bool IsActive { get; private set; } = true;
@@ -47,7 +49,7 @@ public sealed class AppUser
     /// y debe cambiarla al ingresar. <paramref name="activated"/> = false: aún no definió su contraseña (registro online).
     /// </summary>
     public static AppUser Create(string username, string name, string? ruc, string email, string passwordHash, DateTime now,
-        bool temporaryPassword = false, bool activated = true)
+        bool temporaryPassword = false, bool activated = true, string? dni = null, bool emailVerified = true)
     {
         if (string.IsNullOrWhiteSpace(username)) throw new DomainRuleException("El usuario necesita un nombre de usuario.");
         if (string.IsNullOrWhiteSpace(email)) throw new DomainRuleException("El usuario necesita un correo.");
@@ -56,13 +58,21 @@ public sealed class AppUser
             Username = username.Trim(),
             CompanyName = name.Trim(),
             Ruc = string.IsNullOrWhiteSpace(ruc) ? null : ruc.Trim(),
+            Dni = string.IsNullOrWhiteSpace(dni) ? null : dni.Trim(),
             PasswordHash = passwordHash,
             CreatedAtUtc = now,
             PasswordSetAtUtc = activated ? now : null,
             MustChangePassword = temporaryPassword,
         };
-        // Lo ingresó quien crea la cuenta (administrador, seed o SAP): se da por verificado.
-        user.Emails.Add(new UserEmail { UserId = user.Id, Email = email.Trim().ToLowerInvariant(), IsPrimary = true, CreatedAtUtc = now, VerifiedAtUtc = now });
+        // Seed y SAP: se da por verificado. El alta del administrador lo verifica al activar la cuenta.
+        user.Emails.Add(new UserEmail
+        {
+            UserId = user.Id,
+            Email = email.Trim().ToLowerInvariant(),
+            IsPrimary = true,
+            CreatedAtUtc = now,
+            VerifiedAtUtc = emailVerified ? now : null,
+        });
         return user;
     }
 
@@ -75,6 +85,11 @@ public sealed class AppUser
     public bool HasRole(string code) => UserRoles.Any(item => item.Role?.Code == code);
 
     public bool IsLockedOut(DateTime now) => LockoutUntilUtc is { } until && until > now;
+
+    /// <summary>Ya definió su contraseña (activó la cuenta).</summary>
+    public bool IsActivated => PasswordSetAtUtc is not null;
+
+    public UserStatus StatusAt(DateTime now) => !IsActive ? UserStatus.Inactive : IsLockedOut(now) ? UserStatus.Locked : UserStatus.Active;
 
     // ——— Acceso ———
 
@@ -108,6 +123,21 @@ public sealed class AppUser
         MustChangePassword = false;
         PasswordSetAtUtc = now;
         UpdatedAtUtc = now;
+    }
+
+    /// <summary>El administrador pide (o deja de pedir) que defina una nueva contraseña en su próximo ingreso.</summary>
+    public void RequirePasswordChange(bool required, DateTime now)
+    {
+        if (MustChangePassword == required) return;
+        MustChangePassword = required;
+        UpdatedAtUtc = now;
+    }
+
+    /// <summary>Activó la cuenta con el enlace enviado al correo principal: ese correo queda verificado.</summary>
+    public void ConfirmPrimaryEmail(DateTime now)
+    {
+        var primary = Emails.FirstOrDefault(item => item.IsPrimary);
+        if (primary is { IsVerified: false }) primary.Verify(now);
     }
 
     public void SetActive(bool isActive, DateTime now)
@@ -180,6 +210,14 @@ public sealed class AppUser
         UpdatedAtUtc = now;
     }
 
+    public void SetEmailType(Guid emailId, EmailType type, DateTime now)
+    {
+        var email = OwnEmail(emailId);
+        if (email.Type == type) return;
+        email.Type = type;
+        UpdatedAtUtc = now;
+    }
+
     public UserEmail OwnEmail(Guid emailId) =>
         Emails.FirstOrDefault(item => item.Id == emailId) ?? throw new DomainRuleException("El correo no pertenece a tu perfil.");
 
@@ -216,4 +254,12 @@ public sealed class AppUser
         foreach (var company in wanted.Where(company => UserCompanies.All(item => item.CompanyId != company.Id)))
             UserCompanies.Add(new UserCompany { UserId = Id, CompanyId = company.Id, Company = company });
     }
+}
+
+/// <summary>Estado de la cuenta: inactiva (no ingresa), bloqueada temporalmente por intentos fallidos o activa.</summary>
+public enum UserStatus
+{
+    Active = 1,
+    Inactive = 2,
+    Locked = 3,
 }

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Admin;
+using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Documents;
@@ -64,8 +66,14 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         await using var db = sql.CreateContext();
         var repository = new EfUserRepository(db);
 
-        var byEmail = await repository.SearchAsync(data.Approver.PrimaryEmail, 1, 10, CancellationToken.None);
-        var firstPage = await repository.SearchAsync(data.Ruc, 1, 1, CancellationToken.None);
+        var now = DateTime.UtcNow;
+        var byEmail = await repository.SearchAsync(new UserSearchFilter(data.Approver.PrimaryEmail, SecurityCatalog.AreaApproverRole, UserStatus.Active, now), 1, 10, CancellationToken.None);
+        var firstPage = await repository.SearchAsync(new UserSearchFilter(data.Ruc, null, null, now), 1, 1, CancellationToken.None);
+        var inactive = await repository.SearchAsync(new UserSearchFilter(data.Ruc, null, UserStatus.Inactive, now), 1, 10, CancellationToken.None);
+        var (total, active) = await repository.CountByStatusAsync(now, CancellationToken.None);
+
+        Assert.Empty(inactive.Items);
+        Assert.True(total >= active && active > 0);
 
         Assert.Equal(data.Approver.Id, Assert.Single(byEmail.Items).Id);
         Assert.Equal([data.Naviera.Code], byEmail.Items[0].UserCompanies.Select(item => item.Company.Code));
@@ -81,18 +89,18 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         var address = $"alterno-{Guid.NewGuid():N}@ejemplo.test";
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
             await service.AddEmailAsync(data.Approver.Id, new AddEmailRequest { Email = address, Type = "personal" }, CancellationToken.None);
         }
         var token = System.Text.RegularExpressions.Regex.Match(email.Body, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
             Assert.Equal(address, await service.VerifyEmailAsync(token, CancellationToken.None));
         }
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
             var added = (await service.GetAsync(data.Approver.Id, CancellationToken.None)).Emails.Single(item => item.Email == address);
             // El índice único de «un principal por usuario» exige quitar el anterior antes de marcar el nuevo.
             var profile = await service.MakePrimaryAsync(data.Approver.Id, added.Id, CancellationToken.None);
@@ -102,6 +110,51 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         {
             var user = await new EfUserRepository(db).FindForLoginAsync(address, address, CancellationToken.None);
             Assert.Equal(data.Approver.Id, user?.Id);
+        }
+    }
+
+    [Fact]
+    public async Task Admin_creates_a_user_and_switches_its_primary_email_in_sql()
+    {
+        var data = await SeedAsync();
+        var dni = Random.Shared.Next(10_000_000, 99_999_999).ToString();
+        var first = $"primero-{Guid.NewGuid():N}@ejemplo.test";
+        var second = $"segundo-{Guid.NewGuid():N}@ejemplo.test";
+        Guid id;
+        await using (var db = sql.CreateContext())
+        {
+            var created = await TestServices.Admin(db, new CapturingEmail()).CreateAsync(new SaveUserRequest
+            {
+                Role = SecurityCatalog.AreaApproverRole,
+                Document = dni,
+                FirstName = "Ana",
+                LastName = "Ríos",
+                AreaId = data.Area.Id,
+                CompanyCodes = [data.Naviera.Code],
+                Emails = [new UserEmailInput { Email = first, IsPrimary = true }],
+            }, CancellationToken.None);
+            id = created.Id;
+        }
+        await using (var db = sql.CreateContext())
+        {
+            var admin = TestServices.Admin(db, new CapturingEmail());
+            var detail = await admin.GetAsync(id, CancellationToken.None);
+            // Cuenta aún no activada: el nuevo correo puede ser principal (la activación lo verificará).
+            var updated = await admin.UpdateAsync(data.Accounting.Id, id, new SaveUserRequest
+            {
+                Role = SecurityCatalog.AreaApproverRole,
+                FirstName = "Ana",
+                LastName = "Ríos Campos",
+                AreaId = data.Area.Id,
+                CompanyCodes = [data.Naviera.Code],
+                Emails = [new UserEmailInput { Id = detail!.Emails[0].Id, Email = first }, new UserEmailInput { Email = second, IsPrimary = true }],
+            }, CancellationToken.None);
+            Assert.Equal(second, updated!.Emails.Single(email => email.IsPrimary).Email);
+        }
+        await using (var db = sql.CreateContext())
+        {
+            var page = await TestServices.Admin(db, new CapturingEmail()).SearchAsync(dni, SecurityCatalog.AreaApproverRole, "active", 1, 10, CancellationToken.None);
+            Assert.Equal(("Ana Ríos Campos", second, "DNI"), (page.Items.Single().DisplayName, page.Items.Single().PrimaryEmail, page.Items.Single().DocumentType));
         }
     }
 
@@ -129,15 +182,18 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         {
             db.PasswordResetTokens.AddRange(
                 new PasswordResetToken { UserId = data.Provider.Id, TokenHash = $"VIGENTE-{data.Ruc}", Purpose = PasswordTokenPurpose.Activation, ExpiresAtUtc = DateTime.UtcNow.AddHours(1) },
-                new PasswordResetToken { UserId = data.Provider.Id, TokenHash = $"VENCIDO-{data.Ruc}", Purpose = PasswordTokenPurpose.Activation, ExpiresAtUtc = DateTime.UtcNow.AddHours(-1) });
+                new PasswordResetToken { UserId = data.Provider.Id, TokenHash = $"VENCIDO-{data.Ruc}", Purpose = PasswordTokenPurpose.Activation, ExpiresAtUtc = DateTime.UtcNow.AddHours(-1) },
+                new PasswordResetToken { UserId = data.Provider.Id, TokenHash = $"REEMPLAZADO-{data.Ruc}", Purpose = PasswordTokenPurpose.Activation, ExpiresAtUtc = DateTime.UtcNow.AddHours(1), RevokedAtUtc = DateTime.UtcNow });
             await db.SaveChangesAsync();
         }
         await using var read = sql.CreateContext();
         var tokens = new EfPasswordTokenRepository(read, TimeProvider.System);
 
-        Assert.NotNull(await tokens.FindValidAsync(data.Ruc, $"VIGENTE-{data.Ruc}", PasswordTokenPurpose.Activation, CancellationToken.None));
-        Assert.Null(await tokens.FindValidAsync(data.Ruc, $"VIGENTE-{data.Ruc}", PasswordTokenPurpose.PasswordReset, CancellationToken.None));
-        Assert.Null(await tokens.FindValidAsync(data.Ruc, $"VENCIDO-{data.Ruc}", PasswordTokenPurpose.Activation, CancellationToken.None));
+        Assert.NotNull(await tokens.FindValidAsync($"VIGENTE-{data.Ruc}", PasswordTokenPurpose.Activation, CancellationToken.None));
+        Assert.Null(await tokens.FindValidAsync($"VIGENTE-{data.Ruc}", PasswordTokenPurpose.PasswordReset, CancellationToken.None));
+        Assert.Null(await tokens.FindValidAsync($"VENCIDO-{data.Ruc}", PasswordTokenPurpose.Activation, CancellationToken.None));
+        Assert.Null(await tokens.FindValidAsync($"REEMPLAZADO-{data.Ruc}", PasswordTokenPurpose.Activation, CancellationToken.None));
+        Assert.Equal(3, (await tokens.ListForUserAsync(data.Provider.Id, CancellationToken.None)).Count);
     }
 
     private async Task AddDocumentAsync(SeedData data, Company company, string number)

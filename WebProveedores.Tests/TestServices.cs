@@ -5,6 +5,7 @@ using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Profile;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Persistence;
@@ -22,15 +23,19 @@ internal static class TestServices
     public static LoginService Login(AppDbContext db, TimeProvider? clock = null) =>
         new(new EfUserRepository(db), new EfUnitOfWork(db), Hasher, Tokens, new LoginLockoutSettings(5, 15), clock ?? TimeProvider.System);
 
+    public static PasswordLinks Links(AppDbContext db, IEmailSender email) =>
+        new(new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), email, Portal, TimeProvider.System);
+
     public static PasswordService Passwords(AppDbContext db, IEmailSender email) =>
-        new(new EfUserRepository(db), new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), Hasher, Tokens, email, Portal, TimeProvider.System);
+        new(new EfUserRepository(db), new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), Hasher, Tokens, Links(db, email), TimeProvider.System);
 
     public static ProviderRegistrationService Registration(AppDbContext db, IEmailSender email, IProviderDirectory sap) =>
-        new(new EfUserRepository(db), new EfPasswordTokenRepository(db, TimeProvider.System), new EfReferenceDataReader(db), new EfUnitOfWork(db),
-            Hasher, email, sap, Portal, TimeProvider.System);
+        new(new EfUserRepository(db), new EfReferenceDataReader(db), new EfUnitOfWork(db), Hasher, Links(db, email), sap, TimeProvider.System);
 
-    public static AdminUserService Admin(AppDbContext db) =>
-        new(new EfUserRepository(db), new EfReferenceDataReader(db), new EfUnitOfWork(db), Hasher, TimeProvider.System);
+    public static IAdminUserService Admin(AppDbContext db, IEmailSender email) =>
+        new AdminUserService(new EfUserRepository(db), new EfReferenceDataReader(db), new EfOrganizationRepository(db),
+            new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), Hasher, Links(db, email),
+            new EmailVerifications(email, Portal, TimeProvider.System), TimeProvider.System);
 
     /// <summary>Los cinco servicios de documentos sobre las mismas dependencias.</summary>
     public static DocumentServices Documents(AppDbContext db, IFileStorage storage, IEmailSender email)

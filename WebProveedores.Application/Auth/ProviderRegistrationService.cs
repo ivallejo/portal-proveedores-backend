@@ -14,13 +14,11 @@ namespace WebProveedores.Application.Auth;
 /// </summary>
 public sealed partial class ProviderRegistrationService(
     IUserRepository users,
-    IPasswordTokenRepository passwordTokens,
     IReferenceDataReader referenceData,
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
-    IEmailSender emailSender,
+    PasswordLinks links,
     IProviderDirectory sapProvider,
-    PortalSettings portal,
     TimeProvider clock) : IProviderRegistrationService
 {
     public async Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken)
@@ -57,20 +55,10 @@ public sealed partial class ProviderRegistrationService(
             user.RefreshPendingProvider(provider.CompanyName, email, now);
         }
 
-        var activationToken = AuthSupport.NewOneTimeToken();
-        passwordTokens.Add(new PasswordResetToken
-        {
-            UserId = user.Id,
-            TokenHash = AuthSupport.HashOneTimeToken(activationToken),
-            Purpose = PasswordTokenPurpose.Activation,
-            ExpiresAtUtc = now.AddHours(24),
-        });
         await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var activationUrl = portal.Link($"ruc={Uri.EscapeDataString(normalizedRuc)}&activationToken={Uri.EscapeDataString(activationToken)}");
         try
         {
-            await emailSender.SendAsync(provider.Correo!, "Completa tu registro - Portal de Proveedores", EmailTemplates.AccountActivation(provider.CompanyName, activationUrl), cancellationToken, isHtml: true);
+            await links.SendAsync(user, PasswordTokenPurpose.Activation, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

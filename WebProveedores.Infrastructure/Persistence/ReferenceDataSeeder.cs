@@ -233,7 +233,12 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
                 throw new InvalidOperationException($"El rol {item.Role} no existe en la base de datos. Ejecuta primero el arranque que lo crea.");
 
             var password = item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!;
-            var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true);
+            var dni = string.IsNullOrWhiteSpace(item.Dni) ? null : item.Dni.Trim();
+            if (dni is not null && (dni.Length != 8 || !dni.All(char.IsAsciiDigit)))
+                throw new InvalidOperationException($"El DNI del usuario {username} debe tener 8 dígitos.");
+            var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true, dni: dni);
+            if (!user.IsProvider && !string.IsNullOrWhiteSpace(item.FirstName) && !string.IsNullOrWhiteSpace(item.LastName))
+                user.SetPersonName(item.FirstName, item.LastName, now);
             user.AssignArea(string.IsNullOrWhiteSpace(item.Area) ? null : FindArea(item.Area));
             user.SetRoles([role]);
             user.SetCompanies(item.Companies is null ? companies : companies.Where(company => item.Companies.Any(code => code.Trim() == company.Code)));
@@ -280,6 +285,10 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         public string Role { get; init; } = string.Empty;
         public string? Area { get; init; }
         public string? Ruc { get; init; }
+        /// <summary>DNI del personal interno (también sirve para ingresar).</summary>
+        public string? Dni { get; init; }
+        public string? FirstName { get; init; }
+        public string? LastName { get; init; }
         /// <summary>Códigos de sociedad; si se omite, el usuario trabaja con todas las sociedades activas.</summary>
         public List<string>? Companies { get; init; }
         public string? TemporaryPassword { get; init; }

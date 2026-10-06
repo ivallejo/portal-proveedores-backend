@@ -10,12 +10,9 @@ namespace WebProveedores.Application.Profile;
 internal sealed partial class ProfileService(
     IUserRepository users,
     IUnitOfWork unitOfWork,
-    IEmailSender emailSender,
-    PortalSettings portal,
+    EmailVerifications verifications,
     TimeProvider clock) : IProfileService
 {
-    private static readonly TimeSpan VerificationLifetime = TimeSpan.FromHours(24);
-
     public async Task<ProfileResponse> GetAsync(Guid userId, CancellationToken cancellationToken) =>
         ToResponse(await users.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
 
@@ -53,9 +50,9 @@ internal sealed partial class ProfileService(
         if (await users.EmailExistsAsync(address, cancellationToken)) throw new ConflictException("Este correo ya está registrado en otra cuenta.");
 
         var email = user.AddEmail(address, type, Now());
-        var token = StartVerification(email);
+        var token = verifications.Start(email);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        await SendVerificationAsync(user, email, token, cancellationToken);
+        await verifications.SendAsync(user.CompanyName, email, token, cancellationToken);
         return ToResponse(user);
     }
 
@@ -64,9 +61,9 @@ internal sealed partial class ProfileService(
         var user = await LoadAsync(userId, cancellationToken);
         var email = FindEmail(user, emailId);
         if (email.IsVerified) throw new ConflictException("El correo ya está verificado.");
-        var token = StartVerification(email);
+        var token = verifications.Start(email);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        await SendVerificationAsync(user, email, token, cancellationToken);
+        await verifications.SendAsync(user.CompanyName, email, token, cancellationToken);
         return ToResponse(user);
     }
 
@@ -114,24 +111,12 @@ internal sealed partial class ProfileService(
     private static UserEmail FindEmail(AppUser user, Guid emailId) =>
         user.Emails.FirstOrDefault(item => item.Id == emailId) ?? throw new NotFoundException("El correo no pertenece a tu perfil.");
 
-    private string StartVerification(UserEmail email)
-    {
-        var token = AuthSupport.NewOneTimeToken();
-        email.StartVerification(AuthSupport.HashOneTimeToken(token), Now().Add(VerificationLifetime));
-        return token;
-    }
-
-    private Task SendVerificationAsync(AppUser user, UserEmail email, string token, CancellationToken cancellationToken) =>
-        emailSender.SendAsync(email.Email, "Verifica tu correo - Portal de Proveedores",
-            EmailTemplates.EmailVerification(user.CompanyName, email.Email, portal.Link($"emailToken={Uri.EscapeDataString(token)}")),
-            cancellationToken, isHtml: true);
-
     private DateTime Now() => clock.GetUtcNow().UtcDateTime;
 
-    private static bool IsEmail(string value) =>
+    internal static bool IsEmail(string value) =>
         MailAddress.TryCreate(value, out var parsed) && parsed.Address == value && value.Split('@')[1].Contains('.');
 
-    private static EmailType ParseType(string? value) => value?.Trim().ToLowerInvariant() switch
+    internal static EmailType ParseType(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         "work" => EmailType.Work,
         "billing" => EmailType.Billing,
@@ -139,7 +124,7 @@ internal sealed partial class ProfileService(
         _ => throw new ValidationException("Elige el tipo de correo: trabajo, facturación o personal."),
     };
 
-    private static string TypeCode(EmailType type) => type switch
+    internal static string TypeCode(EmailType type) => type switch
     {
         EmailType.Billing => "billing",
         EmailType.Personal => "personal",
@@ -167,5 +152,5 @@ internal sealed partial class ProfileService(
         user.PasswordSetAtUtc);
 
     [GeneratedRegex(@"^[\p{L}' .-]+$")]
-    private static partial Regex PersonName();
+    internal static partial Regex PersonName();
 }

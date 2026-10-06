@@ -14,6 +14,16 @@ public static class EmailTemplates
         activationUrl,
         showValue: false);
 
+    public static string InternalAccountActivation(string name, string username, string activationUrl) => Layout(
+        $"Hola, {Encode(name)}",
+        string.Empty,
+        $"El administrador te dio acceso al Portal de Proveedores. Tu usuario es {Encode(username)}. Para activar tu cuenta, crea tu contraseña con el siguiente botón.",
+        string.Empty,
+        string.Empty,
+        "Este enlace vence en 24 horas y solo puede utilizarse una vez.",
+        activationUrl,
+        showValue: false);
+
     public static string PasswordReset(string companyName, string resetUrl) => Layout(
         $"Hola, {Encode(companyName)}",
         string.Empty,

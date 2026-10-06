@@ -10,8 +10,11 @@ public interface IUserRepository
     Task<AppUser?> FindByIdAsync(Guid id, CancellationToken cancellationToken);
     /// <summary>Usuario con seguimiento de cambios, para modificarlo y guardar.</summary>
     Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken);
-    /// <summary>Búsqueda paginada por usuario, nombre, RUC o correo (sin seguimiento).</summary>
-    Task<UserSearchResult> SearchAsync(string? search, int page, int pageSize, CancellationToken cancellationToken);
+    /// <summary>Búsqueda paginada por usuario, nombre, RUC, DNI o correo, con filtros de rol y estado (sin seguimiento).</summary>
+    Task<UserSearchResult> SearchAsync(UserSearchFilter filter, int page, int pageSize, CancellationToken cancellationToken);
+    /// <summary>Total de usuarios y cuántos están activos (sin bloqueo vigente) en <paramref name="now"/>.</summary>
+    Task<(int Total, int Active)> CountByStatusAsync(DateTime now, CancellationToken cancellationToken);
+    Task<bool> DniExistsAsync(string dni, CancellationToken cancellationToken);
     Task<bool> RucExistsAsync(string ruc, CancellationToken cancellationToken);
     Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken);
     Task<bool> UsernameExistsAsync(string username, CancellationToken cancellationToken);
@@ -25,3 +28,6 @@ public interface IUserRepository
 }
 
 public sealed record UserSearchResult(IReadOnlyList<AppUser> Items, int Total);
+
+/// <summary><paramref name="Status"/>: estado de la cuenta en <paramref name="Now"/> (inactiva, bloqueada o activa).</summary>
+public sealed record UserSearchFilter(string? Search, string? RoleCode, UserStatus? Status, DateTime Now);

@@ -12,8 +12,7 @@ public sealed class PasswordService(
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
     ITokenIssuer tokens,
-    IEmailSender emailSender,
-    PortalSettings portal,
+    PasswordLinks links,
     TimeProvider clock) : IPasswordService
 {
     public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken)
@@ -41,17 +40,7 @@ public sealed class PasswordService(
         var email = user is null ? null : AuthSupport.PrimaryEmail(user);
         if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(email)) return null;
 
-        var token = AuthSupport.NewOneTimeToken();
-        passwordTokens.Add(new PasswordResetToken
-        {
-            UserId = user.Id,
-            TokenHash = AuthSupport.HashOneTimeToken(token),
-            Purpose = PasswordTokenPurpose.PasswordReset,
-            ExpiresAtUtc = clock.GetUtcNow().UtcDateTime.AddHours(24),
-        });
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        var resetUrl = portal.Link($"ruc={Uri.EscapeDataString(user.Ruc!)}&resetToken={Uri.EscapeDataString(token)}");
-        await emailSender.SendAsync(email, "Cambia tu contraseña - Portal de Proveedores", EmailTemplates.PasswordReset(user.CompanyName, resetUrl), cancellationToken, isHtml: true);
+        await links.SendAsync(user, PasswordTokenPurpose.PasswordReset, cancellationToken);
         return new PasswordResetResponse(true, MaskEmail(email));
     }
 
@@ -59,11 +48,18 @@ public sealed class PasswordService(
     {
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
             throw new ValidationException(PasswordPolicy.Description);
-        var resetToken = await passwordTokens.FindValidAsync(request.Ruc.Trim(), AuthSupport.HashOneTimeToken(request.Token), purpose, cancellationToken);
-        if (resetToken is null) return false;
+        var ruc = request.Ruc?.Trim();
+        var username = request.User?.Trim();
+        if (string.IsNullOrEmpty(ruc) && string.IsNullOrEmpty(username)) return false;
+        var resetToken = await passwordTokens.FindValidAsync(AuthSupport.HashOneTimeToken(request.Token), purpose, cancellationToken);
+        // El enlace trae la cuenta a la que se emitió: debe coincidir.
+        if (resetToken is null || (!string.IsNullOrEmpty(ruc) && resetToken.User.Ruc != ruc)
+            || (!string.IsNullOrEmpty(username) && !string.Equals(resetToken.User.Username, username, StringComparison.OrdinalIgnoreCase)))
+            return false;
 
         var now = clock.GetUtcNow().UtcDateTime;
         resetToken.User.SetPassword(hasher.Hash(request.NewPassword), now);
+        if (purpose == PasswordTokenPurpose.Activation) resetToken.User.ConfirmPrimaryEmail(now);
         resetToken.UsedAtUtc = now;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return true;

@@ -4,6 +4,7 @@
   // Para recrear la base local con estos datos: scripts/reset-dev-db.sh
   // Producción usa seed.production.json (fuera de git); ver seed.example.json.
   // «companies» limita las sociedades del usuario; si se omite, trabaja con todas.
+  // Personal interno: «dni» (8 dígitos, también sirve para ingresar), «firstName» y «lastName».
 
   // Cada área pertenece a una sociedad (código SAP).
   "areas": [
@@ -18,12 +19,18 @@
     {
       "username": "prueba.admin",
       "name": "Administrador de prueba",
+      "dni": "40000001",
+      "firstName": "Administrador",
+      "lastName": "de prueba",
       "email": "prueba.admin@ejemplo.test",
       "role": "ADMINISTRATOR"
     },
     {
       "username": "prueba.aprobador",
       "name": "Aprobador de prueba",
+      "dni": "40000002",
+      "firstName": "Aprobador",
+      "lastName": "de prueba",
       "email": "prueba.aprobador@ejemplo.test",
       "role": "AREA_APPROVER",
       "area": "Operaciones"
@@ -31,6 +38,9 @@
     {
       "username": "prueba.aprobador2",
       "name": "Segundo aprobador de prueba",
+      "dni": "40000003",
+      "firstName": "Segundo aprobador",
+      "lastName": "de prueba",
       "email": "prueba.aprobador2@ejemplo.test",
       "role": "AREA_APPROVER",
       "area": "Operaciones",
@@ -40,6 +50,9 @@
     {
       "username": "prueba.cxp",
       "name": "Cuentas por pagar de prueba",
+      "dni": "40000004",
+      "firstName": "Cuentas por pagar",
+      "lastName": "de prueba",
       "email": "prueba.cxp@ejemplo.test",
       "role": "ACCOUNTS_PAYABLE",
       "area": "Contabilidad"
@@ -47,6 +60,9 @@
     {
       "username": "prueba.interno",
       "name": "Usuario interno de prueba",
+      "dni": "40000005",
+      "firstName": "Usuario interno",
+      "lastName": "de prueba",
       "email": "prueba.interno@ejemplo.test",
       "role": "INTERNAL_USER",
       "area": "Contabilidad"

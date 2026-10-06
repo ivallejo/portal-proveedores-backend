@@ -393,20 +393,30 @@ POST   /api/profile/emails/verify                # sin sesión: { token } del en
 - Un correo solo sirve para **ingresar** si está verificado. Los correos creados por el administrador, el seed o SAP nacen verificados (la migración `ProfileEmailsAndNames` marcó los existentes).
 - `AppUser.FirstName/LastName` (personal interno): `CompanyName` guarda el nombre completo para el resto del sistema.
 
-## Administración de usuarios
+## Configuración › Usuarios
 
-Base: `/api/admin/users`. Requiere policy `Users.Manage`.
+Base: `/api/admin/users` (`AdminUserService`, policy `Users.Manage`).
 
 ```text
-GET   /api/admin/users?search=&page=&pageSize=   # paginado; busca por usuario, nombre, RUC o correo
-GET   /api/admin/users/catalog                   # roles, áreas y sociedades para los formularios
-POST  /api/admin/users                           # roles[], areaId, companyCodes[], contraseña temporal
-PUT   /api/admin/users/{id}                      # correo, nombre, roles[], areaId, companyCodes[] (reemplaza)
-PATCH /api/admin/users/{id}/status
-POST  /api/admin/users/{id}/unlock               # quita el bloqueo por intentos fallidos
+GET   /api/admin/users?search=&role=&status=&page=&pageSize=  # status: active|inactive|locked; incluye contadores (total, activos, bloqueados o inactivos)
+GET   /api/admin/users/catalog                  # roles, áreas y sociedades (con su estado, para mostrarlas deshabilitadas)
+GET   /api/admin/users/{id}
+POST  /api/admin/users                          # alta: envía el enlace de activación al correo principal
+PUT   /api/admin/users/{id}                     # datos, rol, área, sociedades, correos[], status, mustChangePassword
+PATCH /api/admin/users/{id}/status              # activar también desbloquea
+POST  /api/admin/users/{id}/password-link       # activación (si no activó la cuenta) o recuperación
+GET   /api/admin/users/{id}/password-links      # historial: vigente, usado, reemplazado, vencido
 ```
 
-Reglas (`AdminUserService`): roles por código; el aprobador necesita área, el proveedor RUC de 11 dígitos y todo usuario que no sea administrador al menos una sociedad. El usuario y el RUC no se editan. Un administrador no puede desactivarse ni quitarse su rol, y nunca puede quedar el portal sin un administrador activo (409). La regla de contraseñas está en `PasswordPolicy`.
+Reglas:
+- **Un rol por usuario.** Proveedor: RUC de 11 dígitos que empieza con 10 o 20 y razón social. Personal interno: DNI de 8 dígitos (es su usuario de acceso), nombres, apellidos y área (opcional solo para el administrador); el área debe ser de una de sus sociedades.
+- El documento no se edita, y no se cambia una cuenta de proveedor a interna ni al revés.
+- Al menos una sociedad (las inactivas no se asignan, pero quien ya las tiene las conserva) y al menos un correo, con exactamente un principal. Los correos nuevos reciben un enlace de verificación; el principal de una cuenta activada debe estar verificado. Activar la cuenta verifica el correo principal.
+- Estado: Activo, Inactivo o Bloqueado (bloqueo temporal por intentos fallidos; no se asigna a mano).
+- «Solicitar cambio de contraseña en el próximo inicio» = `MustChangePassword`: al ingresar se abre `/contrasena-temporal`.
+- Un administrador no puede desactivarse ni quitarse su rol, y nunca queda el portal sin un administrador activo (409).
+- `PasswordLinks` emite los enlaces (24 h) y reemplaza los anteriores del mismo tipo. El enlace identifica la cuenta con `ruc=` (proveedor) o `user=` (personal interno); `PasswordResetConfirmRequest` acepta `ruc` o `user`.
+- El login acepta usuario, RUC, DNI o un correo verificado. En el seed, el personal interno puede tener `dni`, `firstName` y `lastName`.
 
 ## Calidad validada
 

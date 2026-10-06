@@ -16,11 +16,13 @@ public static class DependencyInjection
         services.AddSingleton(portal);
         services.AddSingleton(lockout);
 
+        services.AddScoped<PasswordLinks>();
         services.AddScoped<ILoginService, LoginService>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IProviderRegistrationService, ProviderRegistrationService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<EmailVerifications>();
         services.AddScoped<IProfileService, ProfileService>();
 
         services.AddScoped<DocumentAccess>();

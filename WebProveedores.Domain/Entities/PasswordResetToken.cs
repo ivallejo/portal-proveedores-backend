@@ -8,6 +8,8 @@ public sealed class PasswordResetToken
     public PasswordTokenPurpose Purpose { get; set; }
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? UsedAtUtc { get; set; }
+    /// <summary>Se envió un enlace más nuevo con el mismo propósito: este deja de servir.</summary>
+    public DateTime? RevokedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public AppUser User { get; set; } = null!;
