@@ -73,8 +73,17 @@ internal sealed partial class ProfileService(
     public async Task<ProfileResponse> MakePrimaryAsync(Guid userId, Guid emailId, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(userId, cancellationToken);
-        user.MakePrimary(FindEmail(user, emailId).Id, Now());
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        var email = FindEmail(user, emailId);
+        user.MakePrimary(email.Id, Now());
+        // La base admite un solo principal por usuario y no garantiza el orden de las actualizaciones:
+        // primero se quita el principal anterior y luego se marca el nuevo, en una sola transacción.
+        await unitOfWork.InTransactionAsync(async () =>
+        {
+            email.IsPrimary = false;
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            email.IsPrimary = true;
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
         return ToResponse(user);
     }
 

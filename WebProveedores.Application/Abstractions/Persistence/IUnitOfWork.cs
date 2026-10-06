@@ -4,4 +4,7 @@ namespace WebProveedores.Application.Abstractions.Persistence;
 public interface IUnitOfWork
 {
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Ejecuta varios guardados como una sola transacción (todo o nada).</summary>
+    Task InTransactionAsync(Func<Task> work, CancellationToken cancellationToken);
 }

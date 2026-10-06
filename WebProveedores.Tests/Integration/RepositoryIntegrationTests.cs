@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Entities;
 using WebProveedores.Infrastructure.Persistence;
@@ -69,6 +71,38 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         Assert.Equal([data.Naviera.Code], byEmail.Items[0].UserCompanies.Select(item => item.Company.Code));
         Assert.Single(firstPage.Items);
         Assert.Equal(1, firstPage.Total);
+    }
+
+    [Fact]
+    public async Task Profile_email_is_verified_and_made_primary_in_sql()
+    {
+        var data = await SeedAsync();
+        var email = new CapturingEmail();
+        var address = $"alterno-{Guid.NewGuid():N}@ejemplo.test";
+        await using (var db = sql.CreateContext())
+        {
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            await service.AddEmailAsync(data.Approver.Id, new AddEmailRequest { Email = address, Type = "personal" }, CancellationToken.None);
+        }
+        var token = System.Text.RegularExpressions.Regex.Match(email.Body, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
+        await using (var db = sql.CreateContext())
+        {
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            Assert.Equal(address, await service.VerifyEmailAsync(token, CancellationToken.None));
+        }
+        await using (var db = sql.CreateContext())
+        {
+            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), email, TestServices.Portal, TimeProvider.System);
+            var added = (await service.GetAsync(data.Approver.Id, CancellationToken.None)).Emails.Single(item => item.Email == address);
+            // El índice único de «un principal por usuario» exige quitar el anterior antes de marcar el nuevo.
+            var profile = await service.MakePrimaryAsync(data.Approver.Id, added.Id, CancellationToken.None);
+            Assert.Equal(address, profile.Emails.Single(item => item.IsPrimary).Email);
+        }
+        await using (var db = sql.CreateContext())
+        {
+            var user = await new EfUserRepository(db).FindForLoginAsync(address, address, CancellationToken.None);
+            Assert.Equal(data.Approver.Id, user?.Id);
+        }
     }
 
     [Fact]
@@ -155,4 +189,15 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     }
 
     private sealed record SeedData(string Ruc, Company Naviera, Company Ultratag, Area Area, AppUser Provider, AppUser Approver, AppUser Accounting);
+
+    private sealed class CapturingEmail : IEmailSender
+    {
+        public string Body { get; private set; } = string.Empty;
+
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+        {
+            Body = body;
+            return Task.CompletedTask;
+        }
+    }
 }
