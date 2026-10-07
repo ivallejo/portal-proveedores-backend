@@ -11,14 +11,14 @@ namespace WebProveedores.Application.Organization;
 /// Reglas de Configuración › Sociedades y Áreas. No se eliminan registros: se activan o desactivan
 /// y el historial (documentos, usuarios) se conserva.
 /// </summary>
-internal sealed partial class OrganizationService(IOrganizationRepository organization, IUnitOfWork unitOfWork) : IOrganizationService
+internal sealed partial class OrganizationService(IOrganizationReader reader, IOrganizationRepository organization, IUnitOfWork unitOfWork) : IOrganizationService
 {
     // ——— Sociedades ———
 
     public async Task<IReadOnlyList<CompanyAdminResponse>> ListCompaniesAsync(string? search, bool? active, CancellationToken cancellationToken)
     {
         var term = search?.Trim();
-        return (await organization.ListCompaniesAsync(cancellationToken))
+        return (await reader.ListCompaniesAsync(cancellationToken))
             .Where(item => active is null || item.Company.IsActive == active)
             .Where(item => string.IsNullOrEmpty(term) || Contains(item.Company.Code, term) || Contains(item.Company.Name, term) || Contains(item.Company.Ruc, term))
             .OrderBy(item => item.Company.Code)
@@ -37,7 +37,7 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
 
     public async Task<CompanyAdminResponse> UpdateCompanyAsync(Guid id, CompanyRequest request, CancellationToken cancellationToken)
     {
-        var company = await organization.FindCompanyAsync(id, cancellationToken) ?? throw new NotFoundException("La sociedad no existe.");
+        var company = await reader.FindCompanyAsync(id, cancellationToken) ?? throw new NotFoundException("La sociedad no existe.");
         var data = await ValidateCompanyAsync(request, id, cancellationToken);
         (company.Code, company.Name, company.Ruc, company.BillingEmail) = (data.Code, data.Name, data.Ruc, data.Email);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -47,7 +47,7 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
     /// <summary>Desactivada, deja de aparecer en los filtros y no se registran documentos para ella; sus áreas e historial se conservan.</summary>
     public async Task<CompanyAdminResponse> SetCompanyStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken)
     {
-        var company = await organization.FindCompanyAsync(id, cancellationToken) ?? throw new NotFoundException("La sociedad no existe.");
+        var company = await reader.FindCompanyAsync(id, cancellationToken) ?? throw new NotFoundException("La sociedad no existe.");
         company.IsActive = isActive;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await CompanyResponseAsync(id, cancellationToken);
@@ -58,7 +58,7 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
     public async Task<IReadOnlyList<AreaAdminResponse>> ListAreasAsync(string? search, bool? active, Guid? companyId, CancellationToken cancellationToken)
     {
         var term = search?.Trim();
-        return (await organization.ListAreasAsync(cancellationToken))
+        return (await reader.ListAreasAsync(cancellationToken))
             .Where(item => active is null || item.Area.IsActive == active)
             .Where(item => companyId is null || item.Area.CompanyId == companyId)
             .Where(item => string.IsNullOrEmpty(term) || Contains(item.Area.Name, term) || Contains(item.Area.Description, term) || Contains(item.Area.Company.Name, term))
@@ -78,7 +78,7 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
 
     public async Task<AreaAdminResponse> UpdateAreaAsync(Guid id, AreaRequest request, CancellationToken cancellationToken)
     {
-        var area = await organization.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
+        var area = await reader.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
         var (company, name, code, description) = await ValidateAreaAsync(request, id, cancellationToken);
         (area.Name, area.Code, area.Description, area.CompanyId, area.Company) = (name, code, description, company.Id, company);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -88,7 +88,7 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
     /// <summary>Desactivada, ya no se asigna a nuevos usuarios; los actuales conservan su asignación.</summary>
     public async Task<AreaAdminResponse> SetAreaStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken)
     {
-        var area = await organization.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
+        var area = await reader.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
         area.IsActive = isActive;
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await AreaResponseAsync(id, cancellationToken);
@@ -114,24 +114,24 @@ internal sealed partial class OrganizationService(IOrganizationRepository organi
 
     private async Task<(Company Company, string Name, string Code, string? Description)> ValidateAreaAsync(AreaRequest request, Guid? id, CancellationToken cancellationToken)
     {
-        var company = await organization.FindCompanyAsync(request.CompanyId, cancellationToken) ?? throw new ValidationException("Selecciona la sociedad.");
+        var company = await reader.FindCompanyAsync(request.CompanyId, cancellationToken) ?? throw new ValidationException("Selecciona la sociedad.");
         var name = request.Name.Trim();
         if (name.Length == 0) throw new ValidationException("Ingresa el nombre del área.");
         var code = Area.CodeFor(name);
         if (code.Length == 0) throw new ValidationException("El nombre del área debe tener letras o números.");
         if (await organization.AreaCodeExistsAsync(company.Id, code, id, cancellationToken)) throw new ConflictException("Esta sociedad ya tiene un área con ese nombre.");
         // Al crear o mover un área, la sociedad debe estar activa; editar un área existente de una sociedad inactiva se permite.
-        var current = id is { } areaId ? await organization.FindAreaAsync(areaId, cancellationToken) : null;
+        var current = id is { } areaId ? await reader.FindAreaAsync(areaId, cancellationToken) : null;
         if (!company.IsActive && current?.CompanyId != company.Id) throw new ValidationException($"La sociedad {company.Name} está inactiva.");
         var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         return (company, name, code, description);
     }
 
     private async Task<CompanyAdminResponse> CompanyResponseAsync(Guid id, CancellationToken cancellationToken) =>
-        ToResponse((await organization.ListCompaniesAsync(cancellationToken)).Single(item => item.Company.Id == id));
+        ToResponse((await reader.ListCompaniesAsync(cancellationToken)).Single(item => item.Company.Id == id));
 
     private async Task<AreaAdminResponse> AreaResponseAsync(Guid id, CancellationToken cancellationToken) =>
-        ToResponse((await organization.ListAreasAsync(cancellationToken)).Single(item => item.Area.Id == id));
+        ToResponse((await reader.ListAreasAsync(cancellationToken)).Single(item => item.Area.Id == id));
 
     private static CompanyAdminResponse ToResponse(CompanySummary item) => new(
         item.Company.Id, item.Company.Code, item.Company.Name, item.Company.Ruc, item.Company.BillingEmail, item.Company.IsActive, item.AreaCount, item.UserCount);

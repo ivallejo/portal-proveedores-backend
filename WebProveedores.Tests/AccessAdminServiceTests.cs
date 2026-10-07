@@ -77,7 +77,7 @@ public sealed class AccessAdminServiceTests
         admin.SetRoles([fixture.Roles[SecurityCatalog.AdministratorRole]]);
         fixture.Db.Users.AddRange(approver, admin);
         await fixture.Db.SaveChangesAsync();
-        var navigation = new NavigationService(new EfAccessRepository(fixture.Db));
+        var navigation = new NavigationService(new EfAccessRepository(fixture.Db), new EfPermissionReader(fixture.Db));
 
         Assert.Equal([MenuCatalog.Home, MenuCatalog.Documents], (await navigation.MenuForAsync(approver.Id, CancellationToken.None)).Select(item => item.Code));
 

@@ -9,12 +9,14 @@ namespace WebProveedores.Application.Profile;
 
 internal sealed partial class ProfileService(
     IUserRepository users,
+    IUserQueries userQueries,
+    IUserUniquenessChecker uniqueness,
     IUnitOfWork unitOfWork,
     EmailVerifications verifications,
     TimeProvider clock) : IProfileService
 {
     public async Task<ProfileResponse> GetAsync(Guid userId, CancellationToken cancellationToken) =>
-        ToResponse(await users.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
+        ToResponse(await userQueries.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
 
     public async Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken)
     {
@@ -47,7 +49,7 @@ internal sealed partial class ProfileService(
         if (!IsEmail(address)) throw new ValidationException("Ingresa un correo válido, por ejemplo nombre@empresa.com.");
         var type = ParseType(request.Type);
         if (user.Emails.Any(item => item.Email == address)) throw new ConflictException("Este correo ya está registrado en tu perfil.");
-        if (await users.EmailExistsAsync(address, cancellationToken)) throw new ConflictException("Este correo ya está registrado en otra cuenta.");
+        if (await uniqueness.EmailExistsAsync(address, cancellationToken)) throw new ConflictException("Este correo ya está registrado en otra cuenta.");
 
         var email = user.AddEmail(address, type, Now());
         var token = verifications.Start(email);

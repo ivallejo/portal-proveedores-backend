@@ -3,11 +3,11 @@ using WebProveedores.Application.Ports.Outbound.Persistence;
 namespace WebProveedores.Application.Access;
 
 /// <summary>Arma el menú lateral con las opciones que el rol del usuario tiene asignadas.</summary>
-internal sealed class NavigationService(IAccessRepository access) : INavigationService
+internal sealed class NavigationService(IAccessRepository access, IPermissionReader permissionReader) : INavigationService
 {
     public async Task<IReadOnlyList<NavigationItem>> MenuForAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var allowed = await access.PermissionsOfAsync(userId, cancellationToken);
+        var allowed = await permissionReader.PermissionsOfAsync(userId, cancellationToken);
         var menus = (await access.ListMenusAsync(cancellationToken)).Where(menu => menu.IsActive && allowed.Contains(menu.Code)).ToList();
         return menus.Where(menu => menu.ParentId is null)
             .OrderBy(menu => menu.Order).ThenBy(menu => menu.Name)

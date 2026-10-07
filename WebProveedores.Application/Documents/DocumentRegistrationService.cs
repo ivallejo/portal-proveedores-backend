@@ -9,6 +9,7 @@ namespace WebProveedores.Application.Documents;
 
 internal sealed class DocumentRegistrationService(
     IDocumentRepository documents,
+    IUnitOfWork unitOfWork,
     DocumentAccess access,
     DocumentFiles files,
     ISapDocumentGateway sap,
@@ -105,7 +106,7 @@ internal sealed class DocumentRegistrationService(
             }
 
             documents.Add(document);
-            await documents.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch
         {
@@ -149,7 +150,7 @@ internal sealed class DocumentRegistrationService(
         {
             await files.AttachAsync(document, AttachmentKind.Pdf, command.Pdf!, pdfBytes, stored, cancellationToken);
             documents.Add(document);
-            await documents.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch
         {

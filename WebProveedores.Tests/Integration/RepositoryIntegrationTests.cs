@@ -22,10 +22,10 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     {
         var data = await SeedAsync();
         await using var db = sql.CreateContext();
-        var repository = new EfDocumentRepository(db);
+        var approvers = new EfApproverDirectory(db);
 
-        var approver = await repository.FindApproverAsync(data.Approver.Id, CancellationToken.None);
-        var all = await repository.ListApproversAsync(CancellationToken.None);
+        var approver = await approvers.FindApproverAsync(data.Approver.Id, CancellationToken.None);
+        var all = await approvers.ListApproversAsync(CancellationToken.None);
 
         Assert.NotNull(approver);
         Assert.Equal(data.Area.Name, approver.AreaName);
@@ -41,10 +41,10 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         await AddDocumentAsync(data, data.Naviera, "F001-1");
         await AddDocumentAsync(data, data.Ultratag, "F001-2");
         await using var db = sql.CreateContext();
-        var repository = new EfDocumentRepository(db);
+        var search = new EfDocumentSearch(db);
 
         var query = new DocumentQuery(DocumentInbox.Accounting, data.Ruc, null, 1, 10, CompanyIds: [data.Naviera.Id]);
-        var page = await repository.SearchAsync(query, CancellationToken.None);
+        var page = await search.SearchAsync(query, CancellationToken.None);
 
         Assert.Equal("F001-1", Assert.Single(page.Items).Number);
         Assert.Equal(1, page.CountsByStatus[DocumentStatus.PendingAccounting]);
@@ -65,13 +65,13 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     {
         var data = await SeedAsync();
         await using var db = sql.CreateContext();
-        var repository = new EfUserRepository(db);
+        var queries = new EfUserQueries(db);
 
         var now = DateTime.UtcNow;
-        var byEmail = await repository.SearchAsync(new UserSearchFilter(data.Approver.PrimaryEmail, SecurityCatalog.AreaApproverRole, UserStatus.Active, now), 1, 10, CancellationToken.None);
-        var firstPage = await repository.SearchAsync(new UserSearchFilter(data.Ruc, null, null, now), 1, 1, CancellationToken.None);
-        var inactive = await repository.SearchAsync(new UserSearchFilter(data.Ruc, null, UserStatus.Inactive, now), 1, 10, CancellationToken.None);
-        var (total, active) = await repository.CountByStatusAsync(now, CancellationToken.None);
+        var byEmail = await queries.SearchAsync(new UserSearchFilter(data.Approver.PrimaryEmail, SecurityCatalog.AreaApproverRole, UserStatus.Active, now), 1, 10, CancellationToken.None);
+        var firstPage = await queries.SearchAsync(new UserSearchFilter(data.Ruc, null, null, now), 1, 1, CancellationToken.None);
+        var inactive = await queries.SearchAsync(new UserSearchFilter(data.Ruc, null, UserStatus.Inactive, now), 1, 10, CancellationToken.None);
+        var (total, active) = await queries.CountByStatusAsync(now, CancellationToken.None);
 
         Assert.Empty(inactive.Items);
         Assert.True(total >= active && active > 0);
@@ -90,18 +90,18 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         var address = $"alterno-{Guid.NewGuid():N}@ejemplo.test";
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
+            var service = TestServices.Profile(db, email);
             await service.AddEmailAsync(data.Approver.Id, new AddEmailRequest { Email = address, Type = "personal" }, CancellationToken.None);
         }
         var token = System.Text.RegularExpressions.Regex.Match(email.Body, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
+            var service = TestServices.Profile(db, email);
             Assert.Equal(address, await service.VerifyEmailAsync(token, CancellationToken.None));
         }
         await using (var db = sql.CreateContext())
         {
-            var service = new ProfileService(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
+            var service = TestServices.Profile(db, email);
             var added = (await service.GetAsync(data.Approver.Id, CancellationToken.None)).Emails.Single(item => item.Email == address);
             // El índice único de «un principal por usuario» exige quitar el anterior antes de marcar el nuevo.
             var profile = await service.MakePrimaryAsync(data.Approver.Id, added.Id, CancellationToken.None);
@@ -166,7 +166,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         await using var db = sql.CreateContext();
         var access = new EfAccessRepository(db);
 
-        var permissions = await access.PermissionsOfAsync(data.Approver.Id, CancellationToken.None);
+        var permissions = await new EfPermissionReader(db).PermissionsOfAsync(data.Approver.Id, CancellationToken.None);
         var roles = await access.ListRolesAsync(CancellationToken.None);
 
         Assert.Contains(MenuCatalog.Documents, permissions);
@@ -180,10 +180,11 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     {
         var data = await SeedAsync();
         await using var db = sql.CreateContext();
+        var reader = new EfOrganizationReader(db);
         var repository = new EfOrganizationRepository(db);
 
-        var naviera = (await repository.ListCompaniesAsync(CancellationToken.None)).Single(item => item.Company.Id == data.Naviera.Id);
-        var area = (await repository.ListAreasAsync(CancellationToken.None)).Single(item => item.Area.Id == data.Area.Id);
+        var naviera = (await reader.ListCompaniesAsync(CancellationToken.None)).Single(item => item.Company.Id == data.Naviera.Id);
+        var area = (await reader.ListAreasAsync(CancellationToken.None)).Single(item => item.Area.Id == data.Area.Id);
 
         Assert.Equal((1, 3), (naviera.AreaCount, naviera.UserCount));
         Assert.Equal((data.Naviera.Code, 1), (area.Area.Company.Code, area.UserCount));
@@ -224,7 +225,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
             order: new PurchaseOrderInfo(OrderType.Service, "4500012873", 18450m, "Mantenimiento"));
         document.AddItem("Servicio", 1, 100m, 100m);
         repository.Add(document);
-        await repository.SaveChangesAsync(CancellationToken.None);
+        await new EfUnitOfWork(db).SaveChangesAsync(CancellationToken.None);
     }
 
     /// <summary>Datos propios de cada prueba: sociedades, área, roles y usuarios con un RUC único.</summary>

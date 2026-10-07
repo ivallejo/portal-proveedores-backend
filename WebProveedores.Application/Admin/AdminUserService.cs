@@ -18,8 +18,10 @@ namespace WebProveedores.Application.Admin;
 /// </summary>
 internal sealed class AdminUserService(
     IUserRepository users,
-    IReferenceDataReader referenceData,
-    IOrganizationRepository organization,
+    IUserQueries userQueries,
+    IUserUniquenessChecker uniqueness,
+    IRoleReader roleReader,
+    IOrganizationReader organization,
     IPasswordTokenRepository passwordTokens,
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
@@ -33,15 +35,15 @@ internal sealed class AdminUserService(
         pageSize = Math.Clamp(pageSize, 1, 100);
         var now = Now;
         var filter = new UserSearchFilter(search, string.IsNullOrWhiteSpace(role) ? null : role.Trim(), ParseStatusFilter(status), now);
-        var result = await users.SearchAsync(filter, page, pageSize, cancellationToken);
-        var (total, active) = await users.CountByStatusAsync(now, cancellationToken);
+        var result = await userQueries.SearchAsync(filter, page, pageSize, cancellationToken);
+        var (total, active) = await userQueries.CountByStatusAsync(now, cancellationToken);
         return new AdminUserPage(result.Items.Select(ToSummary).ToArray(), result.Total, page, pageSize, new AdminUserCounts(total, active, total - active));
     }
 
     public async Task<AdminCatalogResponse> CatalogAsync(CancellationToken cancellationToken)
     {
         var order = SecurityCatalog.Roles.Keys.ToList();
-        var roles = (await referenceData.ListRolesAsync(cancellationToken))
+        var roles = (await roleReader.ListRolesAsync(cancellationToken))
             .OrderBy(role => order.IndexOf(role.Code) is var index && index < 0 ? int.MaxValue : index)
             .Select(role => new AdminRoleOption(role.Code, role.Name, role.Description, role.Code == SecurityCatalog.ProviderRole, role.IsActive))
             .ToArray();
@@ -55,7 +57,7 @@ internal sealed class AdminUserService(
     }
 
     public async Task<AdminUserDetail?> GetAsync(Guid id, CancellationToken cancellationToken) =>
-        await users.FindByIdAsync(id, cancellationToken) is { } user ? ToDetail(user) : null;
+        await userQueries.FindByIdAsync(id, cancellationToken) is { } user ? ToDetail(user) : null;
 
     public async Task<AdminUserDetail> CreateAsync(SaveUserRequest request, CancellationToken cancellationToken)
     {
@@ -68,21 +70,21 @@ internal sealed class AdminUserService(
         {
             if (document.Length != 11 || !document.All(char.IsAsciiDigit)) throw new ValidationException("El RUC debe tener 11 dígitos.");
             if (!document.StartsWith("10") && !document.StartsWith("20")) throw new ValidationException("El RUC debe empezar con 10 o 20.");
-            if (await users.RucExistsAsync(document, cancellationToken) || await users.UsernameExistsAsync(document, cancellationToken))
+            if (await uniqueness.RucExistsAsync(document, cancellationToken) || await uniqueness.UsernameExistsAsync(document, cancellationToken))
                 throw new ConflictException("Ya existe un usuario con este documento.");
             name = BusinessName(request);
         }
         else
         {
             if (document.Length != 8 || !document.All(char.IsAsciiDigit)) throw new ValidationException("El DNI debe tener 8 dígitos.");
-            if (await users.DniExistsAsync(document, cancellationToken)) throw new ConflictException("Ya existe un usuario con este documento.");
+            if (await uniqueness.DniExistsAsync(document, cancellationToken)) throw new ConflictException("Ya existe un usuario con este documento.");
             person = PersonName(request);
             name = $"{person.Value.First} {person.Value.Last}";
         }
 
         var emails = NormalizeEmails(request.Emails);
         foreach (var email in emails)
-            if (await users.EmailExistsAsync(email.Email, cancellationToken)) throw new ConflictException($"El correo {email.Email} ya pertenece a otro usuario.");
+            if (await uniqueness.EmailExistsAsync(email.Email, cancellationToken)) throw new ConflictException($"El correo {email.Email} ya pertenece a otro usuario.");
 
         var now = Now;
         var primary = emails.Single(email => email.IsPrimary);
@@ -129,7 +131,7 @@ internal sealed class AdminUserService(
 
         var emails = NormalizeEmails(request.Emails);
         foreach (var email in emails.Where(email => email.Id is null))
-            if (await users.EmailUsedByOtherAsync(email.Email, user.Id, cancellationToken)) throw new ConflictException($"El correo {email.Email} ya pertenece a otro usuario.");
+            if (await uniqueness.EmailUsedByOtherAsync(email.Email, user.Id, cancellationToken)) throw new ConflictException($"El correo {email.Email} ya pertenece a otro usuario.");
         var verificationsToSend = new List<(UserEmail Email, string Token)>();
         await unitOfWork.InTransactionAsync(async () =>
         {
@@ -170,7 +172,7 @@ internal sealed class AdminUserService(
 
     public async Task<IReadOnlyList<PasswordLinkResponse>?> PasswordLinksAsync(Guid id, CancellationToken cancellationToken)
     {
-        if (await users.FindByIdAsync(id, cancellationToken) is null) return null;
+        if (await userQueries.FindByIdAsync(id, cancellationToken) is null) return null;
         var now = Now;
         return (await passwordTokens.ListForUserAsync(id, cancellationToken))
             .Select(token => new PasswordLinkResponse(
@@ -186,7 +188,7 @@ internal sealed class AdminUserService(
 
     private async Task<Role> FindRoleAsync(string code, CancellationToken cancellationToken)
     {
-        var role = await referenceData.FindRoleAsync(code.Trim(), cancellationToken);
+        var role = await roleReader.FindRoleAsync(code.Trim(), cancellationToken);
         if (role is null) throw new ValidationException("Selecciona el rol.");
         if (!role.IsActive) throw new ValidationException("El rol seleccionado está inactivo.");
         return role;
@@ -322,7 +324,7 @@ internal sealed class AdminUserService(
 
     private async Task EnsureAnotherAdministratorAsync(Guid userId, CancellationToken cancellationToken)
     {
-        if (!await users.OtherActiveAdministratorExistsAsync(userId, cancellationToken))
+        if (!await userQueries.OtherActiveAdministratorExistsAsync(userId, cancellationToken))
             throw new ConflictException("Debe quedar al menos un administrador activo.");
     }
 

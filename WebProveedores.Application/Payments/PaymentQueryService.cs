@@ -10,7 +10,7 @@ namespace WebProveedores.Application.Payments;
 /// Reglas de acceso sobre las consultas de SAP: el proveedor solo ve su RUC; Cuentas por pagar y el administrador
 /// consultan el RUC que indiquen. Fuera del administrador, solo se muestran las sociedades asignadas al usuario.
 /// </summary>
-internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAccess access, IReferenceDataReader referenceData) : IPaymentQueryService
+internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAccess access, ICompanyReader companyReader) : IPaymentQueryService
 {
     /// <summary>Rango máximo por consulta, para no sobrecargar SAP.</summary>
     public const int MaxRangeDays = 3 * 366;
@@ -97,7 +97,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
             throw new ForbiddenException("No tienes acceso a los pagos de proveedores.");
         }
 
-        var companies = await referenceData.ListActiveCompaniesAsync(cancellationToken);
+        var companies = await companyReader.ListActiveAsync(cancellationToken);
         return (ruc, new CompanyScope(actor, companies));
     }
 

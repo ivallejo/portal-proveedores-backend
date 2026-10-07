@@ -6,7 +6,7 @@ using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;
 
-internal sealed class DocumentQueryService(IDocumentRepository documents, DocumentAccess access, IFileStorage storage) : IDocumentQueryService
+internal sealed class DocumentQueryService(IDocumentSearch documents, DocumentAccess access, IFileStorage storage) : IDocumentQueryService
 {
     public async Task<DocumentPageResponse> SearchAsync(Guid userId, DocumentInbox inbox, string? providerRuc, DocumentStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {

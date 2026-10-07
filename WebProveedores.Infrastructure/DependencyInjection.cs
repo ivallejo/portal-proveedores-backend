@@ -24,13 +24,20 @@ public static class DependencyInjection
         // Persistencia (SQL Server).
         services.AddDbContext<AppDbContext>(options => options.UseSqlServer(
             configuration.GetConnectionString("DefaultConnection"), sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
-        services.AddScoped<IUserRepository, EfUserRepository>();
-        services.AddScoped<IPasswordTokenRepository, EfPasswordTokenRepository>();
-        services.AddScoped<IReferenceDataReader, EfReferenceDataReader>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
-        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
+        services.AddScoped<IUserRepository, EfUserRepository>();
+        services.AddScoped<IUserQueries, EfUserQueries>();
+        services.AddScoped<IUserUniquenessChecker, EfUserUniquenessChecker>();
+        services.AddScoped<IPasswordTokenRepository, EfPasswordTokenRepository>();
+        services.AddScoped<IRoleReader, EfRoleReader>();
+        services.AddScoped<IPermissionReader, EfPermissionReader>();
         services.AddScoped<IAccessRepository, EfAccessRepository>();
+        services.AddScoped<ICompanyReader, EfCompanyReader>();
+        services.AddScoped<IOrganizationReader, EfOrganizationReader>();
+        services.AddScoped<IOrganizationRepository, EfOrganizationRepository>();
         services.AddScoped<IDocumentRepository, EfDocumentRepository>();
+        services.AddScoped<IDocumentSearch, EfDocumentSearch>();
+        services.AddScoped<IApproverDirectory, EfApproverDirectory>();
         services.AddScoped<ReferenceDataSeeder>();
         services.AddScoped<DatabaseInitializer>();
 

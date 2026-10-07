@@ -2,6 +2,7 @@ using System.Reflection;
 using NetArchTest.Rules;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Common;
+using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests.Architecture;
 
@@ -14,6 +15,7 @@ public sealed class LayerDependencyTests
 
     private static readonly Assembly DomainAssembly = typeof(DomainRuleException).Assembly;
     private static readonly Assembly ApplicationAssembly = typeof(AppException).Assembly;
+    private static readonly Assembly InfrastructureAssembly = typeof(AppDbContext).Assembly;
 
     [Fact]
     public void Domain_does_not_depend_on_other_layers_or_frameworks()
@@ -71,6 +73,20 @@ public sealed class LayerDependencyTests
             .GetResult();
 
         AssertSuccessful(result);
+    }
+
+    [Fact]
+    public void Each_adapter_implements_a_single_outbound_port()
+    {
+        const string outbound = "WebProveedores.Application.Ports.Outbound";
+        var offenders = InfrastructureAssembly.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false })
+            .Select(type => (type.Name, Ports: type.GetInterfaces().Count(port => port.Namespace?.StartsWith(outbound, StringComparison.Ordinal) == true)))
+            .Where(item => item.Ports > 1)
+            .Select(item => item.Name)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "Adaptadores con más de un puerto: " + string.Join(", ", offenders));
     }
 
     private static void AssertSuccessful(TestResult result) =>

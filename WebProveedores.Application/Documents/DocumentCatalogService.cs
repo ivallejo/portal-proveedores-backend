@@ -3,18 +3,18 @@ using WebProveedores.Application.Ports.Outbound.Sap;
 
 namespace WebProveedores.Application.Documents;
 
-internal sealed class DocumentCatalogService(IDocumentRepository documents, DocumentAccess access, ISapDocumentGateway sap) : IDocumentCatalogService
+internal sealed class DocumentCatalogService(IApproverDirectory approverDirectory, ICompanyReader companyReader, DocumentAccess access, ISapDocumentGateway sap) : IDocumentCatalogService
 {
     /// <summary>Sociedades con las que trabaja el usuario (el administrador ve todas).</summary>
     public async Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(Guid userId, CancellationToken cancellationToken)
     {
         var actor = await access.LoadActorAsync(userId, cancellationToken);
-        return (await documents.ListCompaniesAsync(cancellationToken)).Where(company => actor.HasCompany(company.Id)).Select(DocumentMapper.ToResponse).ToArray();
+        return (await companyReader.ListActiveAsync(cancellationToken)).Where(company => actor.HasCompany(company.Id)).Select(DocumentMapper.ToResponse).ToArray();
     }
 
     public async Task<IReadOnlyList<AreaResponse>> ListAreasAsync(CancellationToken cancellationToken)
     {
-        var approvers = await documents.ListApproversAsync(cancellationToken);
+        var approvers = await approverDirectory.ListApproversAsync(cancellationToken);
         return approvers
             .GroupBy(approver => (approver.AreaId, approver.AreaName, approver.AreaCompanyCode))
             .OrderBy(group => group.Key.AreaName)

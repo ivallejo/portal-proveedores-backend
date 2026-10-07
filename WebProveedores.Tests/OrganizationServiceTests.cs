@@ -57,7 +57,7 @@ public sealed class OrganizationServiceTests
     private static AreaRequest Area(Guid companyId, string name, string? description = null) =>
         new() { CompanyId = companyId, Name = name, Description = description };
 
-    private static OrganizationService Service(AppDbContext db) => new(new EfOrganizationRepository(db), new EfUnitOfWork(db));
+    private static OrganizationService Service(AppDbContext db) => new(new EfOrganizationReader(db), new EfOrganizationRepository(db), new EfUnitOfWork(db));
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase($"organization-{Guid.NewGuid():N}").Options);
 }

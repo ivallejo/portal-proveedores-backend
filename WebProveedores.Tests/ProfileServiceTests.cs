@@ -78,8 +78,7 @@ public sealed class ProfileServiceTests
         return user;
     }
 
-    private static ProfileService Service(AppDbContext db, IEmailSender email) =>
-        new(new EfUserRepository(db), new EfUnitOfWork(db), new EmailVerifications(email, TestServices.Portal, TimeProvider.System), TimeProvider.System);
+    private static ProfileService Service(AppDbContext db, IEmailSender email) => TestServices.Profile(db, email);
 
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase($"profile-{Guid.NewGuid():N}").Options);
 

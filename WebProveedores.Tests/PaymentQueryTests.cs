@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Documents;
 using WebProveedores.Application.Payments;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.Ports.Outbound.Sap.Models;
@@ -182,8 +181,7 @@ public sealed class PaymentQueryTests
             fixture.Internal = User("interno", SecurityCatalog.InternalUserRole, null, naviera);
             await db.SaveChangesAsync();
 
-            var access = new DocumentAccess(new EfDocumentRepository(db), new EfUserRepository(db), new EfAccessRepository(db));
-            fixture.Service = new PaymentQueryService(fixture.Sap, access, new EfReferenceDataReader(db));
+            fixture.Service = new PaymentQueryService(fixture.Sap, TestServices.Access(db), new EfCompanyReader(db));
             return fixture;
         }
 

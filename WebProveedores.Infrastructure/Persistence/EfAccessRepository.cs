@@ -7,15 +7,6 @@ namespace WebProveedores.Infrastructure.Persistence;
 
 public sealed class EfAccessRepository(AppDbContext db) : IAccessRepository
 {
-    public async Task<IReadOnlySet<string>> PermissionsOfAsync(Guid userId, CancellationToken cancellationToken) =>
-        (await db.UserRoles
-            .Where(userRole => userRole.UserId == userId && userRole.Role.IsActive)
-            .SelectMany(userRole => userRole.Role.RoleMenus)
-            .Where(item => item.MenuOption.IsActive && (item.MenuOption.ParentId == null || item.MenuOption.Parent!.IsActive))
-            .Select(item => item.MenuOption.Code)
-            .Distinct()
-            .ToListAsync(cancellationToken)).ToHashSet();
-
     public async Task<IReadOnlyList<MenuOption>> ListMenusAsync(CancellationToken cancellationToken) =>
         await db.MenuOptions.Include(menu => menu.RoleMenus).OrderBy(menu => menu.Order).ToListAsync(cancellationToken);
 
@@ -29,6 +20,5 @@ public sealed class EfAccessRepository(AppDbContext db) : IAccessRepository
     }
 
     public void Add(Role role) => db.Roles.Add(role);
-
     public void Add(MenuOption menu) => db.MenuOptions.Add(menu);
 }

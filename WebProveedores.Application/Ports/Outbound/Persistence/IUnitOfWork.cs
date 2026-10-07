@@ -1,6 +1,6 @@
 namespace WebProveedores.Application.Ports.Outbound.Persistence;
 
-/// <summary>Confirma en un solo paso los cambios hechos a través de los repositorios de identidad.</summary>
+/// <summary>Confirma en un solo paso los cambios hechos a través de los repositorios.</summary>
 public interface IUnitOfWork
 {
     Task SaveChangesAsync(CancellationToken cancellationToken);

@@ -36,14 +36,14 @@ public static class Policies
 public sealed record MenuPermissionRequirement(IReadOnlyList<string> Codes) : IAuthorizationRequirement;
 
 /// <summary>Consulta los permisos del usuario en la base (una vez por petición): los cambios de rol aplican de inmediato.</summary>
-public sealed class MenuPermissionHandler(ICurrentUser currentUser, IAccessRepository access) : AuthorizationHandler<MenuPermissionRequirement>
+public sealed class MenuPermissionHandler(ICurrentUser currentUser, IPermissionReader permissionReader) : AuthorizationHandler<MenuPermissionRequirement>
 {
     private IReadOnlySet<string>? permissions;
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, MenuPermissionRequirement requirement)
     {
         if (context.User.Identity?.IsAuthenticated != true) return;
-        permissions ??= await access.PermissionsOfAsync(currentUser.Id, CancellationToken.None);
+        permissions ??= await permissionReader.PermissionsOfAsync(currentUser.Id, CancellationToken.None);
         if (requirement.Codes.Any(permissions.Contains)) context.Succeed(requirement);
     }
 }

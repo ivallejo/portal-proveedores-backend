@@ -7,6 +7,7 @@ namespace WebProveedores.Application.Auth;
 /// <summary>Inicio de sesión con bloqueo temporal por intentos fallidos, y datos del usuario en sesión.</summary>
 public sealed class LoginService(
     IUserRepository users,
+    IUserQueries userQueries,
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
     ITokenIssuer tokens,
@@ -43,5 +44,5 @@ public sealed class LoginService(
     }
 
     public async Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await users.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user) : null;
+        await userQueries.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user) : null;
 }
