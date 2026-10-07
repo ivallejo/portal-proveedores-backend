@@ -94,8 +94,11 @@ public sealed partial class ProviderRegistrationService(
     private async Task<SapProviderRecord> FindProviderAsync(string ruc, CancellationToken cancellationToken)
     {
         var provider = await sapProvider.FindByRucAsync(ruc, cancellationToken);
-        if (provider is null || string.IsNullOrWhiteSpace(provider.Correo) || string.IsNullOrWhiteSpace(provider.CompanyName))
+        if (provider is null || string.IsNullOrWhiteSpace(provider.CompanyName))
             throw new NotFoundException("No encontramos información para el RUC indicado.");
+        // El enlace de activación va al correo registrado en SAP: sin él no se puede completar el registro.
+        if (string.IsNullOrWhiteSpace(provider.Correo))
+            throw new ValidationException("Tu empresa está registrada como proveedor, pero no tiene un correo de contacto en nuestro sistema. Comunícate con el área de Compras para actualizarlo.");
         return provider;
     }
 

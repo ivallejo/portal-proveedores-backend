@@ -217,6 +217,26 @@ public sealed class AuthServiceTests
         Assert.Contains("SAP", exception.Message);
     }
 
+    [Fact]
+    public async Task ValidateRucAsync_explains_when_the_provider_has_no_email_in_sap()
+    {
+        await using var db = CreateContext();
+        var sap = new SapProviderClient(
+            new HttpClient(new JsonHandler("[{\"stcd1\": \"\", \"name1\": \"TELEFONICA DEL PERU S.A.A.\", \"name2\": \"\", \"adrnr\": \"0000051096\", \"correo\": \"\"}]")),
+            new SapSettings("http://sap.invalid", "200", "test-token"));
+        var service = TestServices.Registration(db, new FakeEmailSender(), sap);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => service.ValidateRucAsync("20100017491", CancellationToken.None));
+
+        Assert.Contains("no tiene un correo de contacto", exception.Message);
+    }
+
+    private sealed class JsonHandler(string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") });
+    }
+
     private static AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()
         .UseInMemoryDatabase($"auth-tests-{Guid.NewGuid():N}")
         .Options);

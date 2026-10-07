@@ -24,7 +24,8 @@ public sealed class SapProviderClient(HttpClient httpClient, SapSettings setting
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
                 cancellationToken);
 
-            return providers?.FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider.Correo));
+            // Se prefiere el registro con correo; sin ninguno se devuelve igual, para avisar que falta el correo.
+            return providers?.FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider.Correo)) ?? providers?.FirstOrDefault();
         }
         // Red caída, VPN desconectada, tiempo agotado o circuito abierto: SAP no está disponible, no es un error del usuario.
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)

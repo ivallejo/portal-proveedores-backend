@@ -281,6 +281,8 @@ Base: `/api/auth`.
 
 Si el proveedor tiene `PasswordSetAtUtc`, no se genera otra activación y debe usar recuperación de contraseña.
 
+Si SAP no devuelve el RUC (o sin razón social) responde **404**; si lo devuelve **sin correo** responde **400** pidiendo comunicarse con el área de Compras (el enlace de activación necesita ese correo).
+
 ## Seguridad
 
 Protecciones del acceso (todas con prueba o verificación HTTP):
