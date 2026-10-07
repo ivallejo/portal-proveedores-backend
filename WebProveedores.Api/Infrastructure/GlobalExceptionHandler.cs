@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using WebProveedores.Application;
-using WebProveedores.Application.Abstractions;
-using WebProveedores.Application.Auth;
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Common;
 
 namespace WebProveedores.Api.Infrastructure;

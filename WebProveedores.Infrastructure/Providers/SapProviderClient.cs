@@ -1,8 +1,8 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Providers;
+using WebProveedores.Application.Common.Exceptions;
 
 namespace WebProveedores.Infrastructure.Providers;
 

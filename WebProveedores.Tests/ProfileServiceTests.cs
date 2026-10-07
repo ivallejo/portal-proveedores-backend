@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;

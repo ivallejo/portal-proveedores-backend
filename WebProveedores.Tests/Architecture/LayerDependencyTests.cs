@@ -1,6 +1,6 @@
 using System.Reflection;
 using NetArchTest.Rules;
-using WebProveedores.Application;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Common;
 
 namespace WebProveedores.Tests.Architecture;
@@ -40,6 +40,19 @@ public sealed class LayerDependencyTests
                 "Microsoft.Extensions.Http",
                 "System.IdentityModel",
                 "Microsoft.IdentityModel")
+            .GetResult();
+
+        AssertSuccessful(result);
+    }
+
+    [Fact]
+    public void Application_exceptions_live_in_common_exceptions()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .Inherit(typeof(Exception))
+            .Should()
+            .ResideInNamespace("WebProveedores.Application.Common.Exceptions")
             .GetResult();
 
         AssertSuccessful(result);

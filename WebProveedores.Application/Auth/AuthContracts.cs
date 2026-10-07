@@ -1,7 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
-using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Auth;
 
@@ -18,12 +16,6 @@ public sealed class LoginRequest
     [Required, MaxLength(320)] public string Identifier { get; init; } = string.Empty;
     [Required] public string Password { get; init; } = string.Empty;
 }
-/// <summary>La cuenta está bloqueada temporalmente por demasiados intentos fallidos.</summary>
-public sealed class AccountLockedException(TimeSpan retryAfter) : Exception("Demasiados intentos fallidos. Espera unos minutos antes de volver a intentarlo.")
-{
-    public TimeSpan RetryAfter { get; } = retryAfter;
-}
-
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAtUtc, UserResponse User);
 public sealed record UserResponse(Guid Id, string Username, string Email, string CompanyName, string Ruc, string? Area, string Role, IReadOnlyList<string> Roles, bool MustChangePassword = false);
 

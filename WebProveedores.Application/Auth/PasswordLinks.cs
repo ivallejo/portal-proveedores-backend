@@ -1,5 +1,6 @@
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;

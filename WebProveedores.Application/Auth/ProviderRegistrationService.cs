@@ -1,9 +1,8 @@
 using System.Text.RegularExpressions;
-using WebProveedores.Application;
-using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Abstractions.Providers;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 

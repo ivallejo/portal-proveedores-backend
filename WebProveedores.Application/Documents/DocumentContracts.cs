@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 
@@ -143,6 +142,3 @@ public sealed record AttachmentResponse(Guid Id, AttachmentKind Kind, string Fil
 public sealed record DocumentEventResponse(string Title, string Actor, DocumentEventKind Kind, DateTime OccurredAtUtc, string? Note);
 
 public sealed record AttachmentContent(Stream Content, string FileName, string ContentType);
-
-/// <summary>El documento no superó una validación de negocio (SAP, SUNAT o duplicidad).</summary>
-public sealed class DocumentRejectedException(string message) : Exception(message);

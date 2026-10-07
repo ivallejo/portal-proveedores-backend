@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Abstractions.Documents;
-using WebProveedores.Application;
+using WebProveedores.Application.Common.Exceptions;
 
 namespace WebProveedores.Infrastructure.Documents;
 

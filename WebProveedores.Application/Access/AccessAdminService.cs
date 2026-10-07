@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Organization;
 

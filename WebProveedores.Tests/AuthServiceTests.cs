@@ -1,13 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
-using WebProveedores.Application;
-using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;

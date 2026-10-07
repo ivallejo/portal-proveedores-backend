@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
-using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Infrastructure.Persistence;
 

@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Organization;
-using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests;

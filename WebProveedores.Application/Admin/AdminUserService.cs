@@ -1,6 +1,7 @@
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;

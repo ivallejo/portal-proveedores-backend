@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Organization;
@@ -90,7 +91,7 @@ public sealed class EfDocumentRepository(AppDbContext db) : IDocumentRepository
         catch (DbUpdateException exception) when (IsUniqueViolation(exception))
         {
             // Dos registros simultáneos del mismo comprobante: el índice único gana.
-            throw new Application.Documents.DocumentRejectedException("El documento ya fue registrado para ese RUC.");
+            throw new DocumentRejectedException("El documento ya fue registrado para ese RUC.");
         }
     }
 
