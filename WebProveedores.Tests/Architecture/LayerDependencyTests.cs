@@ -76,6 +76,32 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
+    public void Inbound_ports_are_interfaces()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ResideInNamespace("WebProveedores.Application.Ports.Inbound")
+            .Should()
+            .BeInterfaces()
+            .GetResult();
+
+        AssertSuccessful(result);
+    }
+
+    [Fact]
+    public void Use_cases_are_only_reachable_through_their_ports()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ResideInNamespace("WebProveedores.Application.UseCases")
+            .ShouldNot()
+            .BePublic()
+            .GetResult();
+
+        AssertSuccessful(result);
+    }
+
+    [Fact]
     public void Each_adapter_implements_a_single_outbound_port()
     {
         const string outbound = "WebProveedores.Application.Ports.Outbound";

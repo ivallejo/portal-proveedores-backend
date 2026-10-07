@@ -1,11 +1,19 @@
 using Microsoft.Extensions.DependencyInjection;
-using WebProveedores.Application.Access;
-using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
-using WebProveedores.Application.Documents;
-using WebProveedores.Application.Organization;
-using WebProveedores.Application.Payments;
-using WebProveedores.Application.Profile;
+using WebProveedores.Application.Ports.Inbound.Access;
+using WebProveedores.Application.Ports.Inbound.Admin;
+using WebProveedores.Application.Ports.Inbound.Auth;
+using WebProveedores.Application.Ports.Inbound.Documents;
+using WebProveedores.Application.Ports.Inbound.Organization;
+using WebProveedores.Application.Ports.Inbound.Payments;
+using WebProveedores.Application.Ports.Inbound.Profile;
+using WebProveedores.Application.UseCases.Access;
+using WebProveedores.Application.UseCases.Admin;
+using WebProveedores.Application.UseCases.Auth;
+using WebProveedores.Application.UseCases.Documents;
+using WebProveedores.Application.UseCases.Organization;
+using WebProveedores.Application.UseCases.Payments;
+using WebProveedores.Application.UseCases.Profile;
 
 namespace WebProveedores.Application;
 

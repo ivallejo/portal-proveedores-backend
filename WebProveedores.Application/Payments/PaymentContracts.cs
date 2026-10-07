@@ -47,10 +47,3 @@ public sealed record InvoiceStatusResponse(
     bool HasRetention,
     /// <summary>Estado tal como lo informa SAP (Recepcionado, Pagado, Documento Anulado…).</summary>
     string Status);
-
-/// <summary>Órdenes de pago y estado de facturas del proveedor, consultados en SAP.</summary>
-public interface IPaymentQueryService
-{
-    Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchRequest request, CancellationToken cancellationToken);
-    Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchRequest request, CancellationToken cancellationToken);
-}

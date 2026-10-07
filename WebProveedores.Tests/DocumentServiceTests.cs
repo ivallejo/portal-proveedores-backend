@@ -6,6 +6,7 @@ using WebProveedores.Application.Documents;
 using WebProveedores.Application.Ports.Outbound.Files;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Application.UseCases.Documents;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Documents;

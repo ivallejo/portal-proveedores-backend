@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebProveedores.Api.Infrastructure;
 using WebProveedores.Application.Admin;
+using WebProveedores.Application.Ports.Inbound.Admin;
 
 namespace WebProveedores.Api.Controllers;
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;

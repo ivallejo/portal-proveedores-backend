@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;
 
@@ -56,28 +55,3 @@ public sealed class PasswordResetConfirmRequest
 }
 
 public sealed record PasswordResetResponse(bool Sent, string MaskedEmail);
-
-public interface ILoginService
-{
-    Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
-    Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken);
-}
-
-public interface IPasswordService
-{
-    /// <summary>
-    /// Cambia la contraseña del usuario en sesión y devuelve una sesión nueva (sin la marca de cambio pendiente).
-    /// <paramref name="passwordChangeSession"/>: la sesión se abrió con la contraseña temporal.
-    /// </summary>
-    Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken);
-    Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
-    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
-}
-
-public interface IProviderRegistrationService
-{
-    Task<ProviderLookupResponse> ValidateRucAsync(string ruc, CancellationToken cancellationToken);
-    Task<AccessKeyResponse> RequestAccessKeyAsync(string ruc, CancellationToken cancellationToken);
-    /// <summary>Alta directa con contraseña (solo administrador).</summary>
-    Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
-}

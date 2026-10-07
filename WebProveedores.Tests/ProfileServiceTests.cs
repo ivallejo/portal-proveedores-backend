@@ -4,6 +4,7 @@ using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Profile;
+using WebProveedores.Application.UseCases.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Identity;
