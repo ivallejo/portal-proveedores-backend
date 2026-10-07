@@ -4,9 +4,10 @@ using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Common;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests;

@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application;
 using WebProveedores.Application.Access;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests;

@@ -2,15 +2,17 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using PdfSharp.Pdf;
+using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Documents;
-using WebProveedores.Domain;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 

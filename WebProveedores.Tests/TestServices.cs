@@ -6,7 +6,7 @@ using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Profile;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Persistence;

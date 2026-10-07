@@ -1,6 +1,8 @@
-using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Common;
+using WebProveedores.Domain.Organization;
 
-namespace WebProveedores.Domain.Entities;
+namespace WebProveedores.Domain.Identity;
 
 /// <summary>
 /// Cuenta del portal (proveedor o personal interno). Su estado de seguridad —contraseña, bloqueo, activación—
@@ -254,12 +256,4 @@ public sealed class AppUser
         foreach (var company in wanted.Where(company => UserCompanies.All(item => item.CompanyId != company.Id)))
             UserCompanies.Add(new UserCompany { UserId = Id, CompanyId = company.Id, Company = company });
     }
-}
-
-/// <summary>Estado de la cuenta: inactiva (no ingresa), bloqueada temporalmente por intentos fallidos o activa.</summary>
-public enum UserStatus
-{
-    Active = 1,
-    Inactive = 2,
-    Locked = 3,
 }

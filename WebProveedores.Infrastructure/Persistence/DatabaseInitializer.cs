@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
 
 namespace WebProveedores.Infrastructure.Persistence;
 

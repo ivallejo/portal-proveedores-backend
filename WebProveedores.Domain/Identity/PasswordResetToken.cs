@@ -1,4 +1,4 @@
-namespace WebProveedores.Domain.Entities;
+namespace WebProveedores.Domain.Identity;
 
 public sealed class PasswordResetToken
 {
@@ -13,10 +13,4 @@ public sealed class PasswordResetToken
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public AppUser User { get; set; } = null!;
-}
-
-public enum PasswordTokenPurpose
-{
-    Activation = 1,
-    PasswordReset = 2,
 }

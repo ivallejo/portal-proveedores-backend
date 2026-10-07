@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Text;
-using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Identity;
 
-namespace WebProveedores.Domain.Entities;
+namespace WebProveedores.Domain.Organization;
 
 /// <summary>Unidad interna de una sociedad. Los usuarios internos (aprobadores, contabilidad) pertenecen a un área.</summary>
 public sealed class Area

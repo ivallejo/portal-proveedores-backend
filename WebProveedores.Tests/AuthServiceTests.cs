@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
-using WebProveedores.Application.Auth;
+using WebProveedores.Application;
 using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Auth;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
-using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 

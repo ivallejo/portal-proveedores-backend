@@ -22,38 +22,114 @@ namespace WebProveedores.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("WebProveedores.Domain.Documents.Company", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Access.MenuOption", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("BillingEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("nvarchar(320)");
-
                     b.Property<string>("Code")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Route")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Ruc")
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Companies", (string)null);
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("MenuOptions", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.RoleMenu", b =>
+                {
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MenuOptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RoleId", "MenuOptionId");
+
+                    b.HasIndex("MenuOptionId");
+
+                    b.ToTable("RoleMenus", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.UserRole", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AssignedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("WebProveedores.Domain.Documents.DocumentAttachment", b =>
@@ -327,7 +403,7 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.ToTable("Documents", (string)null);
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.AppUser", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -412,90 +488,7 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.Area", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId", "Code")
-                        .IsUnique();
-
-                    b.ToTable("Areas", (string)null);
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.MenuOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Icon")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.Property<Guid?>("ParentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Route")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("ParentId");
-
-                    b.ToTable("MenuOptions", (string)null);
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.PasswordResetToken", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordResetToken", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -538,71 +531,7 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.ToTable("PasswordResetTokens", (string)null);
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.Role", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("Roles", (string)null);
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.RoleMenu", b =>
-                {
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("MenuOptionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("RoleId", "MenuOptionId");
-
-                    b.HasIndex("MenuOptionId");
-
-                    b.ToTable("RoleMenus", (string)null);
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserCompany", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("AssignedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("UserId", "CompanyId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.ToTable("UserCompanies", (string)null);
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserEmail", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.UserEmail", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
@@ -655,22 +584,141 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.ToTable("UserEmails", (string)null);
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserRole", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Organization.Area", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("Areas", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Organization.Company", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BillingEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Ruc")
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Companies", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Organization.UserCompany", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("RoleId")
+                    b.Property<Guid>("CompanyId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("AssignedAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("UserId", "RoleId");
+                    b.HasKey("UserId", "CompanyId");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("CompanyId");
 
-                    b.ToTable("UserRoles", (string)null);
+                    b.ToTable("UserCompanies", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.MenuOption", b =>
+                {
+                    b.HasOne("WebProveedores.Domain.Access.MenuOption", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.RoleMenu", b =>
+                {
+                    b.HasOne("WebProveedores.Domain.Access.MenuOption", "MenuOption")
+                        .WithMany("RoleMenus")
+                        .HasForeignKey("MenuOptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebProveedores.Domain.Access.Role", "Role")
+                        .WithMany("RoleMenus")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MenuOption");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Access.UserRole", b =>
+                {
+                    b.HasOne("WebProveedores.Domain.Access.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("WebProveedores.Domain.Documents.DocumentAttachment", b =>
@@ -702,23 +750,23 @@ namespace WebProveedores.Infrastructure.Migrations
 
             modelBuilder.Entity("WebProveedores.Domain.Documents.SupplierDocument", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", null)
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ApproverId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("WebProveedores.Domain.Entities.Area", null)
+                    b.HasOne("WebProveedores.Domain.Organization.Area", null)
                         .WithMany()
                         .HasForeignKey("AreaId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("WebProveedores.Domain.Documents.Company", "Company")
+                    b.HasOne("WebProveedores.Domain.Organization.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", null)
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("RegisteredById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -727,9 +775,9 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("Company");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.AppUser", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.AppUser", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Entities.Area", "Area")
+                    b.HasOne("WebProveedores.Domain.Organization.Area", "Area")
                         .WithMany("Users")
                         .HasForeignKey("AreaId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -737,30 +785,9 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("Area");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.Area", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordResetToken", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Documents.Company", "Company")
-                        .WithMany()
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.MenuOption", b =>
-                {
-                    b.HasOne("WebProveedores.Domain.Entities.MenuOption", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.PasswordResetToken", b =>
-                {
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", "User")
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", "User")
                         .WithMany("PasswordResetTokens")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -769,34 +796,37 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.RoleMenu", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.UserEmail", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Entities.MenuOption", "MenuOption")
-                        .WithMany("RoleMenus")
-                        .HasForeignKey("MenuOptionId")
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", "User")
+                        .WithMany("Emails")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WebProveedores.Domain.Entities.Role", "Role")
-                        .WithMany("RoleMenus")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MenuOption");
-
-                    b.Navigation("Role");
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserCompany", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Organization.Area", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Documents.Company", "Company")
+                    b.HasOne("WebProveedores.Domain.Organization.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", "User")
+                    b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Organization.UserCompany", b =>
+                {
+                    b.HasOne("WebProveedores.Domain.Organization.Company", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", "User")
                         .WithMany("UserCompanies")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -807,34 +837,18 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserEmail", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Access.MenuOption", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", "User")
-                        .WithMany("Emails")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Children");
 
-                    b.Navigation("User");
+                    b.Navigation("RoleMenus");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.UserRole", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Access.Role", b =>
                 {
-                    b.HasOne("WebProveedores.Domain.Entities.Role", "Role")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("RoleMenus");
 
-                    b.HasOne("WebProveedores.Domain.Entities.AppUser", "User")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
-
-                    b.Navigation("User");
+                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("WebProveedores.Domain.Documents.SupplierDocument", b =>
@@ -846,7 +860,7 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.AppUser", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Identity.AppUser", b =>
                 {
                     b.Navigation("Emails");
 
@@ -857,23 +871,9 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Entities.Area", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Organization.Area", b =>
                 {
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.MenuOption", b =>
-                {
-                    b.Navigation("Children");
-
-                    b.Navigation("RoleMenus");
-                });
-
-            modelBuilder.Entity("WebProveedores.Domain.Entities.Role", b =>
-                {
-                    b.Navigation("RoleMenus");
-
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

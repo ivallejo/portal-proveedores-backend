@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebProveedores.Api.Infrastructure;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Api.Controllers;
 

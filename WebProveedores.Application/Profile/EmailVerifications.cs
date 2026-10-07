@@ -1,6 +1,6 @@
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Profile;
 

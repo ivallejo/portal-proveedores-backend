@@ -1,12 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Admin;
+using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Admin;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Profile;
+using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 
 namespace WebProveedores.Tests.Integration;

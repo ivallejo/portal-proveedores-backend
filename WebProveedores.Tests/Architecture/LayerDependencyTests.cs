@@ -1,7 +1,7 @@
 using System.Reflection;
 using NetArchTest.Rules;
 using WebProveedores.Application;
-using WebProveedores.Domain;
+using WebProveedores.Domain.Common;
 
 namespace WebProveedores.Tests.Architecture;
 

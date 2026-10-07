@@ -1,4 +1,5 @@
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Abstractions.Documents;
 

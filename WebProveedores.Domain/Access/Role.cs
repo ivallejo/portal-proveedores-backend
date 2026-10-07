@@ -1,4 +1,4 @@
-namespace WebProveedores.Domain.Entities;
+namespace WebProveedores.Domain.Access;
 
 public sealed class Role
 {

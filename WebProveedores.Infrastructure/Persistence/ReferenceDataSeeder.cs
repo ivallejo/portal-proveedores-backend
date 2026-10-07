@@ -6,8 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Infrastructure.Persistence;
 

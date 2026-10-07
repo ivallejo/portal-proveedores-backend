@@ -1,6 +1,6 @@
-using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Identity;
 
-namespace WebProveedores.Domain.Entities;
+namespace WebProveedores.Domain.Organization;
 
 /// <summary>Sociedad con la que trabaja un usuario: solo registra y ve documentos de sus sociedades.</summary>
 public sealed class UserCompany

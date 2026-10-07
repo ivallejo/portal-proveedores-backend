@@ -1,4 +1,4 @@
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Abstractions.Persistence;
 

@@ -1,4 +1,4 @@
-namespace WebProveedores.Domain.Documents;
+namespace WebProveedores.Domain.Organization;
 
 /// <summary>Sociedad del grupo que recibe el documento.</summary>
 public sealed class Company

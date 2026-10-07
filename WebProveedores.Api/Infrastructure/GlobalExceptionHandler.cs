@@ -4,7 +4,7 @@ using WebProveedores.Application;
 using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
-using WebProveedores.Domain;
+using WebProveedores.Domain.Common;
 
 namespace WebProveedores.Api.Infrastructure;
 

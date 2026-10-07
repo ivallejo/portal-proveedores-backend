@@ -1,4 +1,6 @@
-namespace WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Common;
+
+namespace WebProveedores.Domain.Identity;
 
 public sealed class UserEmail
 {
@@ -34,12 +36,4 @@ public sealed class UserEmail
         VerificationTokenHash = null;
         VerificationExpiresAtUtc = null;
     }
-}
-
-/// <summary>Para qué usa la persona el correo (solo informativo).</summary>
-public enum EmailType
-{
-    Work = 1,
-    Billing = 2,
-    Personal = 3,
 }

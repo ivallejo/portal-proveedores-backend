@@ -1,7 +1,9 @@
+using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Application;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 

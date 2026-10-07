@@ -3,7 +3,9 @@ using System.Text.RegularExpressions;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Profile;
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 

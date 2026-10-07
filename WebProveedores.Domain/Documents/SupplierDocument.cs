@@ -1,26 +1,7 @@
+using WebProveedores.Domain.Common;
+using WebProveedores.Domain.Organization;
+
 namespace WebProveedores.Domain.Documents;
-
-/// <summary>Datos del comprobante tal como llegan del XML o del formulario de documento especial.</summary>
-public sealed record DocumentData(
-    string Number,
-    DocumentEntryType EntryType,
-    string DocumentType,
-    string ProviderRuc,
-    string ProviderName,
-    string? ProviderEmail,
-    Currency Currency,
-    decimal Subtotal,
-    decimal? Igv,
-    decimal Amount,
-    string Concept,
-    DateOnly IssuedAt,
-    string Validation);
-
-/// <summary>Orden de compra validada en SAP (Servicio 01).</summary>
-public sealed record PurchaseOrderInfo(OrderType Type, string Number, decimal Balance, string Description);
-
-/// <summary>Aprobador de área asignado al documento.</summary>
-public sealed record ApproverAssignment(Guid AreaId, string AreaName, Guid ApproverId, string Name, string Email);
 
 /// <summary>
 /// Comprobante registrado en el portal (con o sin orden de compra, o documento especial)
@@ -253,40 +234,4 @@ public sealed class SupplierDocument
         foreach (var item in Events.Where(item => item.Kind == DocumentEventKind.Current))
             item.Kind = DocumentEventKind.Done;
     }
-}
-
-public sealed class DocumentItem
-{
-    public Guid Id { get; set; } = Guid.CreateVersion7();
-    public Guid DocumentId { get; set; }
-    public int LineNumber { get; set; }
-    public string Description { get; set; } = string.Empty;
-    public decimal Quantity { get; set; }
-    public decimal UnitPrice { get; set; }
-    public decimal Amount { get; set; }
-}
-
-public sealed class DocumentAttachment
-{
-    public Guid Id { get; set; } = Guid.CreateVersion7();
-    public Guid DocumentId { get; set; }
-    public AttachmentKind Kind { get; set; }
-    public string FileName { get; set; } = string.Empty;
-    /// <summary>Clave interna en el almacenamiento; nunca se expone al cliente.</summary>
-    public string StorageKey { get; set; } = string.Empty;
-    public string ContentType { get; set; } = string.Empty;
-    public long SizeBytes { get; set; }
-    public DateTime UploadedAtUtc { get; set; } = DateTime.UtcNow;
-}
-
-public sealed class DocumentEvent
-{
-    public Guid Id { get; set; } = Guid.CreateVersion7();
-    public Guid DocumentId { get; set; }
-    public int Sequence { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Actor { get; set; } = string.Empty;
-    public DocumentEventKind Kind { get; set; }
-    public DateTime OccurredAtUtc { get; set; }
-    public string? Note { get; set; }
 }

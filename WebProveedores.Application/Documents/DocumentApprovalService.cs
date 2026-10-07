@@ -1,5 +1,6 @@
 using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 

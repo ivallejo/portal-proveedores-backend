@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Auth;
 

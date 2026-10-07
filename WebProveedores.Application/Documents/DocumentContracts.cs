@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 

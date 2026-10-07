@@ -6,8 +6,9 @@ using WebProveedores.Application.Abstractions;
 using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Payments;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Providers;
 

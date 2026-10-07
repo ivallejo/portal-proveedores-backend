@@ -1,8 +1,7 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Organization;
 

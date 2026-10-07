@@ -1,4 +1,6 @@
-namespace WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Identity;
+
+namespace WebProveedores.Domain.Access;
 
 public sealed class UserRole
 {

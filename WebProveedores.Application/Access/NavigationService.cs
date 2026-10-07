@@ -1,5 +1,4 @@
 using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Entities;
 
 namespace WebProveedores.Application.Access;
 

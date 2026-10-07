@@ -1,16 +1,17 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt;
+using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
+using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Application;
 
 namespace WebProveedores.Tests;
 

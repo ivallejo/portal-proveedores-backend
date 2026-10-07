@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Infrastructure.Persistence.Configurations.Identity;
 

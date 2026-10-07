@@ -3,7 +3,8 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Infrastructure.Auth;
 

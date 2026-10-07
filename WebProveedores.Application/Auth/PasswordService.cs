@@ -1,7 +1,7 @@
+using WebProveedores.Application;
 using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Entities;
-using WebProveedores.Application;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;
 
