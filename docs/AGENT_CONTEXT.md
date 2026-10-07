@@ -92,6 +92,8 @@ WebProveedores.Infrastructure/
 
 ## Ejecución local
 
+Todo en un comando: `scripts/dev-up.sh` (SQL Server en Docker, API y frontend hermano en `../portal-proveedores-mock`; `--api-only` para solo la API). Paso a paso:
+
 Requisitos: .NET SDK 10, Docker Desktop y `dotnet-ef`.
 
 ```bash

@@ -4,6 +4,16 @@ Backend ASP.NET Core Web API para el Portal de Proveedores.
 
 > Para continuar el desarrollo con otro agente, leer primero [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md). Describe la arquitectura, contratos, seguridad, base de datos, configuración y el límite actual entre backend implementado y módulos que siguen en mock.
 
+## Levantar todo con un comando
+
+Con los dos repos clonados uno al lado del otro (`portal-proveedores-backend` y `portal-proveedores-mock`):
+
+```bash
+scripts/dev-up.sh
+```
+
+Verifica las herramientas, crea el `.env` desde `.env.example` si falta (luego hay que completar SAP y SMTP), inicia SQL Server en Docker, la API en `http://localhost:5080` (aplica migraciones y carga el seed) y el frontend en `http://localhost:4200`. Ctrl+C detiene la API y el frontend. Opciones: `--api-only` (sin frontend) y `FRONT_DIR=/ruta` si el frontend está en otra carpeta. El log de la API queda en `.dev-logs/api.log`.
+
 ## Requisitos
 
 - .NET SDK 10.
