@@ -2,7 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Security;
+using WebProveedores.Application.Ports.Outbound.Security.Models;
 using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Infrastructure.Auth;

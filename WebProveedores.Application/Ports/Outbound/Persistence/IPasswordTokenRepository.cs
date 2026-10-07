@@ -1,6 +1,6 @@
 using WebProveedores.Domain.Identity;
 
-namespace WebProveedores.Application.Abstractions.Persistence;
+namespace WebProveedores.Application.Ports.Outbound.Persistence;
 
 /// <summary>Tokens de un solo uso para activar la cuenta o recuperar la contraseña.</summary>
 public interface IPasswordTokenRepository

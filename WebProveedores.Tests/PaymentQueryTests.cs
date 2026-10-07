@@ -1,10 +1,11 @@
 using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Payments;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;

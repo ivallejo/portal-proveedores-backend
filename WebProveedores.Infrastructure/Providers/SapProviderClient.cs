@@ -1,8 +1,9 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
 
 namespace WebProveedores.Infrastructure.Providers;
 

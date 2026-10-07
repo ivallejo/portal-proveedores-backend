@@ -55,7 +55,7 @@ Arquitectura hexagonal (puertos y adaptadores):
 
 ```text
 Controller -> ICurrentUser + servicio de caso de uso (Application)
-                 -> puertos (Application/Abstractions) <- adaptadores (Infrastructure)
+                 -> puertos (Application/Ports/Outbound) <- adaptadores (Infrastructure)
                  -> entidades y reglas (Domain)
 ```
 
@@ -186,7 +186,7 @@ Capas:
 ```text
 Domain/Documents          SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, Company
 Application/Documents     Servicios por caso de uso (catálogo, registro, consultas, aprobación, contabilidad), UblDocumentReader (XML UBL 2.1 sin DTD), contratos y plantillas de correo
-Application/Abstractions  IDocumentRepository, IFileStorage, ISapDocumentGateway
+Application/Ports/Outbound  IDocumentRepository, IFileStorage, ISapDocumentGateway
 Infrastructure            EfDocumentRepository, LocalFileStorage, MockSapDocumentGateway, ReferenceDataSeeder
 Api                       DocumentsController (api/documents), CatalogController (api/catalog)
 ```

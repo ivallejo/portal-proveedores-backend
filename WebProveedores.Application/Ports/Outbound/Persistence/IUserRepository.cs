@@ -1,6 +1,7 @@
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Identity;
 
-namespace WebProveedores.Application.Abstractions.Persistence;
+namespace WebProveedores.Application.Ports.Outbound.Persistence;
 
 public interface IUserRepository
 {
@@ -26,8 +27,3 @@ public interface IUserRepository
     Task<UserEmail?> FindEmailByVerificationTokenAsync(string tokenHash, DateTime now, CancellationToken cancellationToken);
     void Add(AppUser user);
 }
-
-public sealed record UserSearchResult(IReadOnlyList<AppUser> Items, int Total);
-
-/// <summary><paramref name="Status"/>: estado de la cuenta en <paramref name="Now"/> (inactiva, bloqueada o activa).</summary>
-public sealed record UserSearchFilter(string? Search, string? RoleCode, UserStatus? Status, DateTime Now);

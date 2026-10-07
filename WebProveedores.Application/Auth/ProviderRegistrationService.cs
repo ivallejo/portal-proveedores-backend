@@ -1,8 +1,9 @@
 using System.Text.RegularExpressions;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
+using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 

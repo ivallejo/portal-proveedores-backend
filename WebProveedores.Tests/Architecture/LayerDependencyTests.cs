@@ -58,6 +58,21 @@ public sealed class LayerDependencyTests
         AssertSuccessful(result);
     }
 
+    [Fact]
+    public void Outbound_ports_are_interfaces_and_their_data_lives_in_models()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .ResideInNamespace("WebProveedores.Application.Ports.Outbound")
+            .And()
+            .AreNotInterfaces()
+            .Should()
+            .ResideInNamespaceMatching(@"^WebProveedores\.Application\.Ports\.Outbound\.\w+\.Models$")
+            .GetResult();
+
+        AssertSuccessful(result);
+    }
+
     private static void AssertSuccessful(TestResult result) =>
         Assert.True(result.IsSuccessful, "Tipos que rompen la regla: " + string.Join(", ", result.FailingTypeNames ?? []));
 }

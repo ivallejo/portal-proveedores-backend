@@ -1,6 +1,6 @@
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.IO;
-using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Ports.Outbound.Files;
 
 namespace WebProveedores.Infrastructure.Documents;
 

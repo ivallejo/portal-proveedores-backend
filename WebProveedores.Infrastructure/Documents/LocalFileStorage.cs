@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
-using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Files;
 
 namespace WebProveedores.Infrastructure.Documents;
 

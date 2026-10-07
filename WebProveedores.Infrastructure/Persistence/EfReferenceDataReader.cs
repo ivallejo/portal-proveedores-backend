@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Organization;
 

@@ -1,6 +1,7 @@
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Access;
 
-namespace WebProveedores.Application.Abstractions.Persistence;
+namespace WebProveedores.Application.Ports.Outbound.Persistence;
 
 /// <summary>Roles, opciones de menú y los permisos que resultan de ellos.</summary>
 public interface IAccessRepository
@@ -14,5 +15,3 @@ public interface IAccessRepository
     void Add(Role role);
     void Add(MenuOption menu);
 }
-
-public sealed record RoleSummary(Role Role, int UserCount);

@@ -1,7 +1,7 @@
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Payments;

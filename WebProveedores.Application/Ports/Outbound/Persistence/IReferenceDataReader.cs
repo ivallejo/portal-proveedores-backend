@@ -1,7 +1,7 @@
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Organization;
 
-namespace WebProveedores.Application.Abstractions.Persistence;
+namespace WebProveedores.Application.Ports.Outbound.Persistence;
 
 /// <summary>Catálogos de seguridad y organización: roles, áreas y sociedades (con seguimiento, para asignarlos).</summary>
 public interface IReferenceDataReader

@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Identity;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Security;
 
 namespace WebProveedores.Infrastructure.Auth;
 

@@ -1,4 +1,4 @@
-namespace WebProveedores.Application.Abstractions.Auth;
+namespace WebProveedores.Application.Ports.Outbound.Notifications;
 
 public interface IEmailSender
 {

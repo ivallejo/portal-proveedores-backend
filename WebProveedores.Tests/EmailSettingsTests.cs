@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Configuration;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Infrastructure.Email;
 
 namespace WebProveedores.Tests;

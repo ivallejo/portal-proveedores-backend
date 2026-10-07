@@ -1,4 +1,5 @@
-using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Infrastructure.Documents;

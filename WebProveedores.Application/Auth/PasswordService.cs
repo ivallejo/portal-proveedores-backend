@@ -1,6 +1,6 @@
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;

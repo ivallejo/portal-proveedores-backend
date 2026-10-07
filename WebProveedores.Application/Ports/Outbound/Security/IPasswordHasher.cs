@@ -1,4 +1,4 @@
-namespace WebProveedores.Application.Abstractions.Auth;
+namespace WebProveedores.Application.Ports.Outbound.Security;
 
 /// <summary>Hash y verificación de contraseñas. El algoritmo es un detalle de infraestructura.</summary>
 public interface IPasswordHasher

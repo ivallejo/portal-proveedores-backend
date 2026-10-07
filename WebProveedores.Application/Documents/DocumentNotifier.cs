@@ -1,6 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;

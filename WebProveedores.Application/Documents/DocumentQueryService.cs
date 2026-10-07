@@ -1,5 +1,7 @@
-using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;

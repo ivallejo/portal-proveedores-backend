@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Documents;
-using WebProveedores.Application.Abstractions.Providers;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Documents;
+using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Infrastructure.Auth;

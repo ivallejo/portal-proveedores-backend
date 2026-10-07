@@ -1,7 +1,8 @@
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Application.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;

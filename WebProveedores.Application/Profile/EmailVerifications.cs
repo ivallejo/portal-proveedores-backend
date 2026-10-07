@@ -1,5 +1,5 @@
-using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Profile;

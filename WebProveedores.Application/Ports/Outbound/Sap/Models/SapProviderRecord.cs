@@ -1,9 +1,4 @@
-namespace WebProveedores.Application.Abstractions.Providers;
-
-public interface IProviderDirectory
-{
-    Task<SapProviderRecord?> FindByRucAsync(string ruc, CancellationToken cancellationToken);
-}
+namespace WebProveedores.Application.Ports.Outbound.Sap.Models;
 
 public sealed record SapProviderRecord(
     string? Stcd1,

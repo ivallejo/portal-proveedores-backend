@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Abstractions.Documents;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Organization;

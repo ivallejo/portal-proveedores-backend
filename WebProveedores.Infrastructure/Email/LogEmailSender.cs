@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 
 namespace WebProveedores.Infrastructure.Email;
 

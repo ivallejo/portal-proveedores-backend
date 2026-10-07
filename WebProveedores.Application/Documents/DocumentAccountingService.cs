@@ -1,4 +1,4 @@
-using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;

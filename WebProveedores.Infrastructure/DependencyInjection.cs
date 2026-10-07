@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Documents;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
+using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Email;
