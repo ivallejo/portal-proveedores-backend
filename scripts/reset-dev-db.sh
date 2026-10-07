@@ -12,7 +12,12 @@ start_api=false
 [ "${1:-}" = "--start" ] && start_api=true
 
 set -a; source .env; set +a
-database="${DATABASE_NAME:-WebProveedores}"
+# La base es la de la cadena de conexión del .env (Database= o Initial Catalog=), nunca un nombre por defecto.
+database=$(printf '%s' "${ConnectionStrings__DefaultConnection:-}" | tr ';' '\n' | sed -nE 's/^[[:space:]]*(Database|Initial Catalog)[[:space:]]*=[[:space:]]*//Ip' | head -1)
+if [ -z "$database" ]; then
+  echo "No encontré el nombre de la base en ConnectionStrings__DefaultConnection; no se borra nada." >&2
+  exit 1
+fi
 
 case "${ConnectionStrings__DefaultConnection:-}" in
   *localhost*|*127.0.0.1*) ;;
@@ -27,7 +32,10 @@ if [ -n "$api_pids" ]; then
   sleep 2
 fi
 
-docker compose up -d sqlserver >/dev/null
+# Si el contenedor ya existe (por ejemplo, creado desde otra copia del proyecto) se usa ese.
+if [ -z "$(docker ps -q -f name=^web-proveedores-sqlserver$)" ]; then
+  docker start web-proveedores-sqlserver >/dev/null 2>&1 || docker compose up -d sqlserver >/dev/null
+fi
 echo "Esperando a SQL Server…"
 until docker exec web-proveedores-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1" >/dev/null 2>&1; do sleep 2; done
 
