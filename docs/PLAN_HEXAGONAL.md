@@ -94,7 +94,7 @@ WebProveedores.Tests/
 Al terminar cada paso: `dotnet build WebProveedores.slnx`, `dotnet test WebProveedores.slnx` y `dotnet format whitespace --folder`, y luego un commit.
 
 - [x] **Paso 0. Línea base.** Rama `refactor/hexagonal-v2` (`refactor/hexagonal` es un intento anterior que quedó desfasado de `main`; no se toca). Build y 91 pruebas en verde. Eliminados `WeatherForecast*` y el `.http` de plantilla (P9).
-- [ ] **Paso 1. Pruebas de arquitectura.** Agregar `NetArchTest.Rules` a `WebProveedores.Tests` con las reglas 1 y 2, que ya se cumplen hoy. Las demás reglas se activan en el paso que las haga cumplir. (P11)
+- [x] **Paso 1. Pruebas de arquitectura.** `NetArchTest.Rules` 1.3.2 en `WebProveedores.Tests/Architecture/LayerDependencyTests.cs`, con las reglas 1 y 2. Las demás reglas se activan en el paso que las haga cumplir. (P11)
 - [ ] **Paso 2. Dominio.** Separar en un tipo por archivo: enums de `DocumentEnums.cs`, tipos de `SupplierDocument.cs`, `MenuOption.cs`, `AppUser.cs`, `UserEmail.cs` y `PasswordResetToken.cs`. Reubicar en `Common/Identity/Organization/Access/Documents`, con namespaces nuevos (P1, P8). Riesgo: el snapshot de migraciones guarda nombres CLR. Verificación: `dotnet ef migrations add VerificaNamespaces` debe salir vacía; después se borra.
 - [ ] **Paso 3. Excepciones.** Llevar `Errors.cs`, `AccountLockedException` y `DocumentRejectedException` a `Application/Common/Exceptions/`, una por archivo (P6). Actualizar `GlobalExceptionHandler`.
 - [ ] **Paso 4. Puertos de salida.** Mover `Abstractions/` a `Ports/Outbound/<Persistence|Security|Notifications|Sap|Files>/`. Sacar cada record a `Models/`, uno por archivo. Mover `ServiceUnavailableException` a `Common/Exceptions` (P2, P4).
