@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
@@ -23,7 +23,7 @@ public sealed class AuthServiceTests
         await db.SaveChangesAsync();
         var service = TestServices.Login(db);
 
-        var response = await service.LoginAsync(new LoginRequest { Identifier = "20523682785", Password = "Password1" }, CancellationToken.None);
+        var response = await service.LoginAsync(new LoginCommand { Identifier = "20523682785", Password = "Password1" }, CancellationToken.None);
 
         Assert.NotNull(response);
         Assert.Equal("proveedor", response.User.Username);
@@ -39,18 +39,18 @@ public sealed class AuthServiceTests
         await db.SaveChangesAsync();
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var service = TestServices.Login(db, clock);
-        var wrong = new LoginRequest { Identifier = "lock-user", Password = "incorrecta" };
+        var wrong = new LoginCommand { Identifier = "lock-user", Password = "incorrecta" };
 
         for (var attempt = 0; attempt < 5; attempt++)
             Assert.Null(await service.LoginAsync(wrong, CancellationToken.None));
 
         // Bloqueada: ni siquiera la contraseña correcta entra.
         var locked = await Assert.ThrowsAsync<AccountLockedException>(() =>
-            service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None));
+            service.LoginAsync(new LoginCommand { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None));
         Assert.True(locked.RetryAfter > TimeSpan.FromMinutes(14));
 
         clock.Advance(TimeSpan.FromMinutes(16));
-        var response = await service.LoginAsync(new LoginRequest { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None);
+        var response = await service.LoginAsync(new LoginCommand { Identifier = "lock-user", Password = "Password1" }, CancellationToken.None);
 
         Assert.NotNull(response);
         Assert.Equal(0, user.FailedLoginCount);
@@ -67,9 +67,9 @@ public sealed class AuthServiceTests
         var service = TestServices.Login(db);
 
         for (var attempt = 0; attempt < 3; attempt++)
-            await service.LoginAsync(new LoginRequest { Identifier = "counter-user", Password = "mala" }, CancellationToken.None);
+            await service.LoginAsync(new LoginCommand { Identifier = "counter-user", Password = "mala" }, CancellationToken.None);
         Assert.Equal(3, user.FailedLoginCount);
-        await service.LoginAsync(new LoginRequest { Identifier = "counter-user", Password = "Password1" }, CancellationToken.None);
+        await service.LoginAsync(new LoginCommand { Identifier = "counter-user", Password = "Password1" }, CancellationToken.None);
 
         Assert.Equal(0, user.FailedLoginCount);
     }
@@ -81,7 +81,7 @@ public sealed class AuthServiceTests
         var service = TestServices.Login(db);
 
         for (var attempt = 0; attempt < 7; attempt++)
-            Assert.Null(await service.LoginAsync(new LoginRequest { Identifier = "no-existe", Password = "x" }, CancellationToken.None));
+            Assert.Null(await service.LoginAsync(new LoginCommand { Identifier = "no-existe", Password = "x" }, CancellationToken.None));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class AuthServiceTests
         await db.SaveChangesAsync();
         var service = TestServices.Login(db);
 
-        var response = await service.LoginAsync(new LoginRequest { Identifier = "inactive", Password = "Password1" }, CancellationToken.None);
+        var response = await service.LoginAsync(new LoginCommand { Identifier = "inactive", Password = "Password1" }, CancellationToken.None);
 
         Assert.Null(response);
     }
@@ -111,7 +111,7 @@ public sealed class AuthServiceTests
         var service = TestServices.Passwords(db, new FakeEmailSender());
 
         var confirmed = await service.ConfirmPasswordResetAsync(
-            new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" },
+            new ConfirmPasswordResetCommand { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" },
             PasswordTokenPurpose.PasswordReset,
             CancellationToken.None);
 
@@ -129,7 +129,7 @@ public sealed class AuthServiceTests
         db.PasswordResetTokens.Add(CreateToken(user, token, PasswordTokenPurpose.PasswordReset));
         await db.SaveChangesAsync();
         var service = TestServices.Passwords(db, new FakeEmailSender());
-        var request = new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" };
+        var request = new ConfirmPasswordResetCommand { Ruc = user.Ruc!, Token = token, NewPassword = "NewPassword1" };
 
         var firstConfirmation = await service.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, CancellationToken.None);
         var secondConfirmation = await service.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, CancellationToken.None);
@@ -150,7 +150,7 @@ public sealed class AuthServiceTests
         var service = TestServices.Passwords(db, new FakeEmailSender());
 
         await Assert.ThrowsAsync<ValidationException>(() => service.ConfirmPasswordResetAsync(
-            new PasswordResetConfirmRequest { Ruc = user.Ruc!, Token = "activation-token", NewPassword = "abc123" }, PasswordTokenPurpose.Activation, CancellationToken.None));
+            new ConfirmPasswordResetCommand { Ruc = user.Ruc!, Token = "activation-token", NewPassword = "abc123" }, PasswordTokenPurpose.Activation, CancellationToken.None));
 
         Assert.Null(db.PasswordResetTokens.Single().UsedAtUtc);
     }
@@ -165,7 +165,7 @@ public sealed class AuthServiceTests
         var emailSender = new FakeEmailSender();
         var service = TestServices.Passwords(db, emailSender);
 
-        var response = await service.RequestPasswordResetAsync(new PasswordResetRequest { Ruc = user.Ruc! }, CancellationToken.None);
+        var response = await service.RequestPasswordResetAsync(new RequestPasswordResetCommand { Ruc = user.Ruc! }, CancellationToken.None);
 
         Assert.NotNull(response);
         Assert.Equal("req*****demo.test", response.MaskedEmail);

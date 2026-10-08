@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Contracts.Admin.Requests;
 using WebProveedores.Application.Contracts.Admin.Responses;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Access;
@@ -39,7 +39,7 @@ public sealed class AdminUserServiceTests
         var detail = await fixture.Service.GetAsync(created.Id, CancellationToken.None);
         Assert.True(detail!.IsActivated);
         Assert.True(detail.Emails.Single(email => email.IsPrimary).IsVerified);
-        Assert.NotNull(await TestServices.Login(fixture.Db).LoginAsync(new LoginRequest { Identifier = "45678123", Password = "Nueva_Clave1" }, CancellationToken.None));
+        Assert.NotNull(await TestServices.Login(fixture.Db).LoginAsync(new LoginCommand { Identifier = "45678123", Password = "Nueva_Clave1" }, CancellationToken.None));
     }
 
     [Theory]
@@ -184,7 +184,7 @@ public sealed class AdminUserServiceTests
         Emails = emails,
     };
 
-    private static PasswordResetConfirmRequest Confirm(string token, string user) => new() { Token = token, User = user, NewPassword = "Nueva_Clave1" };
+    private static ConfirmPasswordResetCommand Confirm(string token, string user) => new() { Token = token, User = user, NewPassword = "Nueva_Clave1" };
 
     private sealed class Fixture : IAsyncDisposable
     {

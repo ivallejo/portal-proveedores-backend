@@ -1,13 +1,11 @@
-using System.ComponentModel.DataAnnotations;
+namespace WebProveedores.Application.Contracts.Auth.Commands;
 
-namespace WebProveedores.Application.Contracts.Auth.Requests;
-
-public sealed class ChangePasswordRequest
+public sealed record ChangePasswordCommand
 {
     /// <summary>
     /// Obligatoria en el cambio voluntario. En el cambio forzado de la contraseña temporal no se pide:
     /// la sesión se abrió con ella y solo permite cambiar la contraseña.
     /// </summary>
     public string? CurrentPassword { get; init; }
-    [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
+    public string NewPassword { get; init; } = string.Empty;
 }

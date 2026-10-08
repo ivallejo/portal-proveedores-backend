@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Application.Ports.Inbound.Auth;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -74,7 +74,7 @@ internal sealed partial class ProviderRegistrationService(
         return new(true, ObfuscateEmail(provider.Correo!));
     }
 
-    public async Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<UserResponse> RegisterAsync(RegisterProviderCommand request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var ruc = request.Ruc.Trim();

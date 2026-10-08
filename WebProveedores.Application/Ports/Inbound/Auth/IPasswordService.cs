@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Domain.Identity;
 
@@ -10,7 +10,7 @@ public interface IPasswordService
     /// Cambia la contraseña del usuario en sesión y devuelve una sesión nueva (sin la marca de cambio pendiente).
     /// <paramref name="passwordChangeSession"/>: la sesión se abrió con la contraseña temporal.
     /// </summary>
-    Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken);
-    Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken);
-    Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
+    Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordCommand request, CancellationToken cancellationToken);
+    Task<PasswordResetResponse?> RequestPasswordResetAsync(RequestPasswordResetCommand request, CancellationToken cancellationToken);
+    Task<bool> ConfirmPasswordResetAsync(ConfirmPasswordResetCommand request, PasswordTokenPurpose purpose, CancellationToken cancellationToken);
 }

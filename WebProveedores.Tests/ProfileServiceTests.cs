@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Contracts.Profile.Requests;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Profile;
@@ -53,13 +53,13 @@ public sealed class ProfileServiceTests
         var token = Regex.Match(email.Body!, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
 
         // Sin verificar no sirve para ingresar ni para ser principal.
-        Assert.Null(await TestServices.Login(db).LoginAsync(new LoginRequest { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
+        Assert.Null(await TestServices.Login(db).LoginAsync(new LoginCommand { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
         await Assert.ThrowsAsync<DomainRuleException>(() => service.MakePrimaryAsync(user.Id, added.Id, CancellationToken.None));
 
         Assert.Null(await service.VerifyEmailAsync("token-falso", CancellationToken.None));
         Assert.Equal("cobranzas@andes.test", await service.VerifyEmailAsync(token, CancellationToken.None));
         Assert.Null(await service.VerifyEmailAsync(token, CancellationToken.None));
-        Assert.NotNull(await TestServices.Login(db).LoginAsync(new LoginRequest { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
+        Assert.NotNull(await TestServices.Login(db).LoginAsync(new LoginCommand { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
 
         var switched = await service.MakePrimaryAsync(user.Id, added.Id, CancellationToken.None);
         Assert.Equal("cobranzas@andes.test", switched.Emails.Single(item => item.IsPrimary).Email);

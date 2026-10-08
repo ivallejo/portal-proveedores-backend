@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Auth.Requests;
+namespace WebProveedores.Api.Contracts.Auth;
 
 /// <summary>Enlace de activación o recuperación: identifica la cuenta con el RUC (proveedor) o el usuario (personal interno).</summary>
 public sealed class PasswordResetConfirmRequest

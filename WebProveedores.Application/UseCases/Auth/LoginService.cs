@@ -1,6 +1,6 @@
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Common.Settings;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Application.Ports.Inbound.Auth;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -21,7 +21,7 @@ internal sealed class LoginService(
     // Hash de relleno: se verifica igual cuando la cuenta no existe, para no delatarlo por el tiempo de respuesta.
     private static string? dummyHash;
 
-    public async Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    public async Task<AuthResponse?> LoginAsync(LoginCommand request, CancellationToken cancellationToken)
     {
         var identifier = request.Identifier.Trim();
         var user = await users.FindForLoginAsync(identifier, identifier.ToLowerInvariant(), cancellationToken);

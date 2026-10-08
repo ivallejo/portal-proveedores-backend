@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Common.Security;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Domain.Access;
@@ -118,18 +118,18 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var login = await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None);
+        var login = await service.Login.LoginAsync(new LoginCommand { Identifier = "temporal", Password = "Password1" }, CancellationToken.None);
         Assert.NotNull(login);
         Assert.True(login.User.MustChangePassword);
         Assert.Contains(new JwtSecurityTokenHandler().ReadJwtToken(login.AccessToken).Claims, claim => claim.Type == SessionClaims.PasswordChangeOnly);
 
         // La sesión de cambio forzado no vuelve a pedir la contraseña temporal.
-        var changed = await service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None);
+        var changed = await service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordCommand { NewPassword = "Nueva_Clave_2" }, CancellationToken.None);
 
         Assert.False(changed.User.MustChangePassword);
         Assert.DoesNotContain(new JwtSecurityTokenHandler().ReadJwtToken(changed.AccessToken).Claims, claim => claim.Type == SessionClaims.PasswordChangeOnly);
-        Assert.Null(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
-        Assert.NotNull(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Nueva_Clave_2" }, CancellationToken.None));
+        Assert.Null(await service.Login.LoginAsync(new LoginCommand { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
+        Assert.NotNull(await service.Login.LoginAsync(new LoginCommand { Identifier = "temporal", Password = "Nueva_Clave_2" }, CancellationToken.None));
     }
 
     [Fact]
@@ -139,10 +139,10 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var reused = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordRequest { NewPassword = "Password1" }, CancellationToken.None));
+        var reused = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, true, new ChangePasswordCommand { NewPassword = "Password1" }, CancellationToken.None));
         Assert.Contains("distinta", reused.Message);
         // Sin la sesión de cambio forzado (cambio voluntario) la contraseña actual es obligatoria.
-        await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordCommand { NewPassword = "Nueva_Clave_2" }, CancellationToken.None));
         Assert.True(user.MustChangePassword);
     }
 
@@ -157,11 +157,11 @@ public sealed class SeedAndPasswordTests : IDisposable
         var user = await AddUserAsync(db, mustChange: true);
         var service = CreateAuth(db);
 
-        var exception = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordRequest { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => service.Passwords.ChangePasswordAsync(user.Id, false, new ChangePasswordCommand { CurrentPassword = current, NewPassword = next }, CancellationToken.None));
 
         Assert.Contains(expected, exception.Message);
         Assert.True(user.MustChangePassword);
-        Assert.NotNull(await service.Login.LoginAsync(new LoginRequest { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
+        Assert.NotNull(await service.Login.LoginAsync(new LoginCommand { Identifier = "temporal", Password = "Password1" }, CancellationToken.None));
     }
 
     private const string ValidSeed = """

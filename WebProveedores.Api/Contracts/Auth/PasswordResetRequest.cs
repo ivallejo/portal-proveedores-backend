@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Auth.Requests;
+namespace WebProveedores.Api.Contracts.Auth;
 
 public sealed class PasswordResetRequest
 {

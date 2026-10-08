@@ -1,5 +1,5 @@
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Application.Ports.Inbound.Auth;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -18,7 +18,7 @@ internal sealed class PasswordService(
     PasswordLinks links,
     TimeProvider clock) : IPasswordService
 {
-    public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken)
+    public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindTrackedByIdAsync(userId, cancellationToken);
         if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
@@ -37,7 +37,7 @@ internal sealed class PasswordService(
         return tokens.StartSession(user);
     }
 
-    public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
+    public async Task<PasswordResetResponse?> RequestPasswordResetAsync(RequestPasswordResetCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindByRucAsync(request.Ruc.Trim(), cancellationToken);
         var email = user is null ? null : AuthSupport.PrimaryEmail(user);
@@ -47,7 +47,7 @@ internal sealed class PasswordService(
         return new PasswordResetResponse(true, MaskEmail(email));
     }
 
-    public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
+    public async Task<bool> ConfirmPasswordResetAsync(ConfirmPasswordResetCommand request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
             throw new ValidationException(PasswordPolicy.Description);
