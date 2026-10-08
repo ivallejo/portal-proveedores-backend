@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Organization.Requests;
+namespace WebProveedores.Api.Contracts.Organization;
 
 public sealed class AreaRequest
 {

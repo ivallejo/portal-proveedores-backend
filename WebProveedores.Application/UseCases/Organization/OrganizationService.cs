@@ -1,7 +1,7 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Organization.Requests;
+using WebProveedores.Application.Contracts.Organization.Commands;
 using WebProveedores.Application.Contracts.Organization.Responses;
 using WebProveedores.Application.Ports.Inbound.Organization;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -29,7 +29,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
             .ToArray();
     }
 
-    public async Task<CompanyAdminResponse> CreateCompanyAsync(CompanyRequest request, CancellationToken cancellationToken)
+    public async Task<CompanyAdminResponse> CreateCompanyAsync(SaveCompanyCommand request, CancellationToken cancellationToken)
     {
         var data = await ValidateCompanyAsync(request, null, cancellationToken);
         var company = new Company { Code = data.Code, Name = data.Name, Ruc = data.Ruc, BillingEmail = data.Email };
@@ -38,7 +38,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         return ToResponse(new CompanySummary(company, 0, 0));
     }
 
-    public async Task<CompanyAdminResponse> UpdateCompanyAsync(Guid id, CompanyRequest request, CancellationToken cancellationToken)
+    public async Task<CompanyAdminResponse> UpdateCompanyAsync(Guid id, SaveCompanyCommand request, CancellationToken cancellationToken)
     {
         var company = await reader.FindCompanyAsync(id, cancellationToken) ?? throw new NotFoundException("La sociedad no existe.");
         var data = await ValidateCompanyAsync(request, id, cancellationToken);
@@ -70,7 +70,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
             .ToArray();
     }
 
-    public async Task<AreaAdminResponse> CreateAreaAsync(AreaRequest request, CancellationToken cancellationToken)
+    public async Task<AreaAdminResponse> CreateAreaAsync(SaveAreaCommand request, CancellationToken cancellationToken)
     {
         var (company, name, code, description) = await ValidateAreaAsync(request, null, cancellationToken);
         var area = new Area { Code = code, Name = name, Description = description, CompanyId = company.Id, Company = company };
@@ -79,7 +79,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         return ToResponse(new AreaSummary(area, 0));
     }
 
-    public async Task<AreaAdminResponse> UpdateAreaAsync(Guid id, AreaRequest request, CancellationToken cancellationToken)
+    public async Task<AreaAdminResponse> UpdateAreaAsync(Guid id, SaveAreaCommand request, CancellationToken cancellationToken)
     {
         var area = await reader.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
         var (company, name, code, description) = await ValidateAreaAsync(request, id, cancellationToken);
@@ -99,7 +99,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
 
     // ——— Validación ———
 
-    private async Task<(string Code, string Name, string Ruc, string Email)> ValidateCompanyAsync(CompanyRequest request, Guid? id, CancellationToken cancellationToken)
+    private async Task<(string Code, string Name, string Ruc, string Email)> ValidateCompanyAsync(SaveCompanyCommand request, Guid? id, CancellationToken cancellationToken)
     {
         var code = request.Code.Trim().ToUpperInvariant();
         var name = request.Name.Trim();
@@ -115,7 +115,7 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         return (code, name, ruc, email);
     }
 
-    private async Task<(Company Company, string Name, string Code, string? Description)> ValidateAreaAsync(AreaRequest request, Guid? id, CancellationToken cancellationToken)
+    private async Task<(Company Company, string Name, string Code, string? Description)> ValidateAreaAsync(SaveAreaCommand request, Guid? id, CancellationToken cancellationToken)
     {
         var company = await reader.FindCompanyAsync(request.CompanyId, cancellationToken) ?? throw new ValidationException("Selecciona la sociedad.");
         var name = request.Name.Trim();

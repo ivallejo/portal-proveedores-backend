@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Organization.Requests;
+using WebProveedores.Application.Contracts.Organization.Commands;
 using WebProveedores.Application.UseCases.Organization;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Repositories;
@@ -53,10 +53,10 @@ public sealed class OrganizationServiceTests
         Assert.Single(await service.ListAreasAsync(null, null, naviera.Id, CancellationToken.None));
     }
 
-    private static CompanyRequest Company(string code, string ruc, string email = "facturacion@ejemplo.test") =>
+    private static SaveCompanyCommand Company(string code, string ruc, string email = "facturacion@ejemplo.test") =>
         new() { Code = code, Name = $"Sociedad {code}", Ruc = ruc, BillingEmail = email };
 
-    private static AreaRequest Area(Guid companyId, string name, string? description = null) =>
+    private static SaveAreaCommand Area(Guid companyId, string name, string? description = null) =>
         new() { CompanyId = companyId, Name = name, Description = description };
 
     private static OrganizationService Service(AppDbContext db) => new(new EfOrganizationReader(db), new EfOrganizationRepository(db), new EfUnitOfWork(db));
