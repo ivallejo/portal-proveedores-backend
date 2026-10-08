@@ -1,4 +1,4 @@
-namespace WebProveedores.Infrastructure.Security;
+namespace WebProveedores.Application.Common.Security;
 
 /// <summary>Claims propios del token de sesión.</summary>
 public static class SessionClaims

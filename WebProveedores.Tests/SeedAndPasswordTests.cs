@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Security;
 using WebProveedores.Application.Contracts.Auth.Requests;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Auth;
@@ -12,7 +13,6 @@ using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Seeding;
-using WebProveedores.Infrastructure.Security;
 
 namespace WebProveedores.Tests;
 

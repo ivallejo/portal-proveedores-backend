@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Contracts.Organization.Requests;
 using WebProveedores.Application.Contracts.Organization.Responses;
 using WebProveedores.Application.Ports.Inbound.Organization;

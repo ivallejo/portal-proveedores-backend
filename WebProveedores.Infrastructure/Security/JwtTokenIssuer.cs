@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using WebProveedores.Application.Common.Security;
 using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Application.Ports.Outbound.Security.Models;
 using WebProveedores.Domain.Identity;

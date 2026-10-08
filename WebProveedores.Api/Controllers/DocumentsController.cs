@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Contracts.Documents;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Application.Contracts.Documents.Requests;
 using WebProveedores.Application.Contracts.Documents.Responses;

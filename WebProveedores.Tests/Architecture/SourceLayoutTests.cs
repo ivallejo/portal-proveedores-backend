@@ -5,7 +5,7 @@ namespace WebProveedores.Tests.Architecture;
 /// <summary>Un tipo por archivo, con el nombre del archivo, y sin tipos anidados (docs/PLAN_HEXAGONAL.md, regla 6).</summary>
 public sealed partial class SourceLayoutTests
 {
-    public static TheoryData<string> Projects => new() { "WebProveedores.Domain", "WebProveedores.Application", "WebProveedores.Infrastructure" };
+    public static TheoryData<string> Projects => new() { "WebProveedores.Domain", "WebProveedores.Application", "WebProveedores.Infrastructure", "WebProveedores.Api" };
 
     [Theory]
     [MemberData(nameof(Projects))]
@@ -35,7 +35,9 @@ public sealed partial class SourceLayoutTests
 
     private static IEnumerable<string> SourceFiles(string project) =>
         Directory.EnumerateFiles(Path.Combine(Root, project), "*.cs", SearchOption.AllDirectories)
-            .Where(path => !Segments(path).Any(segment => segment is "obj" or "bin" or "Migrations"));
+            .Where(path => !Segments(path).Any(segment => segment is "obj" or "bin" or "Migrations"))
+            // Program.cs es la raíz de composición con instrucciones de nivel superior: no declara tipos.
+            .Where(path => Path.GetFileName(path) != "Program.cs");
 
     private static string[] Segments(string path) => Path.GetRelativePath(Root, path).Split(Path.DirectorySeparatorChar);
 

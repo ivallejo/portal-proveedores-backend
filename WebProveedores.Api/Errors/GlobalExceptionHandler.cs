@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Common;
 
-namespace WebProveedores.Api.Infrastructure;
+namespace WebProveedores.Api.Errors;
 
 /// <summary>
 /// Traduce los errores esperados de la aplicación y del dominio a su código HTTP con un mensaje para el usuario.

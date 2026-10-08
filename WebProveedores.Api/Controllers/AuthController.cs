@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Contracts.Auth.Requests;
 using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Application.Ports.Inbound.Auth;

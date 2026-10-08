@@ -27,6 +27,7 @@
     <ProjectReference Include="..\WebProveedores.Application\WebProveedores.Application.csproj" />
     <ProjectReference Include="..\WebProveedores.Domain\WebProveedores.Domain.csproj" />
     <ProjectReference Include="..\WebProveedores.Infrastructure\WebProveedores.Infrastructure.csproj" />
+    <ProjectReference Include="..\WebProveedores.Api\WebProveedores.Api.csproj" />
   </ItemGroup>
 
 </Project>

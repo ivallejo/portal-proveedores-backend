@@ -1,4 +1,4 @@
-namespace WebProveedores.Api.Infrastructure;
+namespace WebProveedores.Api.Security;
 
 public static class RateLimitPolicies
 {

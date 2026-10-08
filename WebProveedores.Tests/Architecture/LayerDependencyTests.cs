@@ -1,5 +1,6 @@
 using System.Reflection;
 using NetArchTest.Rules;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Domain.Common;
 using WebProveedores.Infrastructure.Persistence;
@@ -16,6 +17,7 @@ public sealed class LayerDependencyTests
     private static readonly Assembly DomainAssembly = typeof(DomainRuleException).Assembly;
     private static readonly Assembly ApplicationAssembly = typeof(AppException).Assembly;
     private static readonly Assembly InfrastructureAssembly = typeof(AppDbContext).Assembly;
+    private static readonly Assembly ApiAssembly = typeof(ICurrentUser).Assembly;
 
     [Fact]
     public void Domain_does_not_depend_on_other_layers_or_frameworks()
@@ -132,6 +134,20 @@ public sealed class LayerDependencyTests
             .ToList();
 
         Assert.True(offenders.Count == 0, "Clases de adaptadores que no implementan un puerto de salida: " + string.Join(", ", offenders));
+    }
+
+    [Fact]
+    public void Api_reaches_the_core_only_through_inbound_ports()
+    {
+        // Program.cs (raíz de composición, fuera de estos namespaces) es el único que conoce Infrastructure.
+        var result = Types.InAssembly(ApiAssembly)
+            .That()
+            .ResideInNamespace("WebProveedores.Api")
+            .ShouldNot()
+            .HaveDependencyOnAny(Infrastructure, "WebProveedores.Application.Ports.Outbound", "WebProveedores.Application.UseCases")
+            .GetResult();
+
+        AssertSuccessful(result);
     }
 
     private static void AssertSuccessful(TestResult result) =>

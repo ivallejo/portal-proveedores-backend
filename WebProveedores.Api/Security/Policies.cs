@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Domain.Access;
 
-namespace WebProveedores.Api.Infrastructure;
+namespace WebProveedores.Api.Security;
 
 /// <summary>
 /// Políticas de autorización por opción de menú: un endpoint pide el permiso de la pantalla que lo usa
@@ -29,21 +28,5 @@ public static class Policies
             options.AddPolicy("Menu." + entry.Code, policy => policy.RequireAuthenticatedUser().AddRequirements(new MenuPermissionRequirement([entry.Code])));
         options.AddPolicy(MenusView, policy => policy.RequireAuthenticatedUser()
             .AddRequirements(new MenuPermissionRequirement([MenuCatalog.SettingsRoles, MenuCatalog.SettingsMenus])));
-    }
-}
-
-/// <summary>Basta con tener una de las opciones.</summary>
-public sealed record MenuPermissionRequirement(IReadOnlyList<string> Codes) : IAuthorizationRequirement;
-
-/// <summary>Consulta los permisos del usuario en la base (una vez por petición): los cambios de rol aplican de inmediato.</summary>
-public sealed class MenuPermissionHandler(ICurrentUser currentUser, IPermissionReader permissionReader) : AuthorizationHandler<MenuPermissionRequirement>
-{
-    private IReadOnlySet<string>? permissions;
-
-    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, MenuPermissionRequirement requirement)
-    {
-        if (context.User.Identity?.IsAuthenticated != true) return;
-        permissions ??= await permissionReader.PermissionsOfAsync(currentUser.Id, CancellationToken.None);
-        if (requirement.Codes.Any(permissions.Contains)) context.Succeed(requirement);
     }
 }
