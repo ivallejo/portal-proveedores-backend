@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Infrastructure.Auth;
+using WebProveedores.Infrastructure.Security;
 
 namespace WebProveedores.Api.Infrastructure;
 

@@ -11,7 +11,8 @@ using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Infrastructure.Providers;
+using WebProveedores.Infrastructure.Persistence.Repositories;
+using WebProveedores.Infrastructure.Sap;
 
 namespace WebProveedores.Tests;
 

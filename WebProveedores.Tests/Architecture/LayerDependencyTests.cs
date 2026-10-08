@@ -115,6 +115,25 @@ public sealed class LayerDependencyTests
         Assert.True(offenders.Count == 0, "Adaptadores con más de un puerto: " + string.Join(", ", offenders));
     }
 
+    [Fact]
+    public void Adapters_implement_an_outbound_port()
+    {
+        // Lo demás en Infrastructure es configuración (Settings), formato de un servicio externo (Dtos), modelo del seed
+        // o detalle de EF (contexto, configuraciones, migraciones, inicialización).
+        string[] adapterNamespaces =
+            ["WebProveedores.Infrastructure.Persistence.Repositories", "WebProveedores.Infrastructure.Security",
+             "WebProveedores.Infrastructure.Email", "WebProveedores.Infrastructure.Sap", "WebProveedores.Infrastructure.Files"];
+        const string outbound = "WebProveedores.Application.Ports.Outbound";
+        var offenders = InfrastructureAssembly.GetTypes()
+            .Where(type => type is { IsClass: true, IsAbstract: false, IsNested: false } && adapterNamespaces.Contains(type.Namespace))
+            .Where(type => !type.Name.EndsWith("Settings", StringComparison.Ordinal))
+            .Where(type => !type.GetInterfaces().Any(port => port.Namespace?.StartsWith(outbound, StringComparison.Ordinal) == true))
+            .Select(type => type.FullName)
+            .ToList();
+
+        Assert.True(offenders.Count == 0, "Clases de adaptadores que no implementan un puerto de salida: " + string.Join(", ", offenders));
+    }
+
     private static void AssertSuccessful(TestResult result) =>
         Assert.True(result.IsSuccessful, "Tipos que rompen la regla: " + string.Join(", ", result.FailingTypeNames ?? []));
 }

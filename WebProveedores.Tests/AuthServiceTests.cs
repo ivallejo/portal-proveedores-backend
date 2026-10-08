@@ -8,7 +8,7 @@ using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;
-using WebProveedores.Infrastructure.Providers;
+using WebProveedores.Infrastructure.Sap;
 
 namespace WebProveedores.Tests;
 

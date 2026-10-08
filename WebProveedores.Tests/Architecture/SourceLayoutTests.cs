@@ -5,7 +5,7 @@ namespace WebProveedores.Tests.Architecture;
 /// <summary>Un tipo por archivo, con el nombre del archivo, y sin tipos anidados (docs/PLAN_HEXAGONAL.md, regla 6).</summary>
 public sealed partial class SourceLayoutTests
 {
-    public static TheoryData<string> Projects => new() { "WebProveedores.Domain", "WebProveedores.Application" };
+    public static TheoryData<string> Projects => new() { "WebProveedores.Domain", "WebProveedores.Application", "WebProveedores.Infrastructure" };
 
     [Theory]
     [MemberData(nameof(Projects))]

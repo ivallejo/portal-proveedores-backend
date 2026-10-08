@@ -10,8 +10,9 @@ using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
-using WebProveedores.Infrastructure.Auth;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Persistence.Seeding;
+using WebProveedores.Infrastructure.Security;
 
 namespace WebProveedores.Tests;
 

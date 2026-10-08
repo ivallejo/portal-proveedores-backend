@@ -11,9 +11,11 @@ using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Application.UseCases.Documents;
 using WebProveedores.Application.UseCases.Profile;
 using WebProveedores.Domain.Access;
-using WebProveedores.Infrastructure.Auth;
-using WebProveedores.Infrastructure.Documents;
+using WebProveedores.Infrastructure.Files;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Persistence.Repositories;
+using WebProveedores.Infrastructure.Sap;
+using WebProveedores.Infrastructure.Security;
 
 namespace WebProveedores.Tests;
 

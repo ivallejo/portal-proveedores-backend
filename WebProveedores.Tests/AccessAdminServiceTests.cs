@@ -6,6 +6,7 @@ using WebProveedores.Application.UseCases.Access;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Persistence.Repositories;
 
 namespace WebProveedores.Tests;
 

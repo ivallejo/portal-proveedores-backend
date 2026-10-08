@@ -8,7 +8,7 @@ using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
-using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Persistence.Repositories;
 
 namespace WebProveedores.Tests.Integration;
 
