@@ -1,7 +1,9 @@
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
+using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Documents;
-using WebProveedores.Domain.Documents;
+using WebProveedores.Application.Payments.Queries;
+using WebProveedores.Application.Payments.Responses;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Sap;
 
 namespace WebProveedores.Application.Payments;
 
@@ -9,7 +11,7 @@ namespace WebProveedores.Application.Payments;
 /// Reglas de acceso sobre las consultas de SAP: el proveedor solo ve su RUC; Cuentas por pagar y el administrador
 /// consultan el RUC que indiquen. Fuera del administrador, solo se muestran las sociedades asignadas al usuario.
 /// </summary>
-internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAccess access, IReferenceDataReader referenceData) : IPaymentQueryService
+internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAccess access, ICompanyReader companyReader) : IPaymentQueryService
 {
     /// <summary>Rango máximo por consulta, para no sobrecargar SAP.</summary>
     public const int MaxRangeDays = 3 * 366;
@@ -24,7 +26,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
         ["14"] = "Recibo de servicios públicos",
     };
 
-    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchRequest request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
         var orders = await sap.FindPaymentOrdersAsync(ruc, request.From, request.To, cancellationToken);
@@ -48,7 +50,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
             .ToArray();
     }
 
-    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchRequest request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
         // SAP identifica la sociedad de la factura por su RUC: para filtrar, la sociedad debe tenerlo configurado.
@@ -96,7 +98,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
             throw new ForbiddenException("No tienes acceso a los pagos de proveedores.");
         }
 
-        var companies = await referenceData.ListActiveCompaniesAsync(cancellationToken);
+        var companies = await companyReader.ListActiveAsync(cancellationToken);
         return (ruc, new CompanyScope(actor, companies));
     }
 
@@ -108,15 +110,4 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
         "C" => "Cheque",
         var other => other,
     };
-
-    /// <summary>Sociedades del catálogo y cuáles puede ver el usuario.</summary>
-    private sealed class CompanyScope(DocumentActor actor, IReadOnlyList<Company> companies)
-    {
-        public Company? ByCode(string code) => companies.FirstOrDefault(company => company.Code == code);
-
-        public Company? ByRuc(string? ruc) => ruc is null ? null : companies.FirstOrDefault(company => company.Ruc == ruc);
-
-        /// <summary>El administrador ve todas; los demás, solo las sociedades del catálogo que tienen asignadas.</summary>
-        public bool Allows(string code) => actor.IsAdmin || (ByCode(code) is { } company && actor.HasCompany(company.Id));
-    }
 }

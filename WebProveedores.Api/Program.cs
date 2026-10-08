@@ -1,19 +1,21 @@
-using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Errors;
+using WebProveedores.Api.Security;
 using WebProveedores.Application;
-using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Common.Security;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Infrastructure;
-using WebProveedores.Infrastructure.Auth;
-using WebProveedores.Infrastructure.Documents;
 using WebProveedores.Infrastructure.Email;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Infrastructure.Persistence.Seeding;
+using WebProveedores.Infrastructure.Sap;
+using WebProveedores.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 

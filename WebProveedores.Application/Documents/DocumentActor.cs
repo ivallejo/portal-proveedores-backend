@@ -1,4 +1,4 @@
-using WebProveedores.Domain.Entities;
+using WebProveedores.Domain.Access;
 
 namespace WebProveedores.Application.Documents;
 

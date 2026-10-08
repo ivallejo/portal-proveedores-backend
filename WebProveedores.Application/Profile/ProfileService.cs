@@ -1,22 +1,26 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Profile.Commands;
+using WebProveedores.Application.Profile.Responses;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Profile;
 
 internal sealed partial class ProfileService(
     IUserRepository users,
+    IUserQueries userQueries,
+    IUserUniquenessChecker uniqueness,
     IUnitOfWork unitOfWork,
     EmailVerifications verifications,
     TimeProvider clock) : IProfileService
 {
     public async Task<ProfileResponse> GetAsync(Guid userId, CancellationToken cancellationToken) =>
-        ToResponse(await users.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
+        ToResponse(await userQueries.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
 
-    public async Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken)
+    public async Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileCommand request, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(userId, cancellationToken);
         var now = Now();
@@ -40,14 +44,14 @@ internal sealed partial class ProfileService(
         return ToResponse(user);
     }
 
-    public async Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailRequest request, CancellationToken cancellationToken)
+    public async Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailCommand request, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(userId, cancellationToken);
         var address = request.Email.Trim().ToLowerInvariant();
         if (!IsEmail(address)) throw new ValidationException("Ingresa un correo válido, por ejemplo nombre@empresa.com.");
         var type = ParseType(request.Type);
         if (user.Emails.Any(item => item.Email == address)) throw new ConflictException("Este correo ya está registrado en tu perfil.");
-        if (await users.EmailExistsAsync(address, cancellationToken)) throw new ConflictException("Este correo ya está registrado en otra cuenta.");
+        if (await uniqueness.EmailExistsAsync(address, cancellationToken)) throw new ConflictException("Este correo ya está registrado en otra cuenta.");
 
         var email = user.AddEmail(address, type, Now());
         var token = verifications.Start(email);

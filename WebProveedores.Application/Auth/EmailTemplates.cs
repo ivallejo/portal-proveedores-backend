@@ -2,7 +2,7 @@ using System.Net;
 
 namespace WebProveedores.Application.Auth;
 
-public static class EmailTemplates
+internal static class EmailTemplates
 {
     public static string AccountActivation(string companyName, string activationUrl) => Layout(
         $"Hola, {Encode(companyName)}",

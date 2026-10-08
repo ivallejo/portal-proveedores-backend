@@ -1,11 +1,12 @@
-using WebProveedores.Application.Abstractions.Auth;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Common.Settings;
+using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Profile;
 
 /// <summary>Enlace para confirmar que un correo pertenece a la persona (24 h; uno nuevo reemplaza al anterior).</summary>
-public sealed class EmailVerifications(IEmailSender emailSender, PortalSettings portal, TimeProvider clock)
+internal sealed class EmailVerifications(IEmailSender emailSender, PortalSettings portal, TimeProvider clock)
 {
     private static readonly TimeSpan Lifetime = TimeSpan.FromHours(24);
 

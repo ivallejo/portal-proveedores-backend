@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WebProveedores.Application.Access;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Organization;
 using WebProveedores.Application.Payments;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<INavigationService, NavigationService>();
         services.AddScoped<IAccessAdminService, AccessAdminService>();
+        services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<EmailVerifications>();
         services.AddScoped<IProfileService, ProfileService>();
 

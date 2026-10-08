@@ -1,12 +1,18 @@
-using WebProveedores.Application.Abstractions.Documents;
-using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Application;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 
 /// <summary>Carga al actor y aplica quién puede ver o atender cada documento (roles y sociedades).</summary>
-internal sealed class DocumentAccess(IDocumentRepository documents, IUserRepository users, IAccessRepository access)
+internal sealed class DocumentAccess(
+    IDocumentRepository documents,
+    IApproverDirectory approverDirectory,
+    ICompanyReader companyReader,
+    IUserQueries users,
+    IPermissionReader permissionReader)
 {
     public async Task<DocumentActor> LoadActorAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -15,7 +21,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
         var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Code).ToHashSet();
         var companies = user.UserCompanies.Select(item => item.CompanyId).ToHashSet();
-        var permissions = await access.PermissionsOfAsync(user.Id, cancellationToken);
+        var permissions = await permissionReader.PermissionsOfAsync(user.Id, cancellationToken);
         return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles, permissions, companies);
     }
 
@@ -55,7 +61,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
 
     public async Task<Company> RequireCompanyAsync(DocumentActor actor, string code, CancellationToken cancellationToken)
     {
-        var company = await documents.FindCompanyAsync(code.Trim(), cancellationToken);
+        var company = await companyReader.FindByCodeAsync(code.Trim(), cancellationToken);
         if (company is not { IsActive: true }) throw new ValidationException("La sociedad seleccionada no es válida.");
         if (!actor.HasCompany(company.Id)) throw new ForbiddenException($"No tienes asignada la sociedad {company.Name}.");
         return company;
@@ -64,7 +70,7 @@ internal sealed class DocumentAccess(IDocumentRepository documents, IUserReposit
     /// <summary>El aprobador elegido debe trabajar con la sociedad del documento.</summary>
     public async Task<ApproverRecord> RequireApproverAsync(Guid approverId, Company company, CancellationToken cancellationToken)
     {
-        var approver = await documents.FindApproverAsync(approverId, cancellationToken)
+        var approver = await approverDirectory.FindApproverAsync(approverId, cancellationToken)
             ?? throw new ValidationException("El aprobador seleccionado no es válido.");
         if (!approver.CompanyCodes.Contains(company.Code))
             throw new ValidationException($"{approver.Name} no aprueba documentos de la sociedad {company.Name}.");

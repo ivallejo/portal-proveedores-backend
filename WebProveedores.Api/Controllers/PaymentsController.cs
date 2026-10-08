@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Payments;
+using WebProveedores.Application.Payments.Queries;
+using WebProveedores.Application.Payments.Responses;
 
 namespace WebProveedores.Api.Controllers;
 
@@ -21,7 +23,7 @@ public sealed class PaymentsController(IPaymentQueryService payments, ICurrentUs
         [FromQuery] string? ruc,
         [FromQuery] string? company,
         CancellationToken cancellationToken) =>
-        Ok(await payments.SearchPaymentOrdersAsync(currentUser.Id, new PaymentSearchRequest(ruc, company, from, to), cancellationToken));
+        Ok(await payments.SearchPaymentOrdersAsync(currentUser.Id, new PaymentSearchQuery(ruc, company, from, to), cancellationToken));
 
     /// <summary>Facturas emitidas entre dos fechas con su estado en SAP.</summary>
     [HttpGet("invoices")]
@@ -33,5 +35,5 @@ public sealed class PaymentsController(IPaymentQueryService payments, ICurrentUs
         [FromQuery] string? company,
         [FromQuery] string? number,
         CancellationToken cancellationToken) =>
-        Ok(await payments.SearchInvoicesAsync(currentUser.Id, new InvoiceSearchRequest(ruc, company, number, from, to), cancellationToken));
+        Ok(await payments.SearchInvoicesAsync(currentUser.Id, new InvoiceSearchQuery(ruc, company, number, from, to), cancellationToken));
 }

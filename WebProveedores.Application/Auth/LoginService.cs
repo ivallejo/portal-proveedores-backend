@@ -1,11 +1,16 @@
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
+using WebProveedores.Application.Auth.Commands;
+using WebProveedores.Application.Auth.Responses;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Settings;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Security;
 
 namespace WebProveedores.Application.Auth;
 
 /// <summary>Inicio de sesión con bloqueo temporal por intentos fallidos, y datos del usuario en sesión.</summary>
-public sealed class LoginService(
+internal sealed class LoginService(
     IUserRepository users,
+    IUserQueries userQueries,
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
     ITokenIssuer tokens,
@@ -15,7 +20,7 @@ public sealed class LoginService(
     // Hash de relleno: se verifica igual cuando la cuenta no existe, para no delatarlo por el tiempo de respuesta.
     private static string? dummyHash;
 
-    public async Task<AuthResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    public async Task<AuthResponse?> LoginAsync(LoginCommand request, CancellationToken cancellationToken)
     {
         var identifier = request.Identifier.Trim();
         var user = await users.FindForLoginAsync(identifier, identifier.ToLowerInvariant(), cancellationToken);
@@ -42,5 +47,5 @@ public sealed class LoginService(
     }
 
     public async Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await users.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user) : null;
+        await userQueries.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user) : null;
 }

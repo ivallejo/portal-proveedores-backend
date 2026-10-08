@@ -1,11 +1,17 @@
-using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Documents.Commands;
+using WebProveedores.Application.Documents.Responses;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
 internal sealed class DocumentRegistrationService(
     IDocumentRepository documents,
+    IUnitOfWork unitOfWork,
     DocumentAccess access,
     DocumentFiles files,
     ISapDocumentGateway sap,
@@ -102,7 +108,7 @@ internal sealed class DocumentRegistrationService(
             }
 
             documents.Add(document);
-            await documents.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch
         {
@@ -146,7 +152,7 @@ internal sealed class DocumentRegistrationService(
         {
             await files.AttachAsync(document, AttachmentKind.Pdf, command.Pdf!, pdfBytes, stored, cancellationToken);
             documents.Add(document);
-            await documents.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         catch
         {

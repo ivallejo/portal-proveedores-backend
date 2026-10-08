@@ -1,4 +1,6 @@
+using WebProveedores.Application.Documents.Responses;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Documents;
 

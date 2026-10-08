@@ -3,7 +3,7 @@ using System.Net;
 namespace WebProveedores.Application.Documents;
 
 /// <summary>Correos del flujo documental, con el mismo estilo que los correos de acceso.</summary>
-public static class DocumentEmailTemplates
+internal static class DocumentEmailTemplates
 {
     public static string PendingApproval(string approverName, string number, string providerName, string companyName, string amount, string? reassignmentReason = null) => Layout(
         $"Hola, {Encode(approverName)}",

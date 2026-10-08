@@ -29,65 +29,109 @@ Todavía no implementado: servicios SAP 01/02 reales (hay un simulador), proceso
 
 ## Arquitectura
 
-```text
-WebProveedores.Api
-    Controllers, composición DI, middleware y configuración
-
-WebProveedores.Application
-    Casos de uso, contratos e interfaces
-
-WebProveedores.Domain
-    Entidades, enums y catálogo de seguridad
-
-WebProveedores.Infrastructure
-    EF Core, SQL, migraciones, SMTP, SAP y bootstrapper
-
-WebProveedores.Tests
-    Pruebas automatizadas
-```
-
-Arquitectura hexagonal (puertos y adaptadores):
-
-- `Application` **solo** depende de `Domain` y de abstracciones (`Microsoft.Extensions.DependencyInjection.Abstractions`, `Logging.Abstractions`). No conoce EF Core, ASP.NET, JWT, `IConfiguration` ni el hasher: los usa a través de puertos en `Application/Abstractions` (`IUserRepository`, `IPasswordTokenRepository`, `IReferenceDataReader`, `IUnitOfWork`, `IDocumentRepository`, `ITokenIssuer`, `IPasswordHasher`, `IEmailSender`, `IProviderDirectory`, `ISapDocumentGateway`, `IFileStorage`, `IPdfMerger`). La configuración llega como registros tipados (`PortalSettings`, `LoginLockoutSettings`) y la hora por `TimeProvider`.
-- `Infrastructure` implementa los puertos y se registra con `AddInfrastructure(configuration, isProduction)`; `Application` con `AddApplication(...)`. `Program.cs` solo compone y arma el pipeline HTTP.
-- `Api` traduce HTTP ↔ casos de uso. El usuario de la petición se obtiene de `ICurrentUser` (no leer claims en los controladores).
-- Un servicio por caso de uso (S/I de SOLID): `LoginService`, `PasswordService`, `ProviderRegistrationService`, `AdminUserService`; en documentos `DocumentCatalogService`, `DocumentRegistrationService`, `DocumentQueryService`, `DocumentApprovalService`, `DocumentAccountingService`, con piezas internas compartidas (`DocumentAccess` para roles/sociedades, `DocumentFiles`, `DocumentNotifier`, `DocumentMapper`).
+Arquitectura hexagonal estricta (puertos y adaptadores), con SOLID: un caso de uso por servicio (SRP), puertos pequeños por consumidor (ISP) y el núcleo dependiendo solo de abstracciones (DIP). El registro del refactor que la dejó así está en [`PLAN_HEXAGONAL.md`](PLAN_HEXAGONAL.md).
 
 ```text
-Controller -> ICurrentUser + servicio de caso de uso (Application)
-                 -> puertos (Application/Abstractions) <- adaptadores (Infrastructure)
-                 -> entidades y reglas (Domain)
+HTTP ─► Api (adaptador de entrada)
+          Controllers ─► request.ToCommand() ─► <Feature>/I*Service (puerto de entrada)
+                                                    │
+        Application (hexágono)                      ▼
+          <Feature>/*Service (internal) ─► Domain (entidades y reglas)
+                    │
+                    ▼
+          Ports/Outbound (interfaces) ◄── Infrastructure (adaptadores de salida: EF Core, JWT, SMTP, SAP, archivos)
 ```
 
-No colocar consultas EF, SMTP, HttpClient SAP, JWT ni lógica de hash dentro de controllers ni de `Application`.
+Dependencias entre proyectos: `Domain` ← `Application` ← `Infrastructure` y `Api`. `Program.cs` es la raíz de composición: es el único lugar de la Api que conoce `Infrastructure` (`AddApplication` + `AddInfrastructure`).
+
+- **Domain**: entidades con sus reglas (`AppUser`, `SupplierDocument`…), enums y catálogos. No depende de nada.
+- **Application** depende solo de `Domain` y de `Microsoft.Extensions.*.Abstractions` (DI y logging). No conoce EF Core, ASP.NET, JWT, `IConfiguration`, `HttpClient` ni `DataAnnotations`. La configuración llega como registros tipados (`Common/Settings`) y la hora por `TimeProvider`.
+  - `<Feature>/` (Access, Admin, Auth, Documents, Organization, Payments, Profile): todo lo que la feature ofrece. El puerto de entrada (`ILoginService`, `IDocumentQueryService`…, público), su implementación y sus piezas internas (`DocumentAccess`, `DocumentFiles`, `PasswordLinks`, `UblDocumentReader`…, todas `internal`), y sus contratos en `Commands/`, `Queries/` y `Responses/`: la entrada y salida de los casos de uso, sin atributos HTTP. La Api solo puede ver la interfaz y los contratos.
+  - `Ports/Outbound/<Persistence|Security|Notifications|Sap|Files>/`: interfaces que implementa Infrastructure. Sus datos van en `Models/`. Están centralizados porque los comparten varias features (por ejemplo, `IUserRepository` lo usan Auth, Admin y Profile); los puertos de entrada, en cambio, pertenecen cada uno a su feature.
+  - `Common/Exceptions`, `Common/Settings`, `Common/Security` (`SessionClaims`, compartido por la Api y el emisor JWT).
+- **Infrastructure**: un adaptador por puerto de salida. Los repositorios EF comparten el `AppDbContext` scoped; `IUnitOfWork` confirma los cambios y traduce el índice único de documentos a `DocumentRejectedException`.
+- **Api**: traduce HTTP ↔ casos de uso. Los requests HTTP, con sus validaciones (`[Required]`, `[MaxLength]`…), viven en `Api/Contracts/<Feature>/` y se convierten a commands con `<Feature>RequestMappings.ToCommand()`. El usuario de la petición se obtiene de `ICurrentUser` (no leer claims en los controllers). La autorización por menú (`MenuPermissionHandler`) usa el puerto de entrada `IPermissionService`.
+
+Puertos de persistencia (segregados por consumidor):
+
+| Puerto | Uso |
+|---|---|
+| `IUserRepository` | Usuarios con seguimiento, para modificarlos (login, RUC, por id, enlace de verificación, alta) |
+| `IUserQueries` | Consultas sin seguimiento: por id, búsqueda paginada, contadores, otro administrador activo |
+| `IUserUniquenessChecker` | DNI, RUC, correo y usuario no repetidos |
+| `IPasswordTokenRepository` | Enlaces de activación y recuperación |
+| `IRoleReader` · `IPermissionReader` · `IAccessRepository` | Roles para asignar · permisos efectivos · administración de roles y menús |
+| `ICompanyReader` · `IOrganizationReader` · `IOrganizationRepository` | Sociedades activas · listados y edición de sociedades y áreas · altas y unicidad |
+| `IDocumentRepository` · `IDocumentSearch` · `IApproverDirectory` | Documentos con seguimiento · bandejas · aprobadores elegibles |
+| `IUnitOfWork` | Guardar y transacciones |
+
+Otros puertos de salida: `IPasswordHasher`, `ITokenIssuer` (Security); `IEmailSender` (Notifications); `IProviderDirectory`, `ISapPaymentsGateway`, `ISapDocumentGateway` (Sap); `IFileStorage`, `IPdfMerger` (Files).
+
+### Dónde va cada cosa
+
+| Necesito… | Lugar |
+|---|---|
+| Una regla de negocio de una entidad | Método de la entidad en `Domain/<Contexto>/` (lanza `DomainRuleException`) |
+| Un caso de uso nuevo | Interfaz pública e implementación `internal` en `Application/<Feature>/`, registro en `Application/DependencyInjection.cs` |
+| Datos de entrada o salida de un caso de uso | `Application/<Feature>/Commands` (o `Queries`) y `Responses`, sin atributos de validación |
+| Un endpoint con body | Request en `Api/Contracts/<Feature>/` con sus atributos y su `ToCommand()` en `<Feature>RequestMappings` |
+| Acceso a base, SAP, correo o archivos | Puerto pequeño en `Application/Ports/Outbound/<Área>/` (datos en `Models/`) y adaptador en `Infrastructure/<Área>/`, un adaptador por puerto, registrado en `AddInfrastructure` |
+| Un error esperado | Excepción en `Application/Common/Exceptions/` y su código HTTP en `GlobalExceptionHandler` |
+
+Reglas verificadas por pruebas (`WebProveedores.Tests/Architecture`; si una falla, corregir el código, no la prueba):
+
+1. `Domain` no depende de otros proyectos ni de librerías `Microsoft.*`.
+2. `Application` no depende de Infrastructure, Api, ASP.NET, EF Core, `IConfiguration`, `HttpClient`, JWT ni `DataAnnotations`.
+3. La Api no usa `Infrastructure` ni `Ports/Outbound` (fuera de `Program.cs`); llega al núcleo por los puertos de entrada de cada feature.
+4. En `Application/<Feature>/` solo son públicos el puerto de entrada (interfaz) y sus `Commands`, `Queries` y `Responses`; `Ports/Outbound` solo tiene interfaces, y sus datos van en `*.Models`.
+5. Cada adaptador de Infrastructure implementa un puerto de salida, y solo uno.
+6. Las excepciones de `Application` viven en `Common/Exceptions`.
+7. Un tipo de primer nivel por archivo, con el nombre del archivo, y sin tipos anidados (Domain, Application, Infrastructure y Api; no aplica a pruebas ni migraciones).
+
+No colocar consultas EF, SMTP, `HttpClient` SAP, JWT ni lógica de hash dentro de controllers ni de `Application`.
 
 ## Estructura importante
 
 ```text
-WebProveedores.Api/
-├── Controllers/ (Auth, AdminUsers, Documents, Catalog, DocumentForms)
-├── Infrastructure/ (CurrentUser, Policies, RateLimitPolicies, GlobalExceptionHandler)
-└── Program.cs
+WebProveedores.Domain/
+├── Common/            DomainRuleException
+├── Identity/          AppUser, UserEmail, PasswordResetToken, PasswordPolicy y sus enums
+├── Access/            Role, UserRole, MenuOption, RoleMenu, MenuCatalog, MenuCatalogEntry, SecurityCatalog
+├── Organization/      Company, Area, UserCompany
+└── Documents/         SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, DocumentInbox, enums
 
 WebProveedores.Application/
-├── DependencyInjection.cs              # AddApplication
-├── Abstractions/ (Auth, Persistence, Documents, Providers)
-├── Auth/ (LoginService, PasswordService, ProviderRegistrationService, PasswordPolicy, AuthSettings, contratos y plantillas)
-├── Admin/AdminUserService.cs
-└── Documents/ (servicios por caso de uso, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader)
-
-WebProveedores.Domain/
-├── Entities/ (AppUser, UserEmail, UserRole, UserCompany, Role, Area, PasswordResetToken, SecurityCatalog)
-└── Documents/ (SupplierDocument con sus reglas de estado, Company, enums)
+├── DependencyInjection.cs                 AddApplication
+├── <Feature>/                             Access, Admin, Auth, Documents, Organization, Payments, Profile
+│   ├── I*Service.cs                       puerto de entrada (público)
+│   ├── *Service.cs y piezas internas      internal
+│   └── Commands/ · Queries/ · Responses/  contratos del puerto
+├── Ports/Outbound/{Persistence,Security,Notifications,Sap,Files}/ (+ Models/)
+└── Common/{Exceptions,Settings,Security}/
 
 WebProveedores.Infrastructure/
-├── DependencyInjection.cs              # AddInfrastructure
-├── Auth/ (JwtTokenIssuer, JwtSettings, SessionClaims, IdentityPasswordHasher)
-├── Persistence/ (AppDbContext, Configurations, EfUserRepository, EfPasswordTokenRepository, EfReferenceDataReader, EfUnitOfWork, EfDocumentRepository, seeder)
-├── Providers/SapProviderClient.cs
-├── Documents/ (LocalFileStorage, PdfSharpMerger, MockSapDocumentGateway)
-├── Email/ (EmailSettings, SmtpEmailSender, RedirectingEmailSender, LogEmailSender)
+├── DependencyInjection.cs                 AddInfrastructure
+├── Persistence/       AppDbContext, AppDbContextFactory
+│   ├── Repositories/  un Ef* por puerto, UserIncludes
+│   ├── Configurations/{Identity,Access,Organization,Documents}/
+│   └── Seeding/       ReferenceDataSeeder, DatabaseInitializer, Models/ (formato del archivo de seed)
+├── Security/          JwtTokenIssuer, JwtSettings, IdentityPasswordHasher
+├── Email/             EmailSettings, EmailMode, SmtpEmailSender, RedirectingEmailSender, LogEmailSender
+├── Sap/               SapProviderClient, SapPaymentsClient, MockSapDocumentGateway, settings, Dtos/ (formato JSON de SAP)
+├── Files/             LocalFileStorage, PdfSharpMerger
 └── Migrations/
+
+WebProveedores.Api/
+├── Program.cs         raíz de composición y pipeline HTTP
+├── Controllers/       un controller por archivo
+├── Contracts/<Feature>/  requests HTTP con validaciones y <Feature>RequestMappings
+├── Security/          ICurrentUser, HttpCurrentUser, Policies, MenuPermissionRequirement, MenuPermissionHandler, RateLimitPolicies
+└── Errors/            GlobalExceptionHandler
+
+WebProveedores.Tests/
+├── Architecture/      LayerDependencyTests, SourceLayoutTests
+├── Integration/       SQL Server real (Testcontainers)
+└── *Tests.cs          casos de uso con EF InMemory (TestServices arma los servicios)
 ```
 
 ## Ejecución local
@@ -184,11 +228,11 @@ La respuesta SAP esperada es una lista con `stcd1`, `name1`, `name2`, `adrnr` y 
 Capas:
 
 ```text
-Domain/Documents          SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, Company
-Application/Documents     Servicios por caso de uso (catálogo, registro, consultas, aprobación, contabilidad), UblDocumentReader (XML UBL 2.1 sin DTD), contratos y plantillas de correo
-Application/Abstractions  IDocumentRepository, IFileStorage, ISapDocumentGateway
-Infrastructure            EfDocumentRepository, LocalFileStorage, MockSapDocumentGateway, ReferenceDataSeeder
-Api                       DocumentsController (api/documents), CatalogController (api/catalog)
+Domain/Documents                        SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, DocumentInbox
+Application/Documents                   Puertos de entrada (IDocumentCatalogService, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
+Application/Ports/Outbound              IDocumentRepository, IDocumentSearch, IApproverDirectory, ICompanyReader, IUnitOfWork, IFileStorage, IPdfMerger, ISapDocumentGateway
+Infrastructure                          Persistence/Repositories (Ef*), Files (LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
+Api                                     DocumentsController (api/documents), CatalogController (api/catalog), Contracts/Documents
 ```
 
 Roles y políticas (claims con el código del rol):
@@ -227,7 +271,7 @@ Reglas que aplica el servidor (no confía en el navegador):
 - Solo el aprobador asignado (o el admin) aprueba, rechaza o reasigna. Aprobar exige N° de pedido o de viaje; reasignar exige motivo (queda en el historial y en el correo al nuevo aprobador).
 - Los correos (aprobador, rechazo, observación) no revierten la acción si fallan; se registran en el log.
 
-Errores: `ArgumentException` → 400, `UnauthorizedAccessException` → 403, `KeyNotFoundException` → 404, `InvalidOperationException` de negocio → 409, `DocumentRejectedException` → 422. Todas las respuestas de error incluyen `message`.
+Errores: ver «Errores» (`DocumentRejectedException` → 422). Todas las respuestas de error incluyen `message`.
 
 Documentos especiales: van directo a *PendingAccounting* (confirmado en los flujos actualizados). El estado `Accounted` (Contabilizado) existe en el modelo pero los flujos actuales no lo usan; el Servicio 03 queda para una fase posterior.
 
@@ -336,11 +380,11 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 ## Servicios externos
 
 - SAP o correo caídos responden **503** con un mensaje para reintentar (`ServiceUnavailableException`), no 500. La consulta de RUC requiere la VPN hacia `Sap:BaseUrl`.
-- Correo (`Infrastructure/Email`): `Email:Mode` = `Send` | `Redirect` | `Log`, resuelto y validado al arrancar por `EmailSettings` (por defecto `Send` en producción y `Redirect` fuera de ella, o `Log` si no hay `Email:TestRecipient`). `RedirectingEmailSender` envuelve a `SmtpEmailSender` y entrega todo al buzón de pruebas. `Send` fuera de producción exige `Email:AllowSendOutsideProduction=true`. Se aceptan los nombres antiguos `Smtp:RedirectEnabled`/`Smtp:TestRecipient`. Hoy el transporte es Gmail SMTP; otro proveedor = otra implementación de `IEmailSender`.
+- Correo (`Infrastructure/Email`, puerto `IEmailSender`): `Email:Mode` = `Send` | `Redirect` | `Log`, resuelto y validado al arrancar por `EmailSettings` (por defecto `Send` en producción y `Redirect` fuera de ella, o `Log` si no hay `Email:TestRecipient`). `RedirectingEmailSender` envuelve a `SmtpEmailSender` y entrega todo al buzón de pruebas. `Send` fuera de producción exige `Email:AllowSendOutsideProduction=true`. Se aceptan los nombres antiguos `Smtp:RedirectEnabled`/`Smtp:TestRecipient`. Hoy el transporte es Gmail SMTP; otro proveedor = otra implementación de `IEmailSender`.
 
 ## Errores
 
-`Application/Errors.cs`: `ValidationException` (400), `ForbiddenException` (403), `NotFoundException` (404), `ConflictException` (409); en el dominio `DomainRuleException` (409). Además `DocumentRejectedException` (422), `AccountLockedException` (429 + Retry-After) y `ServiceUnavailableException` (503). `GlobalExceptionHandler` solo traduce esos tipos: cualquier otra excepción es 500 con mensaje genérico. No usar `ArgumentException`/`InvalidOperationException` para errores de negocio, ni try/catch en los controladores.
+`Application/Common/Exceptions/`: `ValidationException` (400), `ForbiddenException` (403), `NotFoundException` (404), `ConflictException` (409); en el dominio `DomainRuleException` (409). Además `DocumentRejectedException` (422), `AccountLockedException` (429 + Retry-After) y `ServiceUnavailableException` (503). `GlobalExceptionHandler` solo traduce esos tipos: cualquier otra excepción es 500 con mensaje genérico. No usar `ArgumentException`/`InvalidOperationException` para errores de negocio, ni try/catch en los controladores.
 
 ## Entidades
 
@@ -413,7 +457,7 @@ PUT   /api/admin/menus/{id}
 PATCH /api/admin/menus/{id}/status
 ```
 
-- Autorización: cada endpoint pide la opción de su pantalla (`Policies`, `MenuPermissionHandler` consulta la base en cada petición, así que los cambios aplican sin volver a ingresar). Ej.: aprobar → `DOCUMENTS`; contabilizar → `ACCOUNTING`; registrar → `REGISTER_DOCUMENTS`; Configuración › Usuarios → `SETTINGS_USERS`.
+- Autorización: cada endpoint pide la opción de su pantalla (`Api/Security/Policies`; `MenuPermissionHandler` consulta los permisos con `IPermissionService` una vez por petición, así que los cambios aplican sin volver a ingresar). Ej.: aprobar → `DOCUMENTS`; contabilizar → `ACCOUNTING`; registrar → `REGISTER_DOCUMENTS`; Configuración › Usuarios → `SETTINGS_USERS`.
 - Documentos: lo que el usuario puede hacer sale de sus permisos (`DocumentActor`); el proveedor se reconoce por su RUC y el rol Administrador ve todo. Los aprobadores elegibles son usuarios internos cuyo rol (no administrador) tiene `DOCUMENTS`.
 - Reglas: un submenú arrastra a su menú principal; el rol Administrador no se desactiva y conserva Configuración, Roles y permisos y Menús, que tampoco se desactivan. Las opciones del sistema conservan código, ruta y nivel. Una opción nueva se asigna al Administrador. Roles nuevos: personal interno (el rol Proveedor es solo para cuentas con RUC).
 
@@ -439,7 +483,7 @@ Reglas:
 - Estado: Activo, Inactivo o Bloqueado (bloqueo temporal por intentos fallidos; no se asigna a mano).
 - «Solicitar cambio de contraseña en el próximo inicio» = `MustChangePassword`: al ingresar se abre `/contrasena-temporal`.
 - Un administrador no puede desactivarse ni quitarse su rol, y nunca queda el portal sin un administrador activo (409).
-- `PasswordLinks` emite los enlaces (24 h) y reemplaza los anteriores del mismo tipo. El enlace identifica la cuenta con `ruc=` (proveedor) o `user=` (personal interno); `PasswordResetConfirmRequest` acepta `ruc` o `user`.
+- `PasswordLinks` emite los enlaces (24 h) y reemplaza los anteriores del mismo tipo. El enlace identifica la cuenta con `ruc=` (proveedor) o `user=` (personal interno); `PasswordResetConfirmRequest` (Api) acepta `ruc` o `user`.
 - El login acepta usuario, RUC, DNI o un correo verificado. En el seed, el personal interno puede tener `dni`, `firstName` y `lastName`.
 
 ## Calidad validada
@@ -453,7 +497,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 69 passed. Unitarios con EF InMemory y dobles (autenticación, bloqueo, seed, contraseñas, documentos, administración, dominio, correo) y de integración contra SQL Server real con Testcontainers (`Tests/Integration`: traducción de consultas, índices únicos, migraciones). Los de integración necesitan Docker; para omitirlos: `dotnet test WebProveedores.slnx --filter "Category!=Integration"`.
+- Tests: 110 passed. Pruebas de arquitectura (`Tests/Architecture`), unitarias con EF InMemory y dobles (autenticación, bloqueo, seed, contraseñas, documentos, administración, dominio, correo, autorización por menú) y de integración contra SQL Server real con Testcontainers (`Tests/Integration`: traducción de consultas, índices únicos, migraciones). Los de integración necesitan Docker; para omitirlos: `dotnet test WebProveedores.slnx --filter "Category!=Integration"`.
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 

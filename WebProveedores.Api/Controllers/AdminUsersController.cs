@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Contracts.Admin;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Admin;
+using WebProveedores.Application.Admin.Responses;
 
 namespace WebProveedores.Api.Controllers;
 
@@ -30,16 +32,16 @@ public sealed class AdminUsersController(IAdminUserService users, ICurrentUser c
     /// <summary>Crea la cuenta y envía el enlace de activación al correo principal.</summary>
     [HttpPost]
     public async Task<ActionResult<AdminUserDetail>> Create(SaveUserRequest request, CancellationToken cancellationToken)
-        => Ok(await users.CreateAsync(request, cancellationToken));
+        => Ok(await users.CreateAsync(request.ToCommand(), cancellationToken));
 
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<AdminUserDetail>> Update(Guid id, SaveUserRequest request, CancellationToken cancellationToken)
-        => await users.UpdateAsync(currentUser.Id, id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+        => await users.UpdateAsync(currentUser.Id, id, request.ToCommand(), cancellationToken) is { } result ? Ok(result) : NotFound();
 
     /// <summary>Activar también quita el bloqueo por intentos fallidos.</summary>
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<AdminUserDetail>> SetStatus(Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
-        => await users.SetStatusAsync(currentUser.Id, id, request, cancellationToken) is { } result ? Ok(result) : NotFound();
+        => await users.SetStatusAsync(currentUser.Id, id, request.ToCommand(), cancellationToken) is { } result ? Ok(result) : NotFound();
 
     /// <summary>Enlace de activación (si aún no activó la cuenta) o de recuperación de contraseña.</summary>
     [HttpPost("{id:guid}/password-link")]

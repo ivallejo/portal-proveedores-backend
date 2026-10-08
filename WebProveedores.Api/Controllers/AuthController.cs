@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Contracts.Auth;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Auth;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Auth.Responses;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Api.Controllers;
 
@@ -21,7 +23,7 @@ public sealed class AuthController(
     [Authorize(Policy = Policies.UsersManage)]
     public async Task<ActionResult<UserResponse>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        return Ok(await registration.RegisterAsync(request, cancellationToken));
+        return Ok(await registration.RegisterAsync(request.ToCommand(), cancellationToken));
     }
 
     [HttpPost("login")]
@@ -30,7 +32,7 @@ public sealed class AuthController(
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         // Una cuenta bloqueada lanza AccountLockedException: el manejador global responde 429 con Retry-After.
-        var response = await login.LoginAsync(request, cancellationToken);
+        var response = await login.LoginAsync(request.ToCommand(), cancellationToken);
         return response is null ? Unauthorized(new { message = "RUC, usuario o contraseña inválidos." }) : Ok(response);
     }
 
@@ -61,7 +63,7 @@ public sealed class AuthController(
     {
         try
         {
-            await passwords.RequestPasswordResetAsync(request, cancellationToken);
+            await passwords.RequestPasswordResetAsync(request.ToCommand(), cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -76,7 +78,7 @@ public sealed class AuthController(
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmPasswordReset(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
-        var confirmed = await passwords.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.PasswordReset, cancellationToken);
+        var confirmed = await passwords.ConfirmPasswordResetAsync(request.ToCommand(), PasswordTokenPurpose.PasswordReset, cancellationToken);
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de recuperación es inválido o ya venció." });
     }
 
@@ -85,7 +87,7 @@ public sealed class AuthController(
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<IActionResult> ConfirmActivation(PasswordResetConfirmRequest request, CancellationToken cancellationToken)
     {
-        var confirmed = await passwords.ConfirmPasswordResetAsync(request, PasswordTokenPurpose.Activation, cancellationToken);
+        var confirmed = await passwords.ConfirmPasswordResetAsync(request.ToCommand(), PasswordTokenPurpose.Activation, cancellationToken);
         return confirmed ? NoContent() : BadRequest(new { message = "El enlace de activación es inválido o ya venció." });
     }
 
@@ -94,7 +96,7 @@ public sealed class AuthController(
     [Authorize]
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<AuthResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
-        Ok(await passwords.ChangePasswordAsync(currentUser.Id, currentUser.IsPasswordChangeSession, request, cancellationToken));
+        Ok(await passwords.ChangePasswordAsync(currentUser.Id, currentUser.IsPasswordChangeSession, request.ToCommand(), cancellationToken));
 
     [HttpGet("me")]
     [Authorize]

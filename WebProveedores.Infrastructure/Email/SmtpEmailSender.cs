@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
-using WebProveedores.Application.Abstractions.Auth;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 
 namespace WebProveedores.Infrastructure.Email;
 

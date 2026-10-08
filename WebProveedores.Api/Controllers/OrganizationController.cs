@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WebProveedores.Api.Infrastructure;
+using WebProveedores.Api.Contracts.Organization;
+using WebProveedores.Api.Security;
 using WebProveedores.Application.Organization;
+using WebProveedores.Application.Organization.Responses;
 
 namespace WebProveedores.Api.Controllers;
 
@@ -19,12 +21,12 @@ public sealed class OrganizationController(IOrganizationService organization) : 
     [HttpPost("companies")]
     [Authorize(Policy = Policies.CompaniesManage)]
     public async Task<ActionResult<CompanyAdminResponse>> CreateCompany(CompanyRequest request, CancellationToken cancellationToken) =>
-        Ok(await organization.CreateCompanyAsync(request, cancellationToken));
+        Ok(await organization.CreateCompanyAsync(request.ToCommand(), cancellationToken));
 
     [HttpPut("companies/{id:guid}")]
     [Authorize(Policy = Policies.CompaniesManage)]
     public async Task<ActionResult<CompanyAdminResponse>> UpdateCompany(Guid id, CompanyRequest request, CancellationToken cancellationToken) =>
-        Ok(await organization.UpdateCompanyAsync(id, request, cancellationToken));
+        Ok(await organization.UpdateCompanyAsync(id, request.ToCommand(), cancellationToken));
 
     [HttpPatch("companies/{id:guid}/status")]
     [Authorize(Policy = Policies.CompaniesManage)]
@@ -39,12 +41,12 @@ public sealed class OrganizationController(IOrganizationService organization) : 
     [HttpPost("areas")]
     [Authorize(Policy = Policies.AreasManage)]
     public async Task<ActionResult<AreaAdminResponse>> CreateArea(AreaRequest request, CancellationToken cancellationToken) =>
-        Ok(await organization.CreateAreaAsync(request, cancellationToken));
+        Ok(await organization.CreateAreaAsync(request.ToCommand(), cancellationToken));
 
     [HttpPut("areas/{id:guid}")]
     [Authorize(Policy = Policies.AreasManage)]
     public async Task<ActionResult<AreaAdminResponse>> UpdateArea(Guid id, AreaRequest request, CancellationToken cancellationToken) =>
-        Ok(await organization.UpdateAreaAsync(id, request, cancellationToken));
+        Ok(await organization.UpdateAreaAsync(id, request.ToCommand(), cancellationToken));
 
     [HttpPatch("areas/{id:guid}/status")]
     [Authorize(Policy = Policies.AreasManage)]

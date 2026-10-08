@@ -1,0 +1,38 @@
+using WebProveedores.Domain.Documents;
+
+namespace WebProveedores.Application.Documents.Responses;
+
+public sealed record DocumentDetailResponse(
+    Guid Id,
+    string Number,
+    DocumentEntryType EntryType,
+    string DocumentType,
+    string ProviderRuc,
+    string ProviderName,
+    string? ProviderEmail,
+    Currency Currency,
+    decimal Subtotal,
+    decimal? Igv,
+    decimal Amount,
+    string Concept,
+    DateOnly IssuedAt,
+    DateTime RegisteredAtUtc,
+    string RegisteredBy,
+    CompanyResponse Company,
+    DocumentStatus Status,
+    bool IsPettyCash,
+    RejectionStage? RejectedBy,
+    string? AreaName,
+    string? ApproverName,
+    string? ApproverEmail,
+    DateTime? ApprovedAtUtc,
+    ApprovalReferenceType? ApprovalReferenceType,
+    string? ApprovalReference,
+    OrderType? OrderType,
+    string? OrderNumber,
+    decimal? OrderBalance,
+    string? OrderDescription,
+    string? Validation,
+    IReadOnlyList<DocumentItemResponse> Items,
+    IReadOnlyList<AttachmentResponse> Attachments,
+    IReadOnlyList<DocumentEventResponse> History);

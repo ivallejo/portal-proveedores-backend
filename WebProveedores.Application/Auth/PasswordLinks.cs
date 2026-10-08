@@ -1,6 +1,8 @@
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Settings;
+using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;
 
@@ -8,7 +10,7 @@ namespace WebProveedores.Application.Auth;
 /// Enlaces de un solo uso (24 h) para activar la cuenta o recuperar la contraseña. Al enviar uno nuevo, los
 /// anteriores del mismo tipo que no se usaron quedan reemplazados.
 /// </summary>
-public sealed class PasswordLinks(
+internal sealed class PasswordLinks(
     IPasswordTokenRepository tokens,
     IUnitOfWork unitOfWork,
     IEmailSender emailSender,

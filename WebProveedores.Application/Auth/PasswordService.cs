@@ -1,12 +1,14 @@
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Entities;
-using WebProveedores.Application;
+using WebProveedores.Application.Auth.Commands;
+using WebProveedores.Application.Auth.Responses;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Security;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;
 
 /// <summary>Cambio de contraseña con sesión, recuperación por correo y confirmación por enlace (activación o recuperación).</summary>
-public sealed class PasswordService(
+internal sealed class PasswordService(
     IUserRepository users,
     IPasswordTokenRepository passwordTokens,
     IUnitOfWork unitOfWork,
@@ -15,7 +17,7 @@ public sealed class PasswordService(
     PasswordLinks links,
     TimeProvider clock) : IPasswordService
 {
-    public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordRequest request, CancellationToken cancellationToken)
+    public async Task<AuthResponse> ChangePasswordAsync(Guid userId, bool passwordChangeSession, ChangePasswordCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindTrackedByIdAsync(userId, cancellationToken);
         if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
@@ -34,7 +36,7 @@ public sealed class PasswordService(
         return tokens.StartSession(user);
     }
 
-    public async Task<PasswordResetResponse?> RequestPasswordResetAsync(PasswordResetRequest request, CancellationToken cancellationToken)
+    public async Task<PasswordResetResponse?> RequestPasswordResetAsync(RequestPasswordResetCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindByRucAsync(request.Ruc.Trim(), cancellationToken);
         var email = user is null ? null : AuthSupport.PrimaryEmail(user);
@@ -44,7 +46,7 @@ public sealed class PasswordService(
         return new PasswordResetResponse(true, MaskEmail(email));
     }
 
-    public async Task<bool> ConfirmPasswordResetAsync(PasswordResetConfirmRequest request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
+    public async Task<bool> ConfirmPasswordResetAsync(ConfirmPasswordResetCommand request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
         if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
             throw new ValidationException(PasswordPolicy.Description);

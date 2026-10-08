@@ -1,10 +1,13 @@
-using WebProveedores.Application.Abstractions.Documents;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Documents.Responses;
+using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Documents;
-using WebProveedores.Application;
 
 namespace WebProveedores.Application.Documents;
 
-internal sealed class DocumentQueryService(IDocumentRepository documents, DocumentAccess access, IFileStorage storage) : IDocumentQueryService
+internal sealed class DocumentQueryService(IDocumentSearch documents, DocumentAccess access, IFileStorage storage) : IDocumentQueryService
 {
     public async Task<DocumentPageResponse> SearchAsync(Guid userId, DocumentInbox inbox, string? providerRuc, DocumentStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {

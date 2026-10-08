@@ -1,10 +1,13 @@
 using System.Text.RegularExpressions;
-using WebProveedores.Application.Abstractions;
-using WebProveedores.Application.Abstractions.Auth;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Application.Abstractions.Providers;
-using WebProveedores.Domain.Entities;
-using WebProveedores.Application;
+using WebProveedores.Application.Auth.Commands;
+using WebProveedores.Application.Auth.Responses;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Application.Ports.Outbound.Sap.Models;
+using WebProveedores.Application.Ports.Outbound.Security;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Identity;
 
 namespace WebProveedores.Application.Auth;
 
@@ -12,9 +15,11 @@ namespace WebProveedores.Application.Auth;
 /// Alta de proveedores: registro online por RUC (consulta SAP y envía el enlace de activación)
 /// y alta directa con contraseña, reservada al administrador.
 /// </summary>
-public sealed partial class ProviderRegistrationService(
+internal sealed partial class ProviderRegistrationService(
     IUserRepository users,
-    IReferenceDataReader referenceData,
+    IUserUniquenessChecker uniqueness,
+    IRoleReader roleReader,
+    ICompanyReader companyReader,
     IUnitOfWork unitOfWork,
     IPasswordHasher hasher,
     PasswordLinks links,
@@ -68,11 +73,11 @@ public sealed partial class ProviderRegistrationService(
         return new(true, ObfuscateEmail(provider.Correo!));
     }
 
-    public async Task<UserResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<UserResponse> RegisterAsync(RegisterProviderCommand request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var ruc = request.Ruc.Trim();
-        if (await users.EmailExistsAsync(email, cancellationToken) || await users.RucExistsAsync(ruc, cancellationToken))
+        if (await uniqueness.EmailExistsAsync(email, cancellationToken) || await uniqueness.RucExistsAsync(ruc, cancellationToken))
             throw new ConflictException("Ya existe un usuario registrado con ese correo o RUC.");
 
         var user = AppUser.Create(ruc, request.CompanyName, ruc, email, hasher.Hash(request.Password), clock.GetUtcNow().UtcDateTime);
@@ -85,10 +90,10 @@ public sealed partial class ProviderRegistrationService(
     /// <summary>Rol de proveedor y, por defecto, todas las sociedades (el administrador puede restringirlas después).</summary>
     private async Task MakeProviderAsync(AppUser user, CancellationToken cancellationToken)
     {
-        var role = await referenceData.FindRoleAsync(SecurityCatalog.ProviderRole, cancellationToken)
+        var role = await roleReader.FindRoleAsync(SecurityCatalog.ProviderRole, cancellationToken)
             ?? throw new InvalidOperationException("El rol de proveedor no está configurado.");
         user.SetRoles([role]);
-        user.SetCompanies(await referenceData.ListActiveCompaniesAsync(cancellationToken));
+        user.SetCompanies(await companyReader.ListActiveAsync(cancellationToken));
     }
 
     private async Task<SapProviderRecord> FindProviderAsync(string ruc, CancellationToken cancellationToken)

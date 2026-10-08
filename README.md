@@ -167,13 +167,13 @@ Cada usuario del seed debe cambiar su contraseña temporal al ingresar. Detalle 
 ## Estructura
 
 ```text
-WebProveedores.Api            # Controllers, configuración y middleware
-WebProveedores.Application    # Contratos y casos de uso
+WebProveedores.Api            # Adaptador de entrada HTTP: controllers, requests con validaciones, seguridad y errores
+WebProveedores.Application    # Hexágono: una carpeta por feature (puerto de entrada, caso de uso y contratos) y puertos de salida
 WebProveedores.Domain         # Entidades y reglas del dominio
-WebProveedores.Infrastructure # EF Core, autenticación y persistencia
-WebProveedores.Tests          # Pruebas automatizadas
+WebProveedores.Infrastructure # Adaptadores de salida: EF Core, JWT, SMTP, SAP y archivos
+WebProveedores.Tests          # Pruebas de arquitectura, unitarias e integración con SQL Server
 ```
 
-Arquitectura hexagonal: `Application` solo depende de `Domain` y de puertos (`IUserRepository`, `ITokenIssuer`, `IPasswordHasher`, `IEmailSender`, `IProviderDirectory`…); sus implementaciones viven en `Infrastructure`. Detalle en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md).
+Arquitectura hexagonal estricta: la Api solo usa los puertos de entrada, que viven con su caso de uso en cada feature (`Application/<Feature>/`); los casos de uso dependen de puertos de salida (`Application/Ports/Outbound`) que implementa `Infrastructure`, un adaptador por puerto. Las reglas se verifican con pruebas de arquitectura (`WebProveedores.Tests/Architecture`). Detalle y «dónde va cada cosa» en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#arquitectura).
 
 Si la API no conecta con SQL Server, verificar Docker, el estado `healthy` de `docker compose ps` y que la contraseña de `.env` coincida con `ConnectionStrings__DefaultConnection`. Para errores desde el frontend, confirmar el puerto `5080` y CORS para `http://localhost:4200`.

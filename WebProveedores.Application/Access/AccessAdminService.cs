@@ -1,7 +1,11 @@
 using System.Text.RegularExpressions;
-using WebProveedores.Application.Abstractions.Persistence;
-using WebProveedores.Domain.Documents;
-using WebProveedores.Domain.Entities;
+using WebProveedores.Application.Access.Commands;
+using WebProveedores.Application.Access.Responses;
+using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Ports.Outbound.Persistence;
+using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Access;
 
@@ -20,7 +24,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
             .ThenBy(item => item.Role.Name)
             .Select(item => ToResponse(item.Role, item.UserCount)).ToArray();
 
-    public async Task<RoleAdminResponse> CreateRoleAsync(RoleRequest request, CancellationToken cancellationToken)
+    public async Task<RoleAdminResponse> CreateRoleAsync(SaveRoleCommand request, CancellationToken cancellationToken)
     {
         var roles = await access.ListRolesAsync(cancellationToken);
         var name = RoleName(request, roles, null);
@@ -33,7 +37,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
         return ToResponse(role, 0);
     }
 
-    public async Task<RoleAdminResponse> UpdateRoleAsync(Guid id, RoleRequest request, CancellationToken cancellationToken)
+    public async Task<RoleAdminResponse> UpdateRoleAsync(Guid id, SaveRoleCommand request, CancellationToken cancellationToken)
     {
         var roles = await access.ListRolesAsync(cancellationToken);
         var current = roles.FirstOrDefault(item => item.Role.Id == id) ?? throw new NotFoundException("El rol no existe.");
@@ -67,7 +71,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
             .Select(ToResponse).ToArray();
     }
 
-    public async Task<MenuAdminResponse> CreateMenuAsync(MenuRequest request, CancellationToken cancellationToken)
+    public async Task<MenuAdminResponse> CreateMenuAsync(SaveMenuCommand request, CancellationToken cancellationToken)
     {
         var menus = await access.ListMenusAsync(cancellationToken);
         var menu = new MenuOption
@@ -86,7 +90,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
         return ToResponse(menu);
     }
 
-    public async Task<MenuAdminResponse> UpdateMenuAsync(Guid id, MenuRequest request, CancellationToken cancellationToken)
+    public async Task<MenuAdminResponse> UpdateMenuAsync(Guid id, SaveMenuCommand request, CancellationToken cancellationToken)
     {
         var menus = await access.ListMenusAsync(cancellationToken);
         var menu = menus.FirstOrDefault(item => item.Id == id) ?? throw new NotFoundException("La opción de menú no existe.");
@@ -108,7 +112,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
 
     // ——— Reglas ———
 
-    private static string RoleName(RoleRequest request, IReadOnlyList<RoleSummary> roles, Guid? exceptId)
+    private static string RoleName(SaveRoleCommand request, IReadOnlyList<RoleSummary> roles, Guid? exceptId)
     {
         var name = request.Name.Trim();
         if (name.Length == 0) throw new ValidationException("Ingresa el nombre del rol.");
@@ -117,7 +121,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
         return name;
     }
 
-    private static string? Description(RoleRequest request) => string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+    private static string? Description(SaveRoleCommand request) => string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
 
     /// <summary>
     /// Deja exactamente estas opciones. Un submenú arrastra a su menú principal; un menú principal que agrupa
@@ -142,7 +146,7 @@ internal sealed partial class AccessAdminService(IAccessRepository access, IUnit
             role.RoleMenus.Add(new RoleMenu { RoleId = role.Id, MenuOptionId = id });
     }
 
-    private static void Apply(MenuOption menu, MenuRequest request, IReadOnlyList<MenuOption> menus)
+    private static void Apply(MenuOption menu, SaveMenuCommand request, IReadOnlyList<MenuOption> menus)
     {
         var name = request.Name.Trim();
         if (name.Length == 0) throw new ValidationException("Ingresa el nombre de la opción.");

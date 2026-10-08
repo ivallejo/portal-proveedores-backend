@@ -1,5 +1,6 @@
-using WebProveedores.Domain;
+using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Documents;
+using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Tests;
 
