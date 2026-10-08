@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Access.Requests;
+using WebProveedores.Application.Contracts.Access.Commands;
 using WebProveedores.Application.Ports.Inbound.Access;
 using WebProveedores.Application.UseCases.Access;
 using WebProveedores.Domain.Access;
@@ -18,7 +18,7 @@ public sealed class AccessAdminServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var users = fixture.Menu(MenuCatalog.SettingsUsers);
 
-        var role = await fixture.Service.CreateRoleAsync(new RoleRequest
+        var role = await fixture.Service.CreateRoleAsync(new SaveRoleCommand
         {
             Name = "Tesorería",
             Description = "Consulta pagos.",
@@ -29,8 +29,8 @@ public sealed class AccessAdminServiceTests
         Assert.Equal(
             new[] { MenuCatalog.PaymentOrders, MenuCatalog.SettingsUsers, MenuCatalog.Settings }.Order(),
             role.MenuIds.Select(id => fixture.Db.MenuOptions.Single(menu => menu.Id == id).Code).Order());
-        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateRoleAsync(new RoleRequest { Name = "tesorería", MenuIds = [users.Id] }, CancellationToken.None));
-        await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateRoleAsync(new RoleRequest { Name = "Vacío" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateRoleAsync(new SaveRoleCommand { Name = "tesorería", MenuIds = [users.Id] }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateRoleAsync(new SaveRoleCommand { Name = "Vacío" }, CancellationToken.None));
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class AccessAdminServiceTests
         var admin = fixture.Roles[SecurityCatalog.AdministratorRole];
 
         var error = await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.UpdateRoleAsync(admin.Id,
-            new RoleRequest { Name = admin.Name, MenuIds = [fixture.Menu(MenuCatalog.Home).Id] }, CancellationToken.None));
+            new SaveRoleCommand { Name = admin.Name, MenuIds = [fixture.Menu(MenuCatalog.Home).Id] }, CancellationToken.None));
         Assert.Contains("Roles y permisos", error.Message);
         await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetRoleStatusAsync(admin.Id, false, CancellationToken.None));
         await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetMenuStatusAsync(fixture.Menu(MenuCatalog.SettingsRoles).Id, false, CancellationToken.None));
@@ -52,22 +52,22 @@ public sealed class AccessAdminServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var settings = fixture.Menu(MenuCatalog.Settings);
 
-        var reports = await fixture.Service.CreateMenuAsync(new MenuRequest { Name = "Reportes", Route = "/configuracion/reportes", Icon = "chart-bar", Order = 6, ParentId = settings.Id }, CancellationToken.None);
+        var reports = await fixture.Service.CreateMenuAsync(new SaveMenuCommand { Name = "Reportes", Route = "/configuracion/reportes", Icon = "chart-bar", Order = 6, ParentId = settings.Id }, CancellationToken.None);
         Assert.Equal("MENU_REPORTES", reports.Code);
         Assert.Equal(1, reports.RoleCount);
 
         await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateMenuAsync(
-            new MenuRequest { Name = "Nieto", Route = "/x", Icon = "home", ParentId = reports.Id }, CancellationToken.None));
+            new SaveMenuCommand { Name = "Nieto", Route = "/x", Icon = "home", ParentId = reports.Id }, CancellationToken.None));
         await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateMenuAsync(
-            new MenuRequest { Name = "Sin ruta", Icon = "home", ParentId = settings.Id }, CancellationToken.None));
+            new SaveMenuCommand { Name = "Sin ruta", Icon = "home", ParentId = settings.Id }, CancellationToken.None));
         await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateMenuAsync(
-            new MenuRequest { Name = "Otra", Route = "/orden-pago", Icon = "home" }, CancellationToken.None));
+            new SaveMenuCommand { Name = "Otra", Route = "/orden-pago", Icon = "home" }, CancellationToken.None));
 
         var home = fixture.Menu(MenuCatalog.Home);
-        var renamed = await fixture.Service.UpdateMenuAsync(home.Id, new MenuRequest { Name = "Principal", Route = "/inicio", Icon = "home", Order = 1 }, CancellationToken.None);
+        var renamed = await fixture.Service.UpdateMenuAsync(home.Id, new SaveMenuCommand { Name = "Principal", Route = "/inicio", Icon = "home", Order = 1 }, CancellationToken.None);
         Assert.Equal("Principal", renamed.Name);
         await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.UpdateMenuAsync(home.Id,
-            new MenuRequest { Name = "Principal", Route = "/otra", Icon = "home", Order = 1 }, CancellationToken.None));
+            new SaveMenuCommand { Name = "Principal", Route = "/otra", Icon = "home", Order = 1 }, CancellationToken.None));
     }
 
     [Fact]

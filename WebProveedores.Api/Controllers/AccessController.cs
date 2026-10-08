@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WebProveedores.Api.Contracts.Access;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Access.Requests;
 using WebProveedores.Application.Contracts.Access.Responses;
 using WebProveedores.Application.Contracts.Organization.Requests;
 using WebProveedores.Application.Ports.Inbound.Access;
@@ -22,12 +22,12 @@ public sealed class AccessController(IAccessAdminService access) : ControllerBas
     [HttpPost("roles")]
     [Authorize(Policy = Policies.RolesManage)]
     public async Task<ActionResult<RoleAdminResponse>> CreateRole(RoleRequest request, CancellationToken cancellationToken) =>
-        Ok(await access.CreateRoleAsync(request, cancellationToken));
+        Ok(await access.CreateRoleAsync(request.ToCommand(), cancellationToken));
 
     [HttpPut("roles/{id:guid}")]
     [Authorize(Policy = Policies.RolesManage)]
     public async Task<ActionResult<RoleAdminResponse>> UpdateRole(Guid id, RoleRequest request, CancellationToken cancellationToken) =>
-        Ok(await access.UpdateRoleAsync(id, request, cancellationToken));
+        Ok(await access.UpdateRoleAsync(id, request.ToCommand(), cancellationToken));
 
     [HttpPatch("roles/{id:guid}/status")]
     [Authorize(Policy = Policies.RolesManage)]
@@ -43,12 +43,12 @@ public sealed class AccessController(IAccessAdminService access) : ControllerBas
     [HttpPost("menus")]
     [Authorize(Policy = Policies.MenusManage)]
     public async Task<ActionResult<MenuAdminResponse>> CreateMenu(MenuRequest request, CancellationToken cancellationToken) =>
-        Ok(await access.CreateMenuAsync(request, cancellationToken));
+        Ok(await access.CreateMenuAsync(request.ToCommand(), cancellationToken));
 
     [HttpPut("menus/{id:guid}")]
     [Authorize(Policy = Policies.MenusManage)]
     public async Task<ActionResult<MenuAdminResponse>> UpdateMenu(Guid id, MenuRequest request, CancellationToken cancellationToken) =>
-        Ok(await access.UpdateMenuAsync(id, request, cancellationToken));
+        Ok(await access.UpdateMenuAsync(id, request.ToCommand(), cancellationToken));
 
     [HttpPatch("menus/{id:guid}/status")]
     [Authorize(Policy = Policies.MenusManage)]

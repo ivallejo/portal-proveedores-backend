@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Access.Requests;
+namespace WebProveedores.Api.Contracts.Access;
 
 public sealed class RoleRequest
 {
