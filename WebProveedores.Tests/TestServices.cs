@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Inbound.Documents;
 using WebProveedores.Application.Ports.Outbound.Files;

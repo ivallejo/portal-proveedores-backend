@@ -1,4 +1,5 @@
-using WebProveedores.Application.Organization;
+using WebProveedores.Application.Contracts.Organization.Requests;
+using WebProveedores.Application.Contracts.Organization.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Organization;
 

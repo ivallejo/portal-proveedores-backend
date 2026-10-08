@@ -1,5 +1,5 @@
-using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Domain.Identity;

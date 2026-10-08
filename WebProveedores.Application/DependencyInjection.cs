@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Ports.Inbound.Access;
 using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Inbound.Auth;

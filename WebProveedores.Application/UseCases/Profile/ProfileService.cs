@@ -1,9 +1,10 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Responses;
 using WebProveedores.Application.Ports.Inbound.Profile;
 using WebProveedores.Application.Ports.Outbound.Persistence;
-using WebProveedores.Application.Profile;
 using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Domain.Identity;
 

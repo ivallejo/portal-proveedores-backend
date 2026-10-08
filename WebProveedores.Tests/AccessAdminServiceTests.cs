@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Access;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Contracts.Access.Requests;
 using WebProveedores.Application.Ports.Inbound.Access;
 using WebProveedores.Application.UseCases.Access;
 using WebProveedores.Domain.Access;

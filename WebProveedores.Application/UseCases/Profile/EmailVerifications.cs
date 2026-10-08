@@ -1,4 +1,4 @@
-using WebProveedores.Application.Auth;
+using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Auth;
 using WebProveedores.Domain.Identity;

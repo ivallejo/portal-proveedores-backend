@@ -1,4 +1,5 @@
-using WebProveedores.Application.Profile;
+using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Profile;
 

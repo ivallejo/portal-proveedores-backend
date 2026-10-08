@@ -1,4 +1,5 @@
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Requests;
+using WebProveedores.Application.Contracts.Documents.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Documents;
 

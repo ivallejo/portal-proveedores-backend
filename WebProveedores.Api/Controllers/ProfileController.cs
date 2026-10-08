@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebProveedores.Api.Infrastructure;
+using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Responses;
 using WebProveedores.Application.Ports.Inbound.Profile;
-using WebProveedores.Application.Profile;
 
 namespace WebProveedores.Api.Controllers;
 

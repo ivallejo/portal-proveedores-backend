@@ -1,5 +1,6 @@
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Payments;
+using WebProveedores.Application.Contracts.Payments.Requests;
+using WebProveedores.Application.Contracts.Payments.Responses;
 using WebProveedores.Application.Ports.Inbound.Payments;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Sap;
@@ -111,15 +112,4 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
         "C" => "Cheque",
         var other => other,
     };
-
-    /// <summary>Sociedades del catálogo y cuáles puede ver el usuario.</summary>
-    private sealed class CompanyScope(DocumentActor actor, IReadOnlyList<Company> companies)
-    {
-        public Company? ByCode(string code) => companies.FirstOrDefault(company => company.Code == code);
-
-        public Company? ByRuc(string? ruc) => ruc is null ? null : companies.FirstOrDefault(company => company.Ruc == ruc);
-
-        /// <summary>El administrador ve todas; los demás, solo las sociedades del catálogo que tienen asignadas.</summary>
-        public bool Allows(string code) => actor.IsAdmin || (ByCode(code) is { } company && actor.HasCompany(company.Id));
-    }
 }

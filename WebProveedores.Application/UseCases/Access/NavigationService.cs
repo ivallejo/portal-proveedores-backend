@@ -1,4 +1,4 @@
-using WebProveedores.Application.Access;
+using WebProveedores.Application.Contracts.Access.Responses;
 using WebProveedores.Application.Ports.Inbound.Access;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 

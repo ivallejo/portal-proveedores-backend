@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
-using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Profile.Requests;
 using WebProveedores.Application.Ports.Outbound.Notifications;
-using WebProveedores.Application.Profile;
 using WebProveedores.Application.UseCases.Profile;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;

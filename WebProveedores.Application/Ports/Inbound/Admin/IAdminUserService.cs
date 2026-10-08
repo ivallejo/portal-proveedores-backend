@@ -1,4 +1,5 @@
-using WebProveedores.Application.Admin;
+using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Admin;
 

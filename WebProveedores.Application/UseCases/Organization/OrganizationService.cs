@@ -1,7 +1,8 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Organization;
+using WebProveedores.Application.Contracts.Organization.Requests;
+using WebProveedores.Application.Contracts.Organization.Responses;
 using WebProveedores.Application.Ports.Inbound.Organization;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;

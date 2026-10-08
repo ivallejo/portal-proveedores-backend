@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Payments;
+using WebProveedores.Application.Contracts.Payments.Requests;
 using WebProveedores.Application.Ports.Inbound.Payments;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.Ports.Outbound.Sap.Models;

@@ -1,5 +1,6 @@
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Commands;
+using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Application.Ports.Inbound.Documents;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;

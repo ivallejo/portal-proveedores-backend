@@ -1,4 +1,5 @@
-using WebProveedores.Application.Access;
+using WebProveedores.Application.Contracts.Access.Requests;
+using WebProveedores.Application.Contracts.Access.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Access;
 

@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Api.Controllers;

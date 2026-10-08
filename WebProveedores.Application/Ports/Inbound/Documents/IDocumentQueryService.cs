@@ -1,5 +1,4 @@
-using WebProveedores.Application.Documents;
-using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Ports.Inbound.Documents;

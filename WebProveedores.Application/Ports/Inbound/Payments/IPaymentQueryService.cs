@@ -1,4 +1,5 @@
-using WebProveedores.Application.Payments;
+using WebProveedores.Application.Contracts.Payments.Requests;
+using WebProveedores.Application.Contracts.Payments.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Payments;
 

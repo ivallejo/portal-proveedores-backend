@@ -1,5 +1,6 @@
-using WebProveedores.Application.Admin;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Responses;
 using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;

@@ -1,4 +1,5 @@
-using WebProveedores.Application.Auth;
+using WebProveedores.Application.Contracts.Auth.Requests;
+using WebProveedores.Application.Contracts.Auth.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Auth;
 

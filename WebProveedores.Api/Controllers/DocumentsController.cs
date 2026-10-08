@@ -2,9 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Infrastructure;
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Commands;
+using WebProveedores.Application.Contracts.Documents.Requests;
+using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Application.Ports.Inbound.Documents;
-using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Api.Controllers;

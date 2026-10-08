@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebProveedores.Api.Infrastructure;
-using WebProveedores.Application.Admin;
+using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Responses;
 using WebProveedores.Application.Ports.Inbound.Admin;
 
 namespace WebProveedores.Api.Controllers;

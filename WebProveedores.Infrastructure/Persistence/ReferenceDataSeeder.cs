@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using WebProveedores.Application.Auth;
 using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Application.Ports.Outbound.Files;
 using WebProveedores.Domain.Documents;
 

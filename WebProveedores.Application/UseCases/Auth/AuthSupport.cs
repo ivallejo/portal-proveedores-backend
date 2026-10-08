@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using WebProveedores.Application.Auth;
+using WebProveedores.Application.Contracts.Auth.Responses;
 using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Domain.Identity;
 

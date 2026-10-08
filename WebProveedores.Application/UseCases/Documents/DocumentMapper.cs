@@ -1,4 +1,4 @@
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Organization;
 

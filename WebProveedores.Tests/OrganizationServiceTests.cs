@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Organization;
+using WebProveedores.Application.Contracts.Organization.Requests;
 using WebProveedores.Application.UseCases.Organization;
 using WebProveedores.Infrastructure.Persistence;
 

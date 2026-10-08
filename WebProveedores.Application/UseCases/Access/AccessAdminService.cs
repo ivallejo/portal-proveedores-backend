@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
-using WebProveedores.Application.Access;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Contracts.Access.Requests;
+using WebProveedores.Application.Contracts.Access.Responses;
 using WebProveedores.Application.Ports.Inbound.Access;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
