@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Contracts.Documents;
 using WebProveedores.Api.Security;
 using WebProveedores.Application.Contracts.Documents.Commands;
-using WebProveedores.Application.Contracts.Documents.Requests;
 using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Application.Ports.Inbound.Documents;
 using WebProveedores.Domain.Documents;
@@ -27,7 +26,7 @@ public sealed class DocumentsController(
     [HttpPost("orders/validate")]
     [Authorize(Policy = Policies.DocumentsRegister)]
     public async Task<ActionResult<OrderValidationResponse>> ValidateOrder(ValidateOrderRequest request, CancellationToken cancellationToken) =>
-        await catalog.ValidateOrderAsync(UserId, request, cancellationToken) is { } order
+        await catalog.ValidateOrderAsync(UserId, request.ToCommand(), cancellationToken) is { } order
             ? Ok(order)
             : UnprocessableEntity(new { message = "SAP no encontró la orden para la sociedad seleccionada o ya no tiene saldo por facturar." });
 
@@ -84,27 +83,27 @@ public sealed class DocumentsController(
     [HttpPost("{id:guid}/approve")]
     [Authorize(Policy = Policies.DocumentsApprove)]
     public async Task<ActionResult<DocumentDetailResponse>> Approve(Guid id, ApproveDocumentRequest request, CancellationToken cancellationToken) =>
-        Ok(await approvals.ApproveAsync(UserId, id, request, cancellationToken));
+        Ok(await approvals.ApproveAsync(UserId, id, request.ToCommand(), cancellationToken));
 
     [HttpPost("{id:guid}/reject")]
     [Authorize(Policy = Policies.DocumentsApprove)]
     public async Task<ActionResult<DocumentDetailResponse>> Reject(Guid id, RejectDocumentRequest request, CancellationToken cancellationToken) =>
-        Ok(await approvals.RejectAsync(UserId, id, request, cancellationToken));
+        Ok(await approvals.RejectAsync(UserId, id, request.ToCommand(), cancellationToken));
 
     [HttpPost("{id:guid}/reassign")]
     [Authorize(Policy = Policies.DocumentsApprove)]
     public async Task<ActionResult<DocumentDetailResponse>> Reassign(Guid id, ReassignDocumentRequest request, CancellationToken cancellationToken) =>
-        Ok(await approvals.ReassignAsync(UserId, id, request, cancellationToken));
+        Ok(await approvals.ReassignAsync(UserId, id, request.ToCommand(), cancellationToken));
 
     [HttpPost("{id:guid}/accounting/reject")]
     [Authorize(Policy = Policies.DocumentsAccount)]
     public async Task<ActionResult<DocumentDetailResponse>> RejectInAccounting(Guid id, RejectDocumentRequest request, CancellationToken cancellationToken) =>
-        Ok(await accounting.RejectAsync(UserId, id, request, cancellationToken));
+        Ok(await accounting.RejectAsync(UserId, id, request.ToCommand(), cancellationToken));
 
     [HttpPost("{id:guid}/accounting/observe")]
     [Authorize(Policy = Policies.DocumentsAccount)]
     public async Task<ActionResult<DocumentDetailResponse>> Observe(Guid id, ObserveDocumentRequest request, CancellationToken cancellationToken) =>
-        Ok(await accounting.ObserveAsync(UserId, id, request, cancellationToken));
+        Ok(await accounting.ObserveAsync(UserId, id, request.ToCommand(), cancellationToken));
 
     private Guid UserId => currentUser.Id;
 

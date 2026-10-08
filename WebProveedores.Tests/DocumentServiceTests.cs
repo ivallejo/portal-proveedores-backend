@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PdfSharp.Pdf;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Contracts.Documents.Commands;
-using WebProveedores.Application.Contracts.Documents.Requests;
 using WebProveedores.Application.Ports.Outbound.Files;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Documents;
@@ -181,7 +180,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000107"), approverId: fixture.Approver.Id), CancellationToken.None);
-        var request = new ApproveDocumentRequest { ReferenceType = ApprovalReferenceType.Order, Reference = "ped-2026-01842" };
+        var request = new ApproveDocumentCommand { ReferenceType = ApprovalReferenceType.Order, Reference = "ped-2026-01842" };
 
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Approvals.ApproveAsync(fixture.OtherApprover.Id, document.Id, request, CancellationToken.None));
         var approved = await fixture.Services.Approvals.ApproveAsync(fixture.Approver.Id, document.Id, request, CancellationToken.None);
@@ -198,13 +197,13 @@ public sealed class DocumentServiceTests
         await using var fixture = await Fixture.CreateAsync();
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000108"), approverId: fixture.Approver.Id), CancellationToken.None);
 
-        var reassigned = await fixture.Services.Approvals.ReassignAsync(fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id, Reason = "Corresponde a Finanzas" }, CancellationToken.None);
+        var reassigned = await fixture.Services.Approvals.ReassignAsync(fixture.Approver.Id, document.Id, new ReassignDocumentCommand { ApproverId = fixture.OtherApprover.Id, Reason = "Corresponde a Finanzas" }, CancellationToken.None);
 
         Assert.Equal("Jorge Paredes", reassigned.ApproverName);
         Assert.Equal("Corresponde a Finanzas", reassigned.History.Single(item => item.Title.StartsWith("Reasignado")).Note);
         Assert.Equal("jparedes@test.pe", fixture.Email.Recipients[^1]);
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Approvals.RejectAsync(
-            fixture.Approver.Id, document.Id, new RejectDocumentRequest { Reason = "x" }, CancellationToken.None));
+            fixture.Approver.Id, document.Id, new RejectDocumentCommand { Reason = "x" }, CancellationToken.None));
     }
 
     [Fact]
@@ -214,7 +213,7 @@ public sealed class DocumentServiceTests
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000117"), approverId: fixture.Approver.Id), CancellationToken.None);
 
         await Assert.ThrowsAsync<DomainRuleException>(() => fixture.Services.Approvals.ReassignAsync(
-            fixture.Approver.Id, document.Id, new ReassignDocumentRequest { ApproverId = fixture.OtherApprover.Id, Reason = "  " }, CancellationToken.None));
+            fixture.Approver.Id, document.Id, new ReassignDocumentCommand { ApproverId = fixture.OtherApprover.Id, Reason = "  " }, CancellationToken.None));
     }
 
     [Fact]
@@ -222,7 +221,7 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
         var document = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000109"), orderNumber: "4500012873"), CancellationToken.None);
-        var request = new ObserveDocumentRequest { Reason = "Falta la guía de remisión.", Email = "Proveedor@Test.pe" };
+        var request = new ObserveDocumentCommand { Reason = "Falta la guía de remisión.", Email = "Proveedor@Test.pe" };
 
         var observed = await fixture.Services.Accounting.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None);
 
@@ -272,7 +271,7 @@ public sealed class DocumentServiceTests
         Assert.Empty(accounting.Items);
         await Assert.ThrowsAsync<NotFoundException>(() => fixture.Services.Queries.GetAsync(fixture.Accounting.Id, petrolera.Id, CancellationToken.None));
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Accounting.ObserveAsync(
-            fixture.Accounting.Id, petrolera.Id, new ObserveDocumentRequest { Reason = "Falta la guía de remisión", Email = "proveedor@test.pe" }, CancellationToken.None));
+            fixture.Accounting.Id, petrolera.Id, new ObserveDocumentCommand { Reason = "Falta la guía de remisión", Email = "proveedor@test.pe" }, CancellationToken.None));
     }
 
     [Fact]

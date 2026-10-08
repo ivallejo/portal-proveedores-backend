@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using WebProveedores.Domain.Documents;
 
-namespace WebProveedores.Application.Contracts.Documents.Requests;
+namespace WebProveedores.Api.Contracts.Documents;
 
 public sealed class ValidateOrderRequest
 {

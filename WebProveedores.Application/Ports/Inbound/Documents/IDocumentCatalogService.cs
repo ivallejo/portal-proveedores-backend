@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Documents.Requests;
+using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Application.Contracts.Documents.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Documents;
@@ -8,5 +8,5 @@ public interface IDocumentCatalogService
 {
     Task<IReadOnlyList<CompanyResponse>> ListCompaniesAsync(Guid userId, CancellationToken cancellationToken);
     Task<IReadOnlyList<AreaResponse>> ListAreasAsync(CancellationToken cancellationToken);
-    Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderRequest request, CancellationToken cancellationToken);
+    Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderCommand request, CancellationToken cancellationToken);
 }

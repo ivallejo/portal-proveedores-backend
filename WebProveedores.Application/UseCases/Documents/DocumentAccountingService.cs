@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Documents.Requests;
+using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Application.Ports.Inbound.Documents;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -8,7 +8,7 @@ namespace WebProveedores.Application.UseCases.Documents;
 
 internal sealed class DocumentAccountingService(IUnitOfWork unitOfWork, DocumentAccess access, DocumentNotifier notifier, TimeProvider clock) : IDocumentAccountingService
 {
-    public async Task<DocumentDetailResponse> RejectAsync(Guid userId, Guid documentId, RejectDocumentRequest request, CancellationToken cancellationToken)
+    public async Task<DocumentDetailResponse> RejectAsync(Guid userId, Guid documentId, RejectDocumentCommand request, CancellationToken cancellationToken)
     {
         var (actor, document) = await access.LoadForAccountingAsync(userId, documentId, "Solo Cuentas por pagar puede rechazar en contabilización.", cancellationToken);
         document.Reject(RejectionStage.Accounting, request.Reason, actor.Label, clock.GetUtcNow().UtcDateTime);
@@ -18,7 +18,7 @@ internal sealed class DocumentAccountingService(IUnitOfWork unitOfWork, Document
         return DocumentMapper.ToDetail(document);
     }
 
-    public async Task<DocumentDetailResponse> ObserveAsync(Guid userId, Guid documentId, ObserveDocumentRequest request, CancellationToken cancellationToken)
+    public async Task<DocumentDetailResponse> ObserveAsync(Guid userId, Guid documentId, ObserveDocumentCommand request, CancellationToken cancellationToken)
     {
         var (actor, document) = await access.LoadForAccountingAsync(userId, documentId, "Solo Cuentas por pagar puede observar documentos.", cancellationToken);
         var email = request.Email.Trim().ToLowerInvariant();

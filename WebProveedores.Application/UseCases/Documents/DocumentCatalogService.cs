@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Documents.Requests;
+using WebProveedores.Application.Contracts.Documents.Commands;
 using WebProveedores.Application.Contracts.Documents.Responses;
 using WebProveedores.Application.Ports.Inbound.Documents;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -29,7 +29,7 @@ internal sealed class DocumentCatalogService(IApproverDirectory approverDirector
             .ToArray();
     }
 
-    public async Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderRequest request, CancellationToken cancellationToken)
+    public async Task<OrderValidationResponse?> ValidateOrderAsync(Guid userId, ValidateOrderCommand request, CancellationToken cancellationToken)
     {
         var actor = await access.LoadActorAsync(userId, cancellationToken);
         var company = await access.RequireCompanyAsync(actor, request.CompanyCode, cancellationToken);

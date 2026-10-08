@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Documents.Requests;
+namespace WebProveedores.Api.Contracts.Documents;
 
 public sealed class RejectDocumentRequest
 {
