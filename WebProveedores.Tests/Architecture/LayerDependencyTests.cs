@@ -43,7 +43,9 @@ public sealed class LayerDependencyTests
                 "Microsoft.Extensions.Configuration",
                 "Microsoft.Extensions.Http",
                 "System.IdentityModel",
-                "Microsoft.IdentityModel")
+                "Microsoft.IdentityModel",
+                // Las validaciones de formato HTTP ([Required], [MaxLength]…) viven en los requests de la Api.
+                "System.ComponentModel.DataAnnotations")
             .GetResult();
 
         AssertSuccessful(result);

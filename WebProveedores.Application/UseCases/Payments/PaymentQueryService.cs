@@ -1,11 +1,10 @@
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Payments.Requests;
+using WebProveedores.Application.Contracts.Payments.Queries;
 using WebProveedores.Application.Contracts.Payments.Responses;
 using WebProveedores.Application.Ports.Inbound.Payments;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.UseCases.Documents;
-using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.UseCases.Payments;
 
@@ -28,7 +27,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
         ["14"] = "Recibo de servicios públicos",
     };
 
-    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchRequest request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
         var orders = await sap.FindPaymentOrdersAsync(ruc, request.From, request.To, cancellationToken);
@@ -52,7 +51,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
             .ToArray();
     }
 
-    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchRequest request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
         // SAP identifica la sociedad de la factura por su RUC: para filtrar, la sociedad debe tenerlo configurado.

@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Payments.Requests;
+using WebProveedores.Application.Contracts.Payments.Queries;
 using WebProveedores.Application.Ports.Inbound.Payments;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.Ports.Outbound.Sap.Models;
@@ -72,7 +72,7 @@ public sealed class PaymentQueryTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var orders = await fixture.Service.SearchPaymentOrdersAsync(fixture.Provider.Id, new PaymentSearchRequest("20999999999", null, From, To), CancellationToken.None);
+        var orders = await fixture.Service.SearchPaymentOrdersAsync(fixture.Provider.Id, new PaymentSearchQuery("20999999999", null, From, To), CancellationToken.None);
 
         Assert.Equal(ProviderRuc, fixture.Sap.LastRuc);
         Assert.Equal(["Factura", "Nota de débito"], Assert.Single(orders).Documents.Select(document => document.Type));
@@ -85,15 +85,15 @@ public sealed class PaymentQueryTests
         await using var fixture = await Fixture.CreateAsync();
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchRequest(null, null, From, To), CancellationToken.None));
+            fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchQuery(null, null, From, To), CancellationToken.None));
         // CxP solo tiene Naviera (1001): la orden de 1002 no se muestra.
-        Assert.Empty(await fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchRequest(ProviderRuc, null, From, To), CancellationToken.None));
+        Assert.Empty(await fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchQuery(ProviderRuc, null, From, To), CancellationToken.None));
         // La factura de una sociedad sin RUC configurado se muestra igual; la de Naviera (RUC conocido) también.
-        var invoices = await fixture.Service.SearchInvoicesAsync(fixture.Accounting.Id, new InvoiceSearchRequest(ProviderRuc, null, null, From, To), CancellationToken.None);
+        var invoices = await fixture.Service.SearchInvoicesAsync(fixture.Accounting.Id, new InvoiceSearchQuery(ProviderRuc, null, null, From, To), CancellationToken.None);
         Assert.Equal(2, invoices.Count);
         Assert.Equal("Naviera Transoceánica", invoices.Single(item => item.CompanyRuc == "20100126606").CompanyName);
         await Assert.ThrowsAsync<ForbiddenException>(() =>
-            fixture.Service.SearchInvoicesAsync(fixture.Internal.Id, new InvoiceSearchRequest(ProviderRuc, null, null, From, To), CancellationToken.None));
+            fixture.Service.SearchInvoicesAsync(fixture.Internal.Id, new InvoiceSearchQuery(ProviderRuc, null, null, From, To), CancellationToken.None));
     }
 
     [Fact]
@@ -102,14 +102,14 @@ public sealed class PaymentQueryTests
         await using var fixture = await Fixture.CreateAsync();
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchRequest(null, null, null, To, From), CancellationToken.None));
+            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, To, From), CancellationToken.None));
         await Assert.ThrowsAsync<ValidationException>(() =>
-            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchRequest(null, null, null, new DateOnly(2020, 1, 1), To), CancellationToken.None));
+            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, new DateOnly(2020, 1, 1), To), CancellationToken.None));
         var noRuc = await Assert.ThrowsAsync<ValidationException>(() =>
-            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchRequest(null, "1002", null, From, To), CancellationToken.None));
+            fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, "1002", null, From, To), CancellationToken.None));
         Assert.Contains("no tiene RUC", noRuc.Message);
 
-        var byNumber = await fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchRequest(null, "1001", "f008-0000836", From, To), CancellationToken.None);
+        var byNumber = await fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, "1001", "f008-0000836", From, To), CancellationToken.None);
         Assert.Equal("F008-00008365", Assert.Single(byNumber).Number);
     }
 
