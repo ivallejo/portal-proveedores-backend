@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Admin.Commands;
+using WebProveedores.Application.Admin.Commands;
 
 namespace WebProveedores.Api.Contracts.Admin;
 

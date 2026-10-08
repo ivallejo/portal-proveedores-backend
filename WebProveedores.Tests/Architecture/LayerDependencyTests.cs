@@ -80,29 +80,20 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
-    public void Inbound_ports_are_interfaces()
+    public void Features_expose_only_their_inbound_ports_and_contracts()
     {
-        var result = Types.InAssembly(ApplicationAssembly)
-            .That()
-            .ResideInNamespace("WebProveedores.Application.Ports.Inbound")
-            .Should()
-            .BeInterfaces()
-            .GetResult();
+        // Carpeta por feature (Application/<Feature>): el puerto de entrada (interfaz) y sus Commands, Queries y Responses
+        // son públicos; la implementación del caso de uso y sus piezas internas son internal.
+        string[] shared = ["Ports", "Common"];
+        string[] contracts = ["Commands", "Queries", "Responses"];
+        var offenders = ApplicationAssembly.GetTypes()
+            .Where(type => type is { IsPublic: true, IsInterface: false } && type.Namespace is { } ns
+                && ns.Split('.') is [_, _, var feature, ..] parts && !shared.Contains(feature)
+                && !(parts.Length == 4 && contracts.Contains(parts[3])))
+            .Select(type => type.FullName)
+            .ToList();
 
-        AssertSuccessful(result);
-    }
-
-    [Fact]
-    public void Use_cases_are_only_reachable_through_their_ports()
-    {
-        var result = Types.InAssembly(ApplicationAssembly)
-            .That()
-            .ResideInNamespace("WebProveedores.Application.UseCases")
-            .ShouldNot()
-            .BePublic()
-            .GetResult();
-
-        AssertSuccessful(result);
+        Assert.True(offenders.Count == 0, "Tipos públicos de una feature que no son su puerto ni sus contratos: " + string.Join(", ", offenders));
     }
 
     [Fact]
@@ -139,14 +130,14 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
-    public void Api_reaches_the_core_only_through_inbound_ports()
+    public void Api_does_not_reach_outbound_ports_or_infrastructure()
     {
         // Program.cs (raíz de composición, fuera de estos namespaces) es el único que conoce Infrastructure.
         var result = Types.InAssembly(ApiAssembly)
             .That()
             .ResideInNamespace("WebProveedores.Api")
             .ShouldNot()
-            .HaveDependencyOnAny(Infrastructure, "WebProveedores.Application.Ports.Outbound", "WebProveedores.Application.UseCases")
+            .HaveDependencyOnAny(Infrastructure, "WebProveedores.Application.Ports.Outbound")
             .GetResult();
 
         AssertSuccessful(result);

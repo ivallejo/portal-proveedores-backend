@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using WebProveedores.Application.Ports.Inbound.Access;
+using WebProveedores.Application.Access;
 
 namespace WebProveedores.Api.Security;
 

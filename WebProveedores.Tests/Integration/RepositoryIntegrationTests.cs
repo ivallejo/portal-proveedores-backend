@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using WebProveedores.Application.Admin.Commands;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Admin.Commands;
-using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
+using WebProveedores.Application.Profile.Commands;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Identity;

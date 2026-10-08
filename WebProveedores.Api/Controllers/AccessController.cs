@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Contracts.Access;
 using WebProveedores.Api.Contracts.Organization;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Access.Responses;
-using WebProveedores.Application.Ports.Inbound.Access;
+using WebProveedores.Application.Access;
+using WebProveedores.Application.Access.Responses;
 
 namespace WebProveedores.Api.Controllers;
 

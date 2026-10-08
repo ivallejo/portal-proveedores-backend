@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Organization.Commands;
+using WebProveedores.Application.Organization.Commands;
 
 namespace WebProveedores.Api.Contracts.Organization;
 

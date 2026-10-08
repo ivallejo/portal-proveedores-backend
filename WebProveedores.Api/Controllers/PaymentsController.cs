@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Payments.Queries;
-using WebProveedores.Application.Contracts.Payments.Responses;
-using WebProveedores.Application.Ports.Inbound.Payments;
+using WebProveedores.Application.Payments;
+using WebProveedores.Application.Payments.Queries;
+using WebProveedores.Application.Payments.Responses;
 
 namespace WebProveedores.Api.Controllers;
 

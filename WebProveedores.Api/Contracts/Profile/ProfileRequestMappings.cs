@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Profile.Commands;
+using WebProveedores.Application.Profile.Commands;
 
 namespace WebProveedores.Api.Contracts.Profile;
 

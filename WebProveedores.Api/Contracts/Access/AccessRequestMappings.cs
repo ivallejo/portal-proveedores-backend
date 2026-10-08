@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Access.Commands;
+using WebProveedores.Application.Access.Commands;
 
 namespace WebProveedores.Api.Contracts.Access;
 

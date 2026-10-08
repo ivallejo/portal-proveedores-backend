@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WebProveedores.Api.Contracts.Profile;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Profile.Responses;
-using WebProveedores.Application.Ports.Inbound.Profile;
+using WebProveedores.Application.Profile;
+using WebProveedores.Application.Profile.Responses;
 
 namespace WebProveedores.Api.Controllers;
 

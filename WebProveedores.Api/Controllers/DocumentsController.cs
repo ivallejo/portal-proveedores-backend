@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Contracts.Documents;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Documents.Commands;
-using WebProveedores.Application.Contracts.Documents.Responses;
-using WebProveedores.Application.Ports.Inbound.Documents;
+using WebProveedores.Application.Documents;
+using WebProveedores.Application.Documents.Commands;
+using WebProveedores.Application.Documents.Responses;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Api.Controllers;

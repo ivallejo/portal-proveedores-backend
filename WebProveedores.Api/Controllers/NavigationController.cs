@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Access.Responses;
-using WebProveedores.Application.Ports.Inbound.Access;
+using WebProveedores.Application.Access;
+using WebProveedores.Application.Access.Responses;
 
 namespace WebProveedores.Api.Controllers;
 

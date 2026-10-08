@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Ports.Inbound.Access;
+using WebProveedores.Application.Access;
 
 namespace WebProveedores.Tests;
 

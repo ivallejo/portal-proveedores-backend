@@ -33,10 +33,10 @@ Arquitectura hexagonal estricta (puertos y adaptadores), con SOLID: un caso de u
 
 ```text
 HTTP ─► Api (adaptador de entrada)
-          Controllers ─► request.ToCommand() ─► Ports/Inbound (I*Service)
+          Controllers ─► request.ToCommand() ─► <Feature>/I*Service (puerto de entrada)
                                                     │
         Application (hexágono)                      ▼
-          UseCases (internal) ─► Domain (entidades y reglas)
+          <Feature>/*Service (internal) ─► Domain (entidades y reglas)
                     │
                     ▼
           Ports/Outbound (interfaces) ◄── Infrastructure (adaptadores de salida: EF Core, JWT, SMTP, SAP, archivos)
@@ -46,10 +46,8 @@ Dependencias entre proyectos: `Domain` ← `Application` ← `Infrastructure` y 
 
 - **Domain**: entidades con sus reglas (`AppUser`, `SupplierDocument`…), enums y catálogos. No depende de nada.
 - **Application** depende solo de `Domain` y de `Microsoft.Extensions.*.Abstractions` (DI y logging). No conoce EF Core, ASP.NET, JWT, `IConfiguration`, `HttpClient` ni `DataAnnotations`. La configuración llega como registros tipados (`Common/Settings`) y la hora por `TimeProvider`.
-  - `Ports/Inbound/<Feature>/`: interfaces de los casos de uso (`ILoginService`, `IDocumentQueryService`…). Es lo único que ve la Api.
-  - `UseCases/<Feature>/`: implementaciones (`internal`) y sus piezas internas (`DocumentAccess`, `DocumentFiles`, `PasswordLinks`, `UblDocumentReader`…).
-  - `Ports/Outbound/<Persistence|Security|Notifications|Sap|Files>/`: interfaces que implementa Infrastructure. Sus datos van en `Models/`.
-  - `Contracts/<Feature>/Commands|Queries|Responses`: entrada y salida de los casos de uso, sin atributos HTTP.
+  - `<Feature>/` (Access, Admin, Auth, Documents, Organization, Payments, Profile): todo lo que la feature ofrece. El puerto de entrada (`ILoginService`, `IDocumentQueryService`…, público), su implementación y sus piezas internas (`DocumentAccess`, `DocumentFiles`, `PasswordLinks`, `UblDocumentReader`…, todas `internal`), y sus contratos en `Commands/`, `Queries/` y `Responses/`: la entrada y salida de los casos de uso, sin atributos HTTP. La Api solo puede ver la interfaz y los contratos.
+  - `Ports/Outbound/<Persistence|Security|Notifications|Sap|Files>/`: interfaces que implementa Infrastructure. Sus datos van en `Models/`. Están centralizados porque los comparten varias features (por ejemplo, `IUserRepository` lo usan Auth, Admin y Profile); los puertos de entrada, en cambio, pertenecen cada uno a su feature.
   - `Common/Exceptions`, `Common/Settings`, `Common/Security` (`SessionClaims`, compartido por la Api y el emisor JWT).
 - **Infrastructure**: un adaptador por puerto de salida. Los repositorios EF comparten el `AppDbContext` scoped; `IUnitOfWork` confirma los cambios y traduce el índice único de documentos a `DocumentRejectedException`.
 - **Api**: traduce HTTP ↔ casos de uso. Los requests HTTP, con sus validaciones (`[Required]`, `[MaxLength]`…), viven en `Api/Contracts/<Feature>/` y se convierten a commands con `<Feature>RequestMappings.ToCommand()`. El usuario de la petición se obtiene de `ICurrentUser` (no leer claims en los controllers). La autorización por menú (`MenuPermissionHandler`) usa el puerto de entrada `IPermissionService`.
@@ -74,8 +72,8 @@ Otros puertos de salida: `IPasswordHasher`, `ITokenIssuer` (Security); `IEmailSe
 | Necesito… | Lugar |
 |---|---|
 | Una regla de negocio de una entidad | Método de la entidad en `Domain/<Contexto>/` (lanza `DomainRuleException`) |
-| Un caso de uso nuevo | Interfaz en `Application/Ports/Inbound/<Feature>/`, implementación `internal` en `Application/UseCases/<Feature>/` y registro en `Application/DependencyInjection.cs` |
-| Datos de entrada o salida de un caso de uso | `Application/Contracts/<Feature>/Commands` (o `Queries`) y `Responses`, sin atributos de validación |
+| Un caso de uso nuevo | Interfaz pública e implementación `internal` en `Application/<Feature>/`, registro en `Application/DependencyInjection.cs` |
+| Datos de entrada o salida de un caso de uso | `Application/<Feature>/Commands` (o `Queries`) y `Responses`, sin atributos de validación |
 | Un endpoint con body | Request en `Api/Contracts/<Feature>/` con sus atributos y su `ToCommand()` en `<Feature>RequestMappings` |
 | Acceso a base, SAP, correo o archivos | Puerto pequeño en `Application/Ports/Outbound/<Área>/` (datos en `Models/`) y adaptador en `Infrastructure/<Área>/`, un adaptador por puerto, registrado en `AddInfrastructure` |
 | Un error esperado | Excepción en `Application/Common/Exceptions/` y su código HTTP en `GlobalExceptionHandler` |
@@ -84,8 +82,8 @@ Reglas verificadas por pruebas (`WebProveedores.Tests/Architecture`; si una fall
 
 1. `Domain` no depende de otros proyectos ni de librerías `Microsoft.*`.
 2. `Application` no depende de Infrastructure, Api, ASP.NET, EF Core, `IConfiguration`, `HttpClient`, JWT ni `DataAnnotations`.
-3. La Api llega al núcleo solo por `Ports/Inbound` (fuera de `Program.cs`, nada de `Infrastructure`, `Ports/Outbound` ni `UseCases`).
-4. `Ports/Inbound` solo tiene interfaces; `Ports/Outbound` solo interfaces, y sus datos van en `*.Models`; nada en `UseCases` es público.
+3. La Api no usa `Infrastructure` ni `Ports/Outbound` (fuera de `Program.cs`); llega al núcleo por los puertos de entrada de cada feature.
+4. En `Application/<Feature>/` solo son públicos el puerto de entrada (interfaz) y sus `Commands`, `Queries` y `Responses`; `Ports/Outbound` solo tiene interfaces, y sus datos van en `*.Models`.
 5. Cada adaptador de Infrastructure implementa un puerto de salida, y solo uno.
 6. Las excepciones de `Application` viven en `Common/Exceptions`.
 7. Un tipo de primer nivel por archivo, con el nombre del archivo, y sin tipos anidados (Domain, Application, Infrastructure y Api; no aplica a pruebas ni migraciones).
@@ -104,10 +102,11 @@ WebProveedores.Domain/
 
 WebProveedores.Application/
 ├── DependencyInjection.cs                 AddApplication
-├── Ports/Inbound/<Feature>/               Access, Admin, Auth, Documents, Organization, Payments, Profile
+├── <Feature>/                             Access, Admin, Auth, Documents, Organization, Payments, Profile
+│   ├── I*Service.cs                       puerto de entrada (público)
+│   ├── *Service.cs y piezas internas      internal
+│   └── Commands/ · Queries/ · Responses/  contratos del puerto
 ├── Ports/Outbound/{Persistence,Security,Notifications,Sap,Files}/ (+ Models/)
-├── UseCases/<Feature>/
-├── Contracts/<Feature>/{Commands,Queries,Responses}/
 └── Common/{Exceptions,Settings,Security}/
 
 WebProveedores.Infrastructure/
@@ -230,8 +229,7 @@ Capas:
 
 ```text
 Domain/Documents                        SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, DocumentInbox
-Application/Ports/Inbound/Documents     IDocumentCatalogService, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService
-Application/UseCases/Documents          Sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo
+Application/Documents                   Puertos de entrada (IDocumentCatalogService, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
 Application/Ports/Outbound              IDocumentRepository, IDocumentSearch, IApproverDirectory, ICompanyReader, IUnitOfWork, IFileStorage, IPdfMerger, ISapDocumentGateway
 Infrastructure                          Persistence/Repositories (Ef*), Files (LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
 Api                                     DocumentsController (api/documents), CatalogController (api/catalog), Contracts/Documents

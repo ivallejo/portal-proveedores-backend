@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Auth.Commands;
+using WebProveedores.Application.Auth.Commands;
 
 namespace WebProveedores.Api.Contracts.Auth;
 

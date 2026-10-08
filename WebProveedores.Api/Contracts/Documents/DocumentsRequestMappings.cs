@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Documents.Commands;
+using WebProveedores.Application.Documents.Commands;
 
 namespace WebProveedores.Api.Contracts.Documents;
 

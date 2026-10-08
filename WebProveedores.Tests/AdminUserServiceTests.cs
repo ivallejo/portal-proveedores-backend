@@ -1,10 +1,10 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using WebProveedores.Application.Admin;
+using WebProveedores.Application.Admin.Commands;
+using WebProveedores.Application.Admin.Responses;
+using WebProveedores.Application.Auth.Commands;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Admin.Commands;
-using WebProveedores.Application.Contracts.Admin.Responses;
-using WebProveedores.Application.Contracts.Auth.Commands;
-using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;
