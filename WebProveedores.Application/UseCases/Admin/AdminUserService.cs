@@ -1,5 +1,5 @@
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Commands;
 using WebProveedores.Application.Contracts.Admin.Responses;
 using WebProveedores.Application.Ports.Inbound.Admin;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -62,7 +62,7 @@ internal sealed class AdminUserService(
     public async Task<AdminUserDetail?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         await userQueries.FindByIdAsync(id, cancellationToken) is { } user ? ToDetail(user) : null;
 
-    public async Task<AdminUserDetail> CreateAsync(SaveUserRequest request, CancellationToken cancellationToken)
+    public async Task<AdminUserDetail> CreateAsync(SaveUserCommand request, CancellationToken cancellationToken)
     {
         var role = await FindRoleAsync(request.Role, cancellationToken);
         var isProvider = role.Code == SecurityCatalog.ProviderRole;
@@ -107,7 +107,7 @@ internal sealed class AdminUserService(
         return ToDetail(user);
     }
 
-    public async Task<AdminUserDetail?> UpdateAsync(Guid actorId, Guid id, SaveUserRequest request, CancellationToken cancellationToken)
+    public async Task<AdminUserDetail?> UpdateAsync(Guid actorId, Guid id, SaveUserCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindTrackedByIdAsync(id, cancellationToken);
         if (user is null) return null;
@@ -149,7 +149,7 @@ internal sealed class AdminUserService(
         return ToDetail(user);
     }
 
-    public async Task<AdminUserDetail?> SetStatusAsync(Guid actorId, Guid id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
+    public async Task<AdminUserDetail?> SetStatusAsync(Guid actorId, Guid id, SetUserStatusCommand request, CancellationToken cancellationToken)
     {
         var user = await users.FindTrackedByIdAsync(id, cancellationToken);
         if (user is null) return null;
@@ -232,7 +232,7 @@ internal sealed class AdminUserService(
     }
 
     /// <summary>Correos válidos, sin repetir y con exactamente un principal.</summary>
-    private static List<(Guid? Id, string Email, EmailType Type, bool IsPrimary)> NormalizeEmails(IReadOnlyList<UserEmailInput> input)
+    private static List<(Guid? Id, string Email, EmailType Type, bool IsPrimary)> NormalizeEmails(IReadOnlyList<UserEmailData> input)
     {
         var emails = input.Select(item => (item.Id, Email: item.Email.Trim().ToLowerInvariant(), Type: ProfileService.ParseType(item.Type), item.IsPrimary)).ToList();
         if (emails.Count == 0) throw new ValidationException("Agrega al menos un correo en la pestaña Correos.");
@@ -305,14 +305,14 @@ internal sealed class AdminUserService(
         _ => null,
     };
 
-    private static string BusinessName(SaveUserRequest request)
+    private static string BusinessName(SaveUserCommand request)
     {
         var name = request.BusinessName?.Trim() ?? string.Empty;
         if (name.Length == 0) throw new ValidationException("Ingresa la razón social.");
         return name;
     }
 
-    private static (string First, string Last) PersonName(SaveUserRequest request)
+    private static (string First, string Last) PersonName(SaveUserCommand request)
     {
         var first = request.FirstName?.Trim() ?? string.Empty;
         var last = request.LastName?.Trim() ?? string.Empty;

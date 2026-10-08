@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Commands;
 using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
@@ -124,7 +124,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         Guid id;
         await using (var db = sql.CreateContext())
         {
-            var created = await TestServices.Admin(db, new CapturingEmail()).CreateAsync(new SaveUserRequest
+            var created = await TestServices.Admin(db, new CapturingEmail()).CreateAsync(new SaveUserCommand
             {
                 Role = SecurityCatalog.AreaApproverRole,
                 Document = dni,
@@ -132,7 +132,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
                 LastName = "Ríos",
                 AreaId = data.Area.Id,
                 CompanyCodes = [data.Naviera.Code],
-                Emails = [new UserEmailInput { Email = first, IsPrimary = true }],
+                Emails = [new UserEmailData { Email = first, IsPrimary = true }],
             }, CancellationToken.None);
             id = created.Id;
         }
@@ -141,14 +141,14 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
             var admin = TestServices.Admin(db, new CapturingEmail());
             var detail = await admin.GetAsync(id, CancellationToken.None);
             // Cuenta aún no activada: el nuevo correo puede ser principal (la activación lo verificará).
-            var updated = await admin.UpdateAsync(data.Accounting.Id, id, new SaveUserRequest
+            var updated = await admin.UpdateAsync(data.Accounting.Id, id, new SaveUserCommand
             {
                 Role = SecurityCatalog.AreaApproverRole,
                 FirstName = "Ana",
                 LastName = "Ríos Campos",
                 AreaId = data.Area.Id,
                 CompanyCodes = [data.Naviera.Code],
-                Emails = [new UserEmailInput { Id = detail!.Emails[0].Id, Email = first }, new UserEmailInput { Email = second, IsPrimary = true }],
+                Emails = [new UserEmailData { Id = detail!.Emails[0].Id, Email = first }, new UserEmailData { Email = second, IsPrimary = true }],
             }, CancellationToken.None);
             Assert.Equal(second, updated!.Emails.Single(email => email.IsPrimary).Email);
         }

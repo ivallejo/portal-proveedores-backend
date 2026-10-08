@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Admin.Requests;
+namespace WebProveedores.Api.Contracts.Admin;
 
 public sealed class UserEmailInput
 {

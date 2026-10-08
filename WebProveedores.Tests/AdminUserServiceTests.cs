@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Admin.Requests;
+using WebProveedores.Application.Contracts.Admin.Commands;
 using WebProveedores.Application.Contracts.Admin.Responses;
 using WebProveedores.Application.Contracts.Auth.Commands;
 using WebProveedores.Application.Ports.Inbound.Admin;
@@ -52,7 +52,7 @@ public sealed class AdminUserServiceTests
     public async Task Create_enforces_the_rules(string role, string document, string expected, bool withArea = true, string company = "1001", bool withEmail = true)
     {
         await using var fixture = await Fixture.CreateAsync();
-        var request = new SaveUserRequest
+        var request = new SaveUserCommand
         {
             Role = role,
             Document = document,
@@ -138,9 +138,9 @@ public sealed class AdminUserServiceTests
         Assert.Equal(2, (await fixture.Service.SearchAsync(null, SecurityCatalog.AdministratorRole, null, 1, 10, CancellationToken.None)).Total);
         Assert.Empty((await fixture.Service.SearchAsync(null, SecurityCatalog.ProviderRole, null, 1, 10, CancellationToken.None)).Items);
 
-        var unlocked = await fixture.Service.SetStatusAsync(fixture.Admin.Id, locked.Id, new UpdateUserStatusRequest(true), CancellationToken.None);
+        var unlocked = await fixture.Service.SetStatusAsync(fixture.Admin.Id, locked.Id, new SetUserStatusCommand(true), CancellationToken.None);
         Assert.Equal("active", unlocked!.Status);
-        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetStatusAsync(fixture.Admin.Id, fixture.Admin.Id, new UpdateUserStatusRequest(false), CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.SetStatusAsync(fixture.Admin.Id, fixture.Admin.Id, new SetUserStatusCommand(false), CancellationToken.None));
     }
 
     [Fact]
@@ -159,11 +159,11 @@ public sealed class AdminUserServiceTests
             .ConfirmPasswordResetAsync(Confirm(oldToken, user: "admin2"), PasswordTokenPurpose.PasswordReset, CancellationToken.None));
     }
 
-    private static UserEmailInput Mail(string email, bool primary = false, string type = "work") => new() { Email = email, IsPrimary = primary, Type = type };
+    private static UserEmailData Mail(string email, bool primary = false, string type = "work") => new() { Email = email, IsPrimary = primary, Type = type };
 
-    private static UserEmailInput Existing(UserEmail email, bool primary = true) => new() { Id = email.Id, Email = email.Email, IsPrimary = primary };
+    private static UserEmailData Existing(UserEmail email, bool primary = true) => new() { Id = email.Id, Email = email.Email, IsPrimary = primary };
 
-    private static SaveUserRequest Internal(string dni, Guid areaId, params UserEmailInput[] emails) => new()
+    private static SaveUserCommand Internal(string dni, Guid areaId, params UserEmailData[] emails) => new()
     {
         Role = SecurityCatalog.AreaApproverRole,
         Document = dni,
@@ -174,7 +174,7 @@ public sealed class AdminUserServiceTests
         Emails = emails,
     };
 
-    private static SaveUserRequest Edit(string role, Guid? areaId, params UserEmailInput[] emails) => new()
+    private static SaveUserCommand Edit(string role, Guid? areaId, params UserEmailData[] emails) => new()
     {
         Role = role,
         FirstName = "Nombre",
