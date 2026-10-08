@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Profile.Requests;
+namespace WebProveedores.Api.Contracts.Profile;
 
 public sealed class AddEmailRequest
 {

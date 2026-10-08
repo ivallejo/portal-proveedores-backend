@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Contracts.Admin.Requests;
-using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Domain.Access;
@@ -91,7 +91,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         await using (var db = sql.CreateContext())
         {
             var service = TestServices.Profile(db, email);
-            await service.AddEmailAsync(data.Approver.Id, new AddEmailRequest { Email = address, Type = "personal" }, CancellationToken.None);
+            await service.AddEmailAsync(data.Approver.Id, new AddEmailCommand { Email = address, Type = "personal" }, CancellationToken.None);
         }
         var token = System.Text.RegularExpressions.Regex.Match(email.Body, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
         await using (var db = sql.CreateContext())

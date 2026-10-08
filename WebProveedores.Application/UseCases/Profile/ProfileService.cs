@@ -1,7 +1,7 @@
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Contracts.Profile.Responses;
 using WebProveedores.Application.Ports.Inbound.Profile;
 using WebProveedores.Application.Ports.Outbound.Persistence;
@@ -21,7 +21,7 @@ internal sealed partial class ProfileService(
     public async Task<ProfileResponse> GetAsync(Guid userId, CancellationToken cancellationToken) =>
         ToResponse(await userQueries.FindByIdAsync(userId, cancellationToken) ?? throw new ForbiddenException("La sesión no es válida."));
 
-    public async Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken)
+    public async Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileCommand request, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(userId, cancellationToken);
         var now = Now();
@@ -45,7 +45,7 @@ internal sealed partial class ProfileService(
         return ToResponse(user);
     }
 
-    public async Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailRequest request, CancellationToken cancellationToken)
+    public async Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailCommand request, CancellationToken cancellationToken)
     {
         var user = await LoadAsync(userId, cancellationToken);
         var address = request.Email.Trim().ToLowerInvariant();

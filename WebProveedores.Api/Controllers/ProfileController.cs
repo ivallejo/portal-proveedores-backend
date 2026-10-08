@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using WebProveedores.Api.Contracts.Profile;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Contracts.Profile.Requests;
 using WebProveedores.Application.Contracts.Profile.Responses;
 using WebProveedores.Application.Ports.Inbound.Profile;
 
@@ -20,12 +20,12 @@ public sealed class ProfileController(IProfileService profile, ICurrentUser curr
 
     [HttpPut]
     public async Task<ActionResult<ProfileResponse>> Update(UpdateProfileRequest request, CancellationToken cancellationToken) =>
-        Ok(await profile.UpdateAsync(currentUser.Id, request, cancellationToken));
+        Ok(await profile.UpdateAsync(currentUser.Id, request.ToCommand(), cancellationToken));
 
     [HttpPost("emails")]
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]
     public async Task<ActionResult<ProfileResponse>> AddEmail(AddEmailRequest request, CancellationToken cancellationToken) =>
-        Ok(await profile.AddEmailAsync(currentUser.Id, request, cancellationToken));
+        Ok(await profile.AddEmailAsync(currentUser.Id, request.ToCommand(), cancellationToken));
 
     [HttpPost("emails/{id:guid}/verification")]
     [EnableRateLimiting(RateLimitPolicies.Sensitive)]

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace WebProveedores.Application.Contracts.Profile.Requests;
+namespace WebProveedores.Api.Contracts.Profile;
 
 /// <summary>Datos que la persona puede cambiar: razón social (proveedor) o nombres y apellidos (personal interno).</summary>
 public sealed class UpdateProfileRequest

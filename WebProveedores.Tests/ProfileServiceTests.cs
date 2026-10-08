@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Contracts.Auth.Commands;
-using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.UseCases.Profile;
 using WebProveedores.Domain.Access;
@@ -23,14 +23,14 @@ public sealed class ProfileServiceTests
         await db.SaveChangesAsync();
         var service = Service(db, new FakeEmailSender());
 
-        var renamed = await service.UpdateAsync(provider.Id, new UpdateProfileRequest { BusinessName = "  Andes Suministros S.A.C. " }, CancellationToken.None);
+        var renamed = await service.UpdateAsync(provider.Id, new UpdateProfileCommand { BusinessName = "  Andes Suministros S.A.C. " }, CancellationToken.None);
         Assert.Equal(("Andes Suministros S.A.C.", true), (renamed.BusinessName, renamed.IsProvider));
-        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(provider.Id, new UpdateProfileRequest { BusinessName = "An" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(provider.Id, new UpdateProfileCommand { BusinessName = "An" }, CancellationToken.None));
 
-        var named = await service.UpdateAsync(internalUser.Id, new UpdateProfileRequest { FirstName = "María", LastName = "Torres Vega" }, CancellationToken.None);
+        var named = await service.UpdateAsync(internalUser.Id, new UpdateProfileCommand { FirstName = "María", LastName = "Torres Vega" }, CancellationToken.None);
         Assert.Equal(("María", "Torres Vega", "María Torres Vega"), (named.FirstName, named.LastName, named.DisplayName));
-        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(internalUser.Id, new UpdateProfileRequest { FirstName = "María", LastName = "Torres V3ga" }, CancellationToken.None));
-        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(internalUser.Id, new UpdateProfileRequest { FirstName = "", LastName = "Torres" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(internalUser.Id, new UpdateProfileCommand { FirstName = "María", LastName = "Torres V3ga" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.UpdateAsync(internalUser.Id, new UpdateProfileCommand { FirstName = "", LastName = "Torres" }, CancellationToken.None));
     }
 
     [Fact]
@@ -43,10 +43,10 @@ public sealed class ProfileServiceTests
         var email = new FakeEmailSender();
         var service = Service(db, email);
 
-        await Assert.ThrowsAsync<ValidationException>(() => service.AddEmailAsync(user.Id, new AddEmailRequest { Email = "sin-arroba", Type = "work" }, CancellationToken.None));
-        await Assert.ThrowsAsync<ConflictException>(() => service.AddEmailAsync(user.Id, new AddEmailRequest { Email = "OTRO@ejemplo.test", Type = "work" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ValidationException>(() => service.AddEmailAsync(user.Id, new AddEmailCommand { Email = "sin-arroba", Type = "work" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => service.AddEmailAsync(user.Id, new AddEmailCommand { Email = "OTRO@ejemplo.test", Type = "work" }, CancellationToken.None));
 
-        var profile = await service.AddEmailAsync(user.Id, new AddEmailRequest { Email = " Cobranzas@Andes.test ", Type = "billing" }, CancellationToken.None);
+        var profile = await service.AddEmailAsync(user.Id, new AddEmailCommand { Email = " Cobranzas@Andes.test ", Type = "billing" }, CancellationToken.None);
         var added = profile.Emails.Single(item => !item.IsPrimary);
         Assert.Equal(("cobranzas@andes.test", "billing", false), (added.Email, added.Type, added.IsVerified));
         Assert.Equal("cobranzas@andes.test", email.Recipient);

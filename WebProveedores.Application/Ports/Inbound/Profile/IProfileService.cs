@@ -1,4 +1,4 @@
-using WebProveedores.Application.Contracts.Profile.Requests;
+using WebProveedores.Application.Contracts.Profile.Commands;
 using WebProveedores.Application.Contracts.Profile.Responses;
 
 namespace WebProveedores.Application.Ports.Inbound.Profile;
@@ -7,8 +7,8 @@ namespace WebProveedores.Application.Ports.Inbound.Profile;
 public interface IProfileService
 {
     Task<ProfileResponse> GetAsync(Guid userId, CancellationToken cancellationToken);
-    Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileRequest request, CancellationToken cancellationToken);
-    Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailRequest request, CancellationToken cancellationToken);
+    Task<ProfileResponse> UpdateAsync(Guid userId, UpdateProfileCommand request, CancellationToken cancellationToken);
+    Task<ProfileResponse> AddEmailAsync(Guid userId, AddEmailCommand request, CancellationToken cancellationToken);
     Task<ProfileResponse> ResendVerificationAsync(Guid userId, Guid emailId, CancellationToken cancellationToken);
     Task<ProfileResponse> MakePrimaryAsync(Guid userId, Guid emailId, CancellationToken cancellationToken);
     Task<ProfileResponse> RemoveEmailAsync(Guid userId, Guid emailId, CancellationToken cancellationToken);
