@@ -49,6 +49,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         };
         // El frontend muestra el campo «message», igual que en las demás respuestas de error.
         problem.Extensions["message"] = message;
+        if (!internalError && exception is AppException { Code: { } code })
+            problem.Extensions["code"] = code;
         httpContext.Response.StatusCode = statusCode;
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
         return true;

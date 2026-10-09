@@ -221,7 +221,7 @@ GET {Sap__BaseUrl}/sap/bc/zconsruc?sap-client={Sap__Client}&ruc={ruc}
 Authorization: Basic {Sap__BasicToken}
 ```
 
-La respuesta SAP esperada es una lista con `stcd1`, `name1`, `name2`, `adrnr` y `correo`.
+La respuesta SAP esperada es una lista con `stcd1`, `name1`, `name2`, `adrnr` y `correo`. Si el RUC no existe, SAP responde 200 con una fila ficticia (`stcd1` = `9999999991`, `name1` = «EL RUC: … No existe»): `SapProviderClient` la descarta y se trata como no encontrado (404). Sin `correo`, el registro responde 400 con `code` = `PROVIDER_EMAIL_MISSING`.
 
 ## Módulo de documentos
 

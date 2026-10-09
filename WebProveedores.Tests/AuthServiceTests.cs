@@ -227,6 +227,21 @@ public sealed class AuthServiceTests
         var exception = await Assert.ThrowsAsync<ValidationException>(() => service.ValidateRucAsync("20100017491", CancellationToken.None));
 
         Assert.Contains("no tiene un correo de contacto", exception.Message);
+        Assert.Equal(ErrorCodes.ProviderEmailMissing, exception.Code);
+    }
+
+    [Fact]
+    public async Task ValidateRucAsync_treats_sap_not_found_placeholder_as_not_found()
+    {
+        await using var db = CreateContext();
+        var sap = new SapProviderClient(
+            new HttpClient(new JsonHandler("[{\"stcd1\": \"9999999991\", \"name1\": \"EL RUC: 20100120000 No existe\", \"name2\": \"\", \"adrnr\": \"\", \"correo\": \"\"}]")),
+            new SapSettings("http://sap.invalid", "200", "test-token"));
+        var service = TestServices.Registration(db, new FakeEmailSender(), sap);
+
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => service.ValidateRucAsync("20100120000", CancellationToken.None));
+
+        Assert.DoesNotContain("No existe", exception.Message);
     }
 
     private sealed class JsonHandler(string json) : HttpMessageHandler
