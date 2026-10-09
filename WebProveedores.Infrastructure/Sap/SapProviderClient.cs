@@ -25,8 +25,10 @@ public sealed class SapProviderClient(HttpClient httpClient, SapSettings setting
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
                 cancellationToken);
 
+            // Cuando el RUC no existe SAP responde 200 con una fila ficticia («EL RUC: … No existe»): equivale a no encontrado.
+            var found = providers?.Where(provider => !IsNotFoundPlaceholder(provider)).ToList() ?? [];
             // Se prefiere el registro con correo; sin ninguno se devuelve igual, para avisar que falta el correo.
-            return providers?.FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider.Correo)) ?? providers?.FirstOrDefault();
+            return found.FirstOrDefault(provider => !string.IsNullOrWhiteSpace(provider.Correo)) ?? found.FirstOrDefault();
         }
         // Red caída, VPN desconectada, tiempo agotado o circuito abierto: SAP no está disponible, no es un error del usuario.
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
@@ -34,4 +36,13 @@ public sealed class SapProviderClient(HttpClient httpClient, SapSettings setting
             throw new ServiceUnavailableException("No pudimos consultar SAP en este momento. Intenta nuevamente en unos minutos.", exception);
         }
     }
+
+    /// <summary>
+    /// Prefijo del RUC ficticio («9999999991») con el que SAP arma la fila «EL RUC: … No existe». Ningún RUC real
+    /// empieza con 9 (los válidos empiezan con 10, 15, 17 o 20).
+    /// </summary>
+    private const string NotFoundRucPrefix = "99999";
+
+    internal static bool IsNotFoundPlaceholder(SapProviderRecord provider) =>
+        provider.Stcd1?.Trim().StartsWith(NotFoundRucPrefix, StringComparison.Ordinal) == true;
 }
