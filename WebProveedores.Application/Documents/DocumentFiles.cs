@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Documents.Commands;
 using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;
@@ -10,6 +11,8 @@ namespace WebProveedores.Application.Documents;
 internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, TimeProvider clock, ILogger<DocumentFiles> logger)
 {
     public const long MaxFileBytes = 5 * 1024 * 1024;
+    /// <summary>Tope de adjuntos por correo (Gmail acepta 25 MB, incluida la codificación).</summary>
+    public const long MaxEmailAttachmentBytes = 18 * 1024 * 1024;
 
     public static async Task<byte[]> ReadRequiredAsync(UploadedFile? file, string label, string[] extensions, CancellationToken cancellationToken)
     {
@@ -42,6 +45,32 @@ internal sealed class DocumentFiles(IFileStorage storage, IPdfMerger pdfMerger, 
         stored.Add(key);
         var contentType = extension switch { ".pdf" => "application/pdf", ".xml" => "application/xml", ".zip" => "application/zip", _ => "application/octet-stream" };
         document.AddAttachment(kind, SafeFileName(file.FileName), key, contentType, bytes.Length, clock.GetUtcNow().UtcDateTime);
+    }
+
+    /// <summary>
+    /// Archivos del documento para adjuntarlos a un correo. Devuelve null si superan <see cref="MaxEmailAttachmentBytes"/>
+    /// o no se pueden leer: el correo se envía igual y el destinatario los revisa en el portal.
+    /// </summary>
+    public async Task<IReadOnlyList<EmailAttachment>?> ForEmailAsync(SupplierDocument document, CancellationToken cancellationToken)
+    {
+        if (document.Attachments.Sum(attachment => attachment.SizeBytes) > MaxEmailAttachmentBytes) return null;
+        try
+        {
+            var files = new List<EmailAttachment>();
+            foreach (var attachment in document.Attachments.OrderBy(attachment => attachment.Kind))
+            {
+                await using var content = await storage.OpenReadAsync(attachment.StorageKey, cancellationToken);
+                using var buffer = new MemoryStream();
+                await content.CopyToAsync(buffer, cancellationToken);
+                files.Add(new EmailAttachment(attachment.FileName, attachment.ContentType, buffer.ToArray()));
+            }
+            return files;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "No se pudieron leer los archivos del documento {Number} para el correo", document.Number);
+            return null;
+        }
     }
 
     /// <summary>Si el registro falla, se borran los archivos ya guardados.</summary>

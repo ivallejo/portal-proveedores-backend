@@ -3,13 +3,14 @@ using System.Net.Mail;
 using System.Net.Mime;
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Infrastructure.Email;
 
 /// <summary>Envío por SMTP (hoy Gmail). La redirección de pruebas la hace <see cref="RedirectingEmailSender"/>.</summary>
 public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
 {
-    public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+    public async Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
     {
         var host = configuration["Smtp:Host"] ?? throw new InvalidOperationException("SMTP no está configurado.");
         var username = configuration["Smtp:Username"] ?? throw new InvalidOperationException("SMTP username no está configurado.");
@@ -23,6 +24,8 @@ public sealed class SmtpEmailSender(IConfiguration configuration) : IEmailSender
         };
         using var message = new MailMessage(from, recipient, subject, body) { IsBodyHtml = isHtml };
         foreach (var copy in copyTo ?? []) message.CC.Add(copy);
+        foreach (var attachment in attachments ?? [])
+            message.Attachments.Add(new Attachment(new MemoryStream(attachment.Content), attachment.FileName, attachment.ContentType));
         if (isHtml)
         {
             var htmlView = AlternateView.CreateAlternateViewFromString(body, null, MediaTypeNames.Text.Html);

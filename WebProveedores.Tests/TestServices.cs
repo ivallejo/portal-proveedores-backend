@@ -63,7 +63,7 @@ internal static class TestServices
             new DocumentRegistrationService(new EfDocumentRepository(db), unitOfWork, access, files, sap, notifier, TimeProvider.System),
             new DocumentQueryService(new EfDocumentSearch(db), access, storage),
             new DocumentApprovalService(unitOfWork, access, notifier, TimeProvider.System),
-            new DocumentAccountingService(unitOfWork, access, notifier, TimeProvider.System));
+            new DocumentAccountingService(unitOfWork, access, files, notifier, TimeProvider.System));
     }
 }
 

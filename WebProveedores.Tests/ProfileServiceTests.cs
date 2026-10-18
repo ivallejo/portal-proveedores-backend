@@ -9,6 +9,7 @@ using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests;
 
@@ -88,7 +89,7 @@ public sealed class ProfileServiceTests
         public string? Recipient { get; private set; }
         public string? Body { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
         {
             Recipient = recipient;
             Body = body;

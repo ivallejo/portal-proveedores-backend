@@ -1,5 +1,6 @@
 using System.Net;
 using WebProveedores.Application.Ports.Outbound.Notifications;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Infrastructure.Email;
 
@@ -9,13 +10,13 @@ namespace WebProveedores.Infrastructure.Email;
 /// </summary>
 public sealed class RedirectingEmailSender(IEmailSender inner, string testRecipient) : IEmailSender
 {
-    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
     {
         // Las copias tampoco salen: se indican en el aviso del correo de prueba.
         var original = copyTo is { Count: > 0 } ? $"{recipient} (copia: {string.Join(", ", copyTo)})" : recipient;
         var notice = isHtml
             ? $"<div style=\"margin:0 auto 16px;max-width:600px;padding:10px 16px;background:#fff4ed;border:1px solid #ed7624;border-radius:8px;font:14px Arial,sans-serif;color:#7a3a12;\">Correo de prueba · destinatario original: {WebUtility.HtmlEncode(original)}</div>{body}"
             : $"Destinatario original: {original}{Environment.NewLine}{Environment.NewLine}{body}";
-        return inner.SendAsync(testRecipient, $"[PRUEBA] {subject}", notice, cancellationToken, isHtml);
+        return inner.SendAsync(testRecipient, $"[PRUEBA] {subject}", notice, cancellationToken, isHtml, attachments: attachments);
     }
 }

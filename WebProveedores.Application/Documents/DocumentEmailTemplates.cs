@@ -17,11 +17,15 @@ internal static class DocumentEmailTemplates
         [("Motivo", reason)],
         "Si tienes dudas, comunícate con el área que solicitó el servicio.");
 
-    public static string Observed(string providerName, string number, string reason) => Layout(
-        $"Hola, {Encode(providerName)}",
-        $"Cuentas por pagar observó tu documento {Encode(number)}.",
+    /// <summary>Al usuario que indicó Cuentas por pagar (flujo 05): motivo y, si caben, los archivos adjuntos.</summary>
+    public static string Observed(string providerName, string number, string reason, bool withAttachments) => Layout(
+        "Documento observado",
+        $"Cuentas por pagar observó el documento {Encode(number)} de {Encode(providerName)}.",
         [("Observación", reason)],
-        "Levanta la observación respondiendo con la información solicitada.");
+        withAttachments
+            ? "Adjuntamos los archivos del documento. Responde con la información solicitada para levantar la observación."
+            : "Revisa los archivos del documento en el Portal de Proveedores y responde con la información solicitada para levantar la observación.");
+
 
     private static string Layout(string title, string description, IEnumerable<(string Label, string Value)> fields, string note)
     {

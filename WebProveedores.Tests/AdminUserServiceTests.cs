@@ -11,6 +11,7 @@ using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests;
 
@@ -234,7 +235,7 @@ internal sealed class CapturingEmailSender : IEmailSender
 {
     public List<(string Recipient, string Body)> Sent { get; } = [];
 
-    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
     {
         Sent.Add((recipient, body));
         return Task.CompletedTask;

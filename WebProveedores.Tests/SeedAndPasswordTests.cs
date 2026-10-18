@@ -13,6 +13,7 @@ using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Seeding;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests;
 
@@ -204,6 +205,6 @@ public sealed class SeedAndPasswordTests : IDisposable
 
     private sealed class NoEmail : IEmailSender
     {
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null) => Task.CompletedTask;
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null) => Task.CompletedTask;
     }
 }

@@ -12,6 +12,7 @@ using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests;
 
@@ -221,6 +222,10 @@ public sealed class DocumentServiceTests
 
         Assert.Equal(DocumentStatus.Observed, observed.Status);
         Assert.Equal("proveedor@test.pe", fixture.Email.Recipients[^1]);
+        // Flujo 05: el correo lleva los archivos del documento.
+        Assert.Equal(["F001-00000109.xml", "F001-00000109.pdf", "R-F001-00000109.zip"], fixture.Email.LastAttachments!.Select(file => file.FileName));
+        Assert.All(fixture.Email.LastAttachments!, file => Assert.NotEmpty(file.Content));
+        Assert.Contains("Adjuntamos los archivos", fixture.Email.LastBody);
         await Assert.ThrowsAsync<DomainRuleException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Accounting.Id, document.Id, request, CancellationToken.None));
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Accounting.ObserveAsync(fixture.Provider.Id, document.Id, request, CancellationToken.None));
     }
@@ -399,10 +404,14 @@ public sealed class DocumentServiceTests
     private sealed class FakeEmailSender : IEmailSender
     {
         public List<string> Recipients { get; } = [];
+        public IReadOnlyList<EmailAttachment>? LastAttachments { get; private set; }
+        public string LastBody { get; private set; } = string.Empty;
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
         {
             Recipients.Add(recipient);
+            LastAttachments = attachments;
+            LastBody = body;
             return Task.CompletedTask;
         }
     }

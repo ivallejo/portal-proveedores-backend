@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Infrastructure.Email;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests;
 
@@ -104,7 +105,7 @@ public sealed class EmailSettingsTests
         public string? Body { get; private set; }
         public IReadOnlyList<string>? CopyTo { get; private set; }
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
         {
             (Recipient, Subject, Body, CopyTo) = (recipient, subject, body, copyTo);
             return Task.CompletedTask;

@@ -9,6 +9,7 @@ using WebProveedores.Domain.Documents;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence.Repositories;
+using WebProveedores.Application.Ports.Outbound.Notifications.Models;
 
 namespace WebProveedores.Tests.Integration;
 
@@ -269,7 +270,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     {
         public string Body { get; private set; } = string.Empty;
 
-        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null)
+        public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null)
         {
             Body = body;
             return Task.CompletedTask;

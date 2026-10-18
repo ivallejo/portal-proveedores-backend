@@ -5,7 +5,7 @@ using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;
 
-internal sealed class DocumentAccountingService(IUnitOfWork unitOfWork, DocumentAccess access, DocumentNotifier notifier, TimeProvider clock) : IDocumentAccountingService
+internal sealed class DocumentAccountingService(IUnitOfWork unitOfWork, DocumentAccess access, DocumentFiles files, DocumentNotifier notifier, TimeProvider clock) : IDocumentAccountingService
 {
     public async Task<DocumentDetailResponse> RejectAsync(Guid userId, Guid documentId, RejectDocumentCommand request, CancellationToken cancellationToken)
     {
@@ -23,7 +23,8 @@ internal sealed class DocumentAccountingService(IUnitOfWork unitOfWork, Document
         var email = request.Email.Trim().ToLowerInvariant();
         document.Observe(request.Reason, email, actor.Label, clock.GetUtcNow().UtcDateTime);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        await notifier.ObservedAsync(email, document, request.Reason.Trim(), cancellationToken);
+        var attachments = await files.ForEmailAsync(document, cancellationToken);
+        await notifier.ObservedAsync(email, document, request.Reason.Trim(), attachments, cancellationToken);
         return DocumentMapper.ToDetail(document);
     }
 }
