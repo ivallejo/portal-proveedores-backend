@@ -9,5 +9,6 @@ Leer primero [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md): arquitectura, «d
 - Reglas de estado de los documentos en `Domain/Documents/SupplierDocument.cs`; no cambiar estados desde los controllers.
 - Claves Guid generadas en el dominio: configurar `ValueGeneratedNever()` en entidades hijas nuevas (si no, EF las trata como existentes).
 - Probar consultas nuevas contra SQL Server real: agregar un caso en `WebProveedores.Tests/Integration` (Testcontainers, requiere Docker); el proveedor InMemory acepta LINQ que SQL Server no traduce.
+- Cambios de comportamiento: primero la spec aprobada. Los flujos de negocio (`docs/flujos/`) y las specs (`docs/specs/`) viven en el repo del frontend (`portal-proveedores-mock`).
 - No versionar `.env`, secretos ni `App_Data/`.
 - Antes de terminar: `dotnet build WebProveedores.slnx`, `dotnet test WebProveedores.slnx` y `dotnet format whitespace --folder`.

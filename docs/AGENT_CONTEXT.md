@@ -1,5 +1,7 @@
 # Contexto técnico para agentes — Backend
 
+> **Flujos y specs:** los flujos de negocio aprobados y las specs de cada cambio están en el repo del frontend: `portal-proveedores-mock/docs/flujos/` y `portal-proveedores-mock/docs/specs/`.
+
 Guía del estado real del backend del Portal de Proveedores. Leer antes de cambiar arquitectura, seguridad, base de datos o contratos HTTP.
 
 ## Alcance actual
