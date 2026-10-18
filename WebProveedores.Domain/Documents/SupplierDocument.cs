@@ -32,8 +32,6 @@ public sealed class SupplierDocument
     public DocumentStatus Status { get; private set; }
     public RejectionStage? RejectedBy { get; private set; }
 
-    /// <summary>Documento de Caja Chica: se registra sin pasar por aprobación.</summary>
-
     public Guid? AreaId { get; private set; }
     public string? AreaName { get; private set; }
     public Guid? ApproverId { get; private set; }
