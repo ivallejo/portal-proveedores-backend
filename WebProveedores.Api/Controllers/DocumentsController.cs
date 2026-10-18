@@ -38,7 +38,7 @@ public sealed class DocumentsController(
     public async Task<ActionResult<DocumentDetailResponse>> Register([FromForm] RegisterDocumentForm form, CancellationToken cancellationToken)
     {
         var command = new RegisterElectronicDocumentCommand(
-            form.EntryType, form.CompanyCode, form.IsPettyCash, form.OrderType, form.OrderNumber, form.ApproverId,
+            form.EntryType, form.CompanyCode, form.OrderType, form.OrderNumber, form.ApproverId,
             ToUpload(form.Xml), ToUpload(form.Pdf), ToUpload(form.Cdr),
             (form.Extras ?? []).Select(ToUpload).OfType<UploadedFile>().ToArray());
         var created = await registration.RegisterAsync(UserId, command, cancellationToken);

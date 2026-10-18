@@ -314,11 +314,6 @@ namespace WebProveedores.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("IsPettyCash")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<DateOnly>("IssuedAt")
                         .HasColumnType("date");
 

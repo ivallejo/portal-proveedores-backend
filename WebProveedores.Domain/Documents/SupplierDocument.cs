@@ -33,7 +33,6 @@ public sealed class SupplierDocument
     public RejectionStage? RejectedBy { get; private set; }
 
     /// <summary>Documento de Caja Chica: se registra sin pasar por aprobación.</summary>
-    public bool IsPettyCash { get; private set; }
 
     public Guid? AreaId { get; private set; }
     public string? AreaName { get; private set; }
@@ -58,24 +57,21 @@ public sealed class SupplierDocument
     public ICollection<DocumentEvent> Events { get; private set; } = [];
 
     /// <summary>
-    /// Registra un documento aplicando las reglas del flujo: Con OC exige la orden; Sin OC pasa por aprobación
-    /// salvo Caja Chica; los especiales van directo a contabilización. Deja el historial inicial.
+    /// Registra un documento aplicando las reglas del flujo: Con OC exige la orden; Sin OC con aprobador (proveedor)
+    /// pasa por aprobación y sin aprobador (usuario interno) va directo a contabilización, igual que los especiales.
+    /// Deja el historial inicial.
     /// </summary>
     /// <param name="validationTitle">Título del evento de validación en SAP/SUNAT para el historial.</param>
     public static SupplierDocument Register(DocumentData data, Company company, Guid registeredById, string registeredByName,
-        DateTime now, string validationTitle, bool isPettyCash = false, PurchaseOrderInfo? order = null, ApproverAssignment? approver = null)
+        DateTime now, string validationTitle, PurchaseOrderInfo? order = null, ApproverAssignment? approver = null)
     {
         switch (data.EntryType)
         {
             case DocumentEntryType.WithPurchaseOrder when order is null:
                 throw new DomainRuleException("Un documento con orden de compra necesita la orden validada.");
-            case DocumentEntryType.WithoutPurchaseOrder when !isPettyCash && approver is null:
-                throw new DomainRuleException("Un documento sin orden de compra necesita un aprobador.");
         }
-        if (isPettyCash && data.EntryType != DocumentEntryType.WithoutPurchaseOrder)
-            throw new DomainRuleException("Solo los documentos sin orden de compra pueden ser de Caja Chica.");
-        if (approver is not null && (isPettyCash || data.EntryType != DocumentEntryType.WithoutPurchaseOrder))
-            throw new DomainRuleException("Solo los documentos sin orden de compra (no Caja Chica) pasan por aprobación.");
+        if (approver is not null && data.EntryType != DocumentEntryType.WithoutPurchaseOrder)
+            throw new DomainRuleException("Solo los documentos sin orden de compra pasan por aprobación.");
         if (order is not null && data.EntryType != DocumentEntryType.WithPurchaseOrder)
             throw new DomainRuleException("Solo los documentos con orden de compra llevan orden.");
 
@@ -99,7 +95,6 @@ public sealed class SupplierDocument
             RegisteredByName = registeredByName,
             CompanyId = company.Id,
             Company = company,
-            IsPettyCash = isPettyCash,
             Status = approver is null ? DocumentStatus.PendingAccounting : DocumentStatus.PendingApproval,
             OrderType = order?.Type,
             OrderNumber = order?.Number,

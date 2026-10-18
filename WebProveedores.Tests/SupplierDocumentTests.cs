@@ -15,7 +15,8 @@ public sealed class SupplierDocumentTests
     public void Register_routes_each_entry_type_to_its_first_status()
     {
         Assert.Equal(DocumentStatus.PendingApproval, Register(DocumentEntryType.WithoutPurchaseOrder, approver: Approver).Status);
-        Assert.Equal(DocumentStatus.PendingAccounting, Register(DocumentEntryType.WithoutPurchaseOrder, pettyCash: true).Status);
+        // Sin OC sin aprobador: lo registra un usuario interno (flujo 02) y va directo a contabilización.
+        Assert.Equal(DocumentStatus.PendingAccounting, Register(DocumentEntryType.WithoutPurchaseOrder).Status);
         Assert.Equal(DocumentStatus.PendingAccounting, Register(DocumentEntryType.WithPurchaseOrder, order: Order).Status);
 
         var special = Register(DocumentEntryType.Special);
@@ -24,14 +25,13 @@ public sealed class SupplierDocumentTests
     }
 
     [Theory]
-    [InlineData(DocumentEntryType.WithPurchaseOrder, false, false, false)]   // Con OC sin orden
-    [InlineData(DocumentEntryType.WithoutPurchaseOrder, false, false, false)] // Sin OC sin aprobador
-    [InlineData(DocumentEntryType.WithPurchaseOrder, true, true, false)]     // Caja Chica con OC
-    [InlineData(DocumentEntryType.WithoutPurchaseOrder, true, false, true)]   // Caja Chica con aprobador
-    [InlineData(DocumentEntryType.Special, false, false, true)]               // Especial con aprobador
-    public void Register_rejects_inconsistent_combinations(DocumentEntryType entryType, bool pettyCash, bool withOrder, bool withApprover)
+    [InlineData(DocumentEntryType.WithPurchaseOrder, false, false)]   // Con OC sin orden
+    [InlineData(DocumentEntryType.WithPurchaseOrder, true, true)]     // Con OC con aprobador
+    [InlineData(DocumentEntryType.WithoutPurchaseOrder, true, true)]  // Sin OC con orden
+    [InlineData(DocumentEntryType.Special, false, true)]              // Especial con aprobador
+    public void Register_rejects_inconsistent_combinations(DocumentEntryType entryType, bool withOrder, bool withApprover)
     {
-        Assert.Throws<DomainRuleException>(() => Register(entryType, pettyCash, withOrder ? Order : null, withApprover ? Approver : null));
+        Assert.Throws<DomainRuleException>(() => Register(entryType, withOrder ? Order : null, withApprover ? Approver : null));
     }
 
     [Fact]
@@ -46,8 +46,8 @@ public sealed class SupplierDocumentTests
         Assert.Single(document.Events, item => item.Kind == DocumentEventKind.Current);
     }
 
-    private static SupplierDocument Register(DocumentEntryType entryType, bool pettyCash = false, PurchaseOrderInfo? order = null, ApproverAssignment? approver = null) =>
+    private static SupplierDocument Register(DocumentEntryType entryType, PurchaseOrderInfo? order = null, ApproverAssignment? approver = null) =>
         SupplierDocument.Register(
             new DocumentData("F001-1", entryType, "Factura", "20100003199", "Proveedor", null, Currency.PEN, 100m, 18m, 118m, "Servicio", new DateOnly(2026, 10, 1), "Validado"),
-            Naviera, Guid.CreateVersion7(), "Usuario (interno)", DateTime.UtcNow, "Validado en SAP", pettyCash, order, approver);
+            Naviera, Guid.CreateVersion7(), "Usuario (interno)", DateTime.UtcNow, "Validado en SAP", order, approver);
 }

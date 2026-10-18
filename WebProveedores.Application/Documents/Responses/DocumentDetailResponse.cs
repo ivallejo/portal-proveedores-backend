@@ -20,7 +20,6 @@ public sealed record DocumentDetailResponse(
     string RegisteredBy,
     CompanyResponse Company,
     DocumentStatus Status,
-    bool IsPettyCash,
     RejectionStage? RejectedBy,
     string? AreaName,
     string? ApproverName,

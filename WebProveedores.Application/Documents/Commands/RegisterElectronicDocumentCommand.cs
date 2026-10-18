@@ -5,7 +5,6 @@ namespace WebProveedores.Application.Documents.Commands;
 public sealed record RegisterElectronicDocumentCommand(
     DocumentEntryType EntryType,
     string CompanyCode,
-    bool IsPettyCash,
     OrderType? OrderType,
     string? OrderNumber,
     Guid? ApproverId,

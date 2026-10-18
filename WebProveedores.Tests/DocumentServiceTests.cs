@@ -91,36 +91,30 @@ public sealed class DocumentServiceTests
     }
 
     [Fact]
-    public async Task Internal_user_without_order_also_goes_through_approval()
+    public async Task Without_order_only_the_provider_goes_through_approval()
     {
         await using var fixture = await Fixture.CreateAsync();
 
+        // Proveedor: debe elegir aprobador y queda pendiente de aprobación (con correo al aprobador).
         await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
-            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111")), CancellationToken.None));
-        var result = await fixture.Services.Registration.RegisterAsync(
-            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106", issuerRuc: "20111111111"), approverId: fixture.Approver.Id), CancellationToken.None);
+            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000106")), CancellationToken.None));
 
-        Assert.Equal(DocumentStatus.PendingApproval, result.Status);
-        Assert.False(result.IsPettyCash);
-        Assert.Equal("María Torres", result.ApproverName);
+        // Usuario interno (flujo 02): directo a contabilización; si envía un aprobador, se ignora.
+        var internalDoc = await fixture.Services.Registration.RegisterAsync(
+            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000112", issuerRuc: "20111111111"), approverId: fixture.Approver.Id), CancellationToken.None);
+
+        Assert.Equal(DocumentStatus.PendingAccounting, internalDoc.Status);
+        Assert.Null(internalDoc.ApproverName);
+        Assert.Empty(fixture.Email.Recipients);
     }
 
     [Fact]
-    public async Task Petty_cash_skips_approval_but_only_for_internal_users_and_without_order()
+    public async Task Only_the_provider_registers_with_purchase_order()
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var result = await fixture.Services.Registration.RegisterAsync(
-            fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000112", issuerRuc: "20111111111"), pettyCash: true), CancellationToken.None);
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Registration.RegisterAsync(
-            fixture.Provider.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000113"), approverId: fixture.Approver.Id, pettyCash: true), CancellationToken.None));
-        await Assert.ThrowsAsync<ValidationException>(() => fixture.Services.Registration.RegisterAsync(
-            fixture.Internal.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000114", issuerRuc: "20111111111"), orderNumber: "4500012873", pettyCash: true), CancellationToken.None));
-
-        Assert.Equal(DocumentStatus.PendingAccounting, result.Status);
-        Assert.True(result.IsPettyCash);
-        Assert.Null(result.ApproverName);
-        Assert.Empty(fixture.Email.Recipients);
+            fixture.Internal.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000113", issuerRuc: "20111111111"), orderNumber: "4500012873"), CancellationToken.None));
     }
 
     [Fact]
@@ -291,11 +285,11 @@ public sealed class DocumentServiceTests
 
     private static RegisterElectronicDocumentCommand Command(
         DocumentEntryType entryType, string xml, Guid? approverId = null, string? orderNumber = null, bool includeCdr = true,
-        bool pettyCash = false, IReadOnlyList<UploadedFile>? extras = null, string companyCode = "1001")
+        IReadOnlyList<UploadedFile>? extras = null, string companyCode = "1001")
     {
         var number = xml.Split("<cbc:ID>")[1].Split('<')[0];
         return new RegisterElectronicDocumentCommand(
-            entryType, companyCode, pettyCash, orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
+            entryType, companyCode, orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
             File($"{number}.xml", xml), File($"{number}.pdf", "%PDF-1.4 prueba"),
             includeCdr ? File($"R-{number}.zip", "PK prueba") : null,
             extras ?? []);

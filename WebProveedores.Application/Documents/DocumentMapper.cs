@@ -11,12 +11,12 @@ internal static class DocumentMapper
 
     public static DocumentSummaryResponse ToSummary(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName,
-        document.Currency, document.Amount, document.Status, document.IsPettyCash, document.IssuedAt, document.RegisteredAtUtc, document.ApproverName, document.OrderNumber);
+        document.Currency, document.Amount, document.Status, document.IssuedAt, document.RegisteredAtUtc, document.ApproverName, document.OrderNumber);
 
     public static DocumentDetailResponse ToDetail(SupplierDocument document) => new(
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName, document.ProviderEmail,
         document.Currency, document.Subtotal, document.Igv, document.Amount, document.Concept, document.IssuedAt, document.RegisteredAtUtc,
-        document.RegisteredByName, ToResponse(document.Company), document.Status, document.IsPettyCash, document.RejectedBy, document.AreaName, document.ApproverName,
+        document.RegisteredByName, ToResponse(document.Company), document.Status, document.RejectedBy, document.AreaName, document.ApproverName,
         document.ApproverEmail, document.ApprovedAtUtc, document.ApprovalReferenceType, document.ApprovalReference, document.OrderType,
         document.OrderNumber, document.OrderBalance, document.OrderDescription, document.Validation,
         document.Items.OrderBy(item => item.LineNumber).Select(item => new DocumentItemResponse(item.Description, item.Quantity, item.UnitPrice, item.Amount)).ToArray(),

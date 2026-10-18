@@ -32,6 +32,9 @@ internal sealed class DocumentRegistrationService(
         if (!actor.CanRegister) throw new ForbiddenException("No tienes permiso para registrar documentos.");
         if (command.EntryType == DocumentEntryType.Special)
             throw new ValidationException("Los documentos especiales se registran con su propio formulario.");
+        // Con OC (flujo 01): lo registra el proveedor; el administrador también, para soporte.
+        if (command.EntryType == DocumentEntryType.WithPurchaseOrder && !actor.IsProvider && !actor.IsAdmin)
+            throw new ForbiddenException("Los documentos con orden de compra los registra el proveedor.");
 
         var company = await access.RequireCompanyAsync(actor, command.CompanyCode, cancellationToken);
         var xmlBytes = await DocumentFiles.ReadRequiredAsync(command.Xml, "XML del comprobante", [".xml"], cancellationToken);
@@ -42,14 +45,6 @@ internal sealed class DocumentRegistrationService(
             throw new ValidationException($"El XML fue emitido por el RUC {electronic.IssuerRuc}. Solo puedes registrar documentos emitidos por tu RUC.");
         if (!string.IsNullOrEmpty(company.Ruc) && !string.IsNullOrEmpty(electronic.ReceiverRuc) && electronic.ReceiverRuc != company.Ruc)
             throw new ValidationException($"El receptor del XML (RUC {electronic.ReceiverRuc}) no corresponde a la sociedad {company.Name}.");
-
-        if (command.IsPettyCash)
-        {
-            if (command.EntryType != DocumentEntryType.WithoutPurchaseOrder)
-                throw new ValidationException("Solo los documentos sin orden de compra pueden ser de Caja Chica.");
-            if (!actor.IsInternal && !actor.IsAdmin)
-                throw new ForbiddenException("Solo el personal interno puede registrar documentos de Caja Chica.");
-        }
 
         var pdfBytes = await DocumentFiles.ReadRequiredAsync(command.Pdf, "PDF del comprobante", [".pdf"], cancellationToken);
         byte[]? cdrBytes = null;
@@ -68,8 +63,9 @@ internal sealed class DocumentRegistrationService(
                 ?? throw new DocumentRejectedException("SAP no encontró la orden para la sociedad seleccionada o ya no tiene saldo por facturar.");
         }
 
-        // Sin OC pasa por aprobación (proveedor o usuario interno) salvo que sea de Caja Chica.
-        var needsApproval = command.EntryType == DocumentEntryType.WithoutPurchaseOrder && !command.IsPettyCash;
+        // Sin OC (flujo 02): el proveedor elige área y aprobador; el usuario interno registra directo a contabilización
+        // (si envía un aprobador, se ignora).
+        var needsApproval = command.EntryType == DocumentEntryType.WithoutPurchaseOrder && actor.IsProvider && !actor.IsAdmin;
         ApproverRecord? approver = null;
         if (needsApproval)
         {
@@ -88,7 +84,7 @@ internal sealed class DocumentRegistrationService(
             string.Join("; ", electronic.Lines.Select(line => line.Description)), electronic.IssuedAt,
             "Documento validado en SAP y SUNAT");
         var document = SupplierDocument.Register(
-            data, company, actor.Id, actor.RegistrationLabel, now, "Documento validado en SAP y SUNAT", command.IsPettyCash,
+            data, company, actor.Id, actor.RegistrationLabel, now, "Documento validado en SAP y SUNAT",
             order is null ? null : new PurchaseOrderInfo(order.Type, order.Number, order.Balance, order.Description),
             approver is null ? null : new ApproverAssignment(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email));
         foreach (var line in electronic.Lines)

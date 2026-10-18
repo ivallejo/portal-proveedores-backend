@@ -254,7 +254,7 @@ Endpoints (JWT obligatorio, enums en texto):
 | GET | `/api/catalog/companies` | Sociedades activas |
 | GET | `/api/catalog/areas` | Áreas con sus aprobadores activos |
 | POST | `/api/documents/orders/validate` | Servicio 01: valida la orden (422 si no existe) |
-| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `IsPettyCash`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
+| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
 | POST | `/api/documents/special` | Documento especial (multipart, solo `INTERNAL_USER` o admin) |
 | GET | `/api/documents?inbox=Approvals\|Accounting\|Mine&ruc&status&page&pageSize` | Bandejas con `countsByStatus` para los KPI |
 | GET | `/api/documents/{id}` | Detalle con ítems, adjuntos e historial |
@@ -268,7 +268,7 @@ Reglas que aplica el servidor (no confía en el navegador):
 - Un proveedor solo registra documentos emitidos por su RUC. Si la sociedad tiene RUC, el receptor del XML debe coincidir.
 - CDR obligatorio salvo serie que empieza con «E». Archivos ≤ 5 MB, extensión permitida y firma de contenido (`%PDF`, `PK`, XML).
 - Duplicidad por (RUC emisor, número): índice único en BD → 422.
-- Sin OC (proveedor o usuario interno) → *PendingApproval* con área y aprobador elegidos, salvo **Caja Chica** (`IsPettyCash`) → *PendingAccounting* sin aprobador. Solo `INTERNAL_USER` o admin pueden marcar Caja Chica, y solo en Sin OC. Con OC y especiales → *PendingAccounting*.
+- Sin OC (flujo 02): el **proveedor** elige área y aprobador → *PendingApproval* (correo al aprobador); el **usuario interno** o el administrador registran directo → *PendingAccounting* sin aprobador (si envían uno, se ignora). Con OC (flujo 01) solo lo registra el proveedor o el administrador (otro rol: 403). Con OC y especiales → *PendingAccounting*. Caja Chica se eliminó (spec 001, migración `RemovePettyCash`).
 - Los PDF extras se consolidan en un solo adjunto `Anexos_{número}.pdf` (`IPdfMerger`, PDFsharp). Un PDF dañado o con contraseña rechaza el registro y no deja archivos.
 - Solo el aprobador asignado (o el admin) aprueba, rechaza o reasigna. Aprobar exige N° de pedido o de viaje; reasignar exige motivo (queda en el historial y en el correo al nuevo aprobador).
 - Los correos (aprobador, rechazo, observación) no revierten la acción si fallan; se registran en el log.
@@ -390,7 +390,7 @@ No borrar migraciones ni el volumen Docker para resolver errores de conexión. P
 
 ## Entidades
 
-`AppUser` y `SupplierDocument` tienen `private set` y constructor privado (EF los materializa igual). Se crean con `AppUser.Create(...)` y `SupplierDocument.Register(...)` y cambian solo con sus métodos (`RecordFailedLogin`, `SetPassword`, `SetRoles`, `SetCompanies`…; `Approve`, `Reassign`, `Reject`, `Observe`, `AddItem`, `AddAttachment`). `Register` aplica las reglas de entrada (Con OC con orden, Sin OC con aprobador salvo Caja Chica, especiales a contabilización) y genera el historial.
+`AppUser` y `SupplierDocument` tienen `private set` y constructor privado (EF los materializa igual). Se crean con `AppUser.Create(...)` y `SupplierDocument.Register(...)` y cambian solo con sus métodos (`RecordFailedLogin`, `SetPassword`, `SetRoles`, `SetCompanies`…; `Approve`, `Reassign`, `Reject`, `Observe`, `AddItem`, `AddAttachment`). `Register` aplica las reglas de entrada (Con OC con orden; Sin OC con aprobador → aprobación, sin aprobador → contabilización; especiales a contabilización) y genera el historial.
 
 ## SAP 01/02
 

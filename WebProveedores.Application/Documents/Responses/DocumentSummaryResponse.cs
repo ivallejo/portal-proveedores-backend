@@ -12,7 +12,6 @@ public sealed record DocumentSummaryResponse(
     Currency Currency,
     decimal Amount,
     DocumentStatus Status,
-    bool IsPettyCash,
     DateOnly IssuedAt,
     DateTime RegisteredAtUtc,
     string? ApproverName,
