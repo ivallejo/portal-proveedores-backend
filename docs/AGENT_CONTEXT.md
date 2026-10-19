@@ -67,7 +67,7 @@ Puertos de persistencia (segregados por consumidor):
 | `IDocumentRepository` · `IDocumentSearch` · `IApproverDirectory` | Documentos con seguimiento · bandejas · aprobadores elegibles |
 | `IUnitOfWork` | Guardar y transacciones |
 
-Otros puertos de salida: `IPasswordHasher`, `ITokenIssuer` (Security); `IEmailSender` (Notifications); `IProviderDirectory`, `ISapPaymentsGateway`, `ISapDocumentGateway` (Sap); `IFileStorage`, `IPdfMerger` (Files).
+Otros puertos de salida: `IPasswordHasher`, `ITokenIssuer` (Security); `IEmailSender` (Notifications); `IProviderDirectory`, `ISapPaymentsGateway`, `ISapDocumentGateway` (Sap); `IFileStorage`, `IPdfMerger` (Files). Adjuntos: `Storage:Provider` = `AzureBlob` (contenedor privado `Storage:Container`, por defecto `documents`; Azurite en desarrollo con `UseDevelopmentStorage=true`, creado al arrancar) o `Local` (disco, `Storage:DocumentsPath`). Las descargas pasan por la API. `dotnet run --project WebProveedores.Api -- migrate-storage` copia el disco al contenedor con las mismas claves (spec 002).
 
 ### Dónde va cada cosa
 
@@ -120,7 +120,7 @@ WebProveedores.Infrastructure/
 ├── Security/          JwtTokenIssuer, JwtSettings, IdentityPasswordHasher
 ├── Email/             EmailSettings, EmailMode, SmtpEmailSender, RedirectingEmailSender, LogEmailSender
 ├── Sap/               SapProviderClient, SapPaymentsClient, MockSapDocumentGateway, settings, Dtos/ (formato JSON de SAP)
-├── Files/             LocalFileStorage, PdfSharpMerger
+├── Files/             AzureBlobFileStorage o LocalFileStorage (Storage:Provider), PdfSharpMerger; Migration/StorageMigration
 └── Migrations/
 
 WebProveedores.Api/
@@ -233,7 +233,7 @@ Capas:
 Domain/Documents                        SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, DocumentInbox
 Application/Documents                   Puertos de entrada (IDocumentCatalogService, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
 Application/Ports/Outbound              IDocumentRepository, IDocumentSearch, IApproverDirectory, ICompanyReader, IUnitOfWork, IFileStorage, IPdfMerger, ISapDocumentGateway
-Infrastructure                          Persistence/Repositories (Ef*), Files (LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
+Infrastructure                          Persistence/Repositories (Ef*), Files (AzureBlobFileStorage o LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
 Api                                     DocumentsController (api/documents), CatalogController (api/catalog), Contracts/Documents
 ```
 

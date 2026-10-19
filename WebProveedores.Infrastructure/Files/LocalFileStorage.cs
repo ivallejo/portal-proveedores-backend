@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Ports.Outbound.Files;
 
@@ -6,18 +5,15 @@ namespace WebProveedores.Infrastructure.Files;
 
 /// <summary>
 /// Guarda los adjuntos en disco con nombres generados (nunca el nombre del usuario),
-/// agrupados por año y mes. Ruta configurable con <c>Storage:DocumentsPath</c>.
+/// agrupados por año y mes. Ruta configurable con <c>Storage:DocumentsPath</c> (con <c>Storage:Provider=Local</c>).
 /// </summary>
-public sealed class LocalFileStorage(IConfiguration configuration) : IFileStorage
+public sealed class LocalFileStorage(StorageSettings settings) : IFileStorage
 {
-    private readonly string root = Path.GetFullPath(configuration["Storage:DocumentsPath"] ?? Path.Combine("App_Data", "documents"));
+    private readonly string root = Path.GetFullPath(settings.DocumentsPath);
 
     public async Task<string> SaveAsync(Stream content, string extension, CancellationToken cancellationToken)
     {
-        if (extension is not (".pdf" or ".xml" or ".zip"))
-            throw new ArgumentException("Tipo de archivo no permitido.");
-        var now = DateTime.UtcNow;
-        var key = $"{now:yyyy}/{now:MM}/{Guid.CreateVersion7():N}{extension}";
+        var key = StorageKeys.New(extension, DateTime.UtcNow);
         var path = Resolve(key);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -38,6 +34,13 @@ public sealed class LocalFileStorage(IConfiguration configuration) : IFileStorag
         if (File.Exists(path)) File.Delete(path);
         return Task.CompletedTask;
     }
+
+    /// <summary>Claves de todos los archivos guardados (para migrarlos a Blob Storage).</summary>
+    public IEnumerable<string> ListKeys() =>
+        Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/'))
+            : [];
 
     private string Resolve(string storageKey)
     {

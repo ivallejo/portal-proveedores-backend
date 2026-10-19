@@ -2,13 +2,13 @@
 # Levanta todo el entorno LOCAL de desarrollo con un solo comando:
 #   1. Verifica las herramientas (Docker, .NET 10, Node/npm).
 #   2. Crea el .env desde .env.example si no existe (luego hay que completar SAP y SMTP).
-#   3. Inicia SQL Server en Docker y espera a que esté listo.
+#   3. Inicia SQL Server y Azurite (adjuntos) en Docker y espera a que estén listos.
 #   4. Inicia la API (Development: aplica migraciones y carga seed.development.json) y espera /health.
 #   5. Instala dependencias del frontend si hace falta e inicia Angular en http://localhost:4200.
-# Ctrl+C detiene la API y el frontend (SQL Server sigue corriendo en Docker).
+# Ctrl+C detiene la API y el frontend (SQL Server y Azurite siguen corriendo en Docker).
 #
 #   scripts/dev-up.sh                 # backend + frontend
-#   scripts/dev-up.sh --api-only      # solo SQL Server y la API
+#   scripts/dev-up.sh --api-only      # solo SQL Server, Azurite y la API
 #   FRONT_DIR=/ruta/al/front scripts/dev-up.sh   # si el frontend no está en ../portal-proveedores-mock
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -56,6 +56,19 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 [ "$(docker inspect -f '{{.State.Health.Status}}' web-proveedores-sqlserver)" = healthy ] || fail "SQL Server no quedó listo (docker compose logs sqlserver)."
+
+# 3b. Azurite: emulador de Blob Storage para los adjuntos (solo si se usa Storage__Provider=AzureBlob).
+if [ "${Storage__Provider:-Local}" = AzureBlob ] && [[ "${Storage__ConnectionString:-}" == *UseDevelopmentStorage=true* ]]; then
+  say "Iniciando Azurite (adjuntos)…"
+  if [ -z "$(docker ps -q -f name=^web-proveedores-azurite$)" ]; then
+    docker start web-proveedores-azurite >/dev/null 2>&1 || docker compose up -d azurite >/dev/null
+  fi
+  for _ in $(seq 1 30); do
+    nc -z localhost "${AZURITE_BLOB_PORT:-10000}" 2>/dev/null && break
+    sleep 1
+  done
+  nc -z localhost "${AZURITE_BLOB_PORT:-10000}" 2>/dev/null || fail "Azurite no quedó listo (docker compose logs azurite)."
+fi
 
 # 4. API
 pids=()

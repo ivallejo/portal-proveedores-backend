@@ -17,5 +17,16 @@ services:
       retries: 10
       start_period: 20s
 
+  # Emulador de Azure Blob Storage para los adjuntos (Storage:Provider=AzureBlob).
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: web-proveedores-azurite
+    command: azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data --skipApiVersionCheck
+    ports:
+      - '${AZURITE_BLOB_PORT:-10000}:10000'
+    volumes:
+      - azurite_data:/data
+
 volumes:
   sqlserver_data:
+  azurite_data:

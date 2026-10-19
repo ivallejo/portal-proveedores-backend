@@ -12,6 +12,8 @@ using WebProveedores.Application.Common.Security;
 using WebProveedores.Application.Common.Settings;
 using WebProveedores.Infrastructure;
 using WebProveedores.Infrastructure.Email;
+using WebProveedores.Infrastructure.Files;
+using WebProveedores.Infrastructure.Files.Migration;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Seeding;
 using WebProveedores.Infrastructure.Sap;
@@ -83,6 +85,18 @@ if (builder.Configuration.GetValue("Security:UseForwardedHeaders", false))
 
 var app = builder.Build();
 app.Logger.LogInformation("Correo: modo {EmailMode}", app.Services.GetRequiredService<EmailSettings>().Describe());
+app.Logger.LogInformation("Adjuntos: {Storage}", app.Services.GetRequiredService<StorageSettings>().Describe());
+
+// Copia los adjuntos del disco a Blob Storage y termina: dotnet run --project WebProveedores.Api -- migrate-storage
+if (args.Contains("migrate-storage"))
+{
+    await app.Services.GetRequiredService<StorageMigration>().RunAsync(CancellationToken.None);
+    return;
+}
+
+// El contenedor de Blob Storage se crea si no existe (Azurite en desarrollo).
+if (app.Services.GetService<AzureBlobFileStorage>() is { } blobStorage)
+    await blobStorage.EnsureContainerAsync(CancellationToken.None);
 if (app.Services.GetRequiredService<SapDocumentSettings>().Mode == SapDocumentSettings.Simulated)
     app.Logger.LogWarning("SAP 01/02 (orden, SUNAT y duplicidad): SIMULADOS. Las órdenes válidas son las de prueba.");
 

@@ -155,7 +155,7 @@ La primera migración crea un modelo de seguridad normalizado:
 
 Los roles iniciales son `Proveedor`, `Usuario interno`, `Aprobador de área`, `Gestor de cuentas por pagar` y `Administrador`.
 
-La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentItems`, `DocumentAttachments` y `DocumentEvents`. Los adjuntos se guardan en disco (`Storage__DocumentsPath`, por defecto `App_Data/documents`). Detalle de endpoints y reglas en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#módulo-de-documentos).
+La migración `AddSupplierDocuments` agrega `Companies`, `Documents`, `DocumentItems`, `DocumentAttachments` y `DocumentEvents`. Los adjuntos se guardan en **Azure Blob Storage** (`Storage__Provider=AzureBlob`); en desarrollo, en **Azurite**, el emulador oficial, que `docker compose` y `scripts/dev-up.sh` levantan en el puerto 10000 (`Storage__ConnectionString=UseDevelopmentStorage=true`). Para ver los archivos: Azure Storage Explorer → *Local storage emulator*. Con `Storage__Provider=Local` se guardan en disco (`Storage__DocumentsPath`). Para pasar los archivos del disco a Blob: `dotnet run --project WebProveedores.Api -- migrate-storage`. Detalle de endpoints y reglas en [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md#módulo-de-documentos).
 
 Datos iniciales por entorno (el seed solo **crea** lo que falta; nunca modifica ni borra):
 

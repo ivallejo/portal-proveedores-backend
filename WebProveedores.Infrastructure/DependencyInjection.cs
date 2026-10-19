@@ -8,6 +8,7 @@ using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Infrastructure.Email;
 using WebProveedores.Infrastructure.Files;
+using WebProveedores.Infrastructure.Files.Migration;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Repositories;
 using WebProveedores.Infrastructure.Persistence.Seeding;
@@ -48,8 +49,19 @@ public static class DependencyInjection
         services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
 
-        // Archivos y PDF.
-        services.AddSingleton<IFileStorage, LocalFileStorage>();
+        // Archivos (Storage:Provider: AzureBlob con Azurite en desarrollo, o disco local) y PDF.
+        var storage = StorageSettings.From(configuration);
+        services.AddSingleton(storage);
+        services.AddSingleton<StorageMigration>();
+        if (storage.Provider == StorageProvider.AzureBlob)
+        {
+            services.AddSingleton<AzureBlobFileStorage>();
+            services.AddSingleton<IFileStorage>(provider => provider.GetRequiredService<AzureBlobFileStorage>());
+        }
+        else
+        {
+            services.AddSingleton<IFileStorage, LocalFileStorage>();
+        }
         services.AddSingleton<IPdfMerger, PdfSharpMerger>();
 
         // SAP: consulta de proveedores real, con reintentos y corte de circuito; servicios 01/02 según Sap:DocumentServices.

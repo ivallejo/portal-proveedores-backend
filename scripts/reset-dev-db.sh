@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Recrea la base LOCAL de desarrollo: detiene la API si está corriendo, borra la base y sus adjuntos,
+# Recrea la base LOCAL de desarrollo: detiene la API si está corriendo, borra la base y sus adjuntos (disco o Azurite),
 # y al iniciar la API se aplican las migraciones y se cargan los datos de seed.development.json.
 # Nunca ejecutar contra producción.
 #
@@ -48,6 +48,16 @@ END" >/dev/null
 # Adjuntos de la base anterior (ruta relativa a WebProveedores.Api, directorio de trabajo de `dotnet run`).
 documents="${Storage__DocumentsPath:-App_Data/documents}"
 case "$documents" in /*|*..*) ;; *) rm -rf -- "WebProveedores.Api/$documents" ;; esac
+# Adjuntos en Azurite (Storage__Provider=AzureBlob en desarrollo): se recrea el emulador con un volumen vacío.
+# Nunca se toca una cuenta real de Azure: solo si la conexión es UseDevelopmentStorage=true.
+if [ "${Storage__Provider:-Local}" = AzureBlob ] && [[ "${Storage__ConnectionString:-}" == *UseDevelopmentStorage=true* ]] \
+  && [ -n "$(docker ps -aq -f name=^web-proveedores-azurite$)" ]; then
+  azurite_volume=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' web-proveedores-azurite)
+  docker rm -f web-proveedores-azurite >/dev/null
+  [ -n "$azurite_volume" ] && docker volume rm "$azurite_volume" >/dev/null
+  docker compose up -d azurite >/dev/null
+  echo "Adjuntos de Azurite eliminados."
+fi
 
 echo "Base «${database}» eliminada."
 if $start_api; then
