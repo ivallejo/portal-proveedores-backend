@@ -2,7 +2,7 @@
 
 Leer primero [`docs/AGENT_CONTEXT.md`](docs/AGENT_CONTEXT.md): arquitectura, «dónde va cada cosa», seguridad, módulo de documentos y configuración.
 
-- .NET 10, EF Core 10, SQL Server en Docker. Arquitectura hexagonal estricta, verificada por `WebProveedores.Tests/Architecture`: si una regla falla, corregir el código, no la prueba.
+- .NET 10 LTS, EF Core 10, SQL Server en Docker. Arquitectura hexagonal estricta, verificada por `WebProveedores.Tests/Architecture`: si una regla falla, corregir el código, no la prueba.
 - `Application` no depende de EF Core, ASP.NET, JWT, `IConfiguration`, `HttpClient` ni `DataAnnotations`. Caso de uso nuevo: interfaz pública e implementación `internal` en `Application/<Feature>/`, con sus `Commands`/`Queries`/`Responses` ahí mismo, y registro en `AddApplication`. Acceso externo: puerto pequeño en `Ports/Outbound/<Área>` (datos en `Models/`) y un adaptador por puerto en `Infrastructure/<Área>`, registrado en `AddInfrastructure`.
 - La Api solo usa los puertos de entrada de cada feature (fuera de `Program.cs`, nada de `Infrastructure` ni `Ports/Outbound`). Requests HTTP con validaciones en `Api/Contracts/<Feature>`, convertidos a commands sin atributos (`Application/<Feature>/Commands`) con `<Feature>RequestMappings.ToCommand()`. El usuario sale de `ICurrentUser`.
 - Un tipo de primer nivel por archivo, con su nombre, y sin tipos anidados (records, enums y excepciones en su propio archivo).

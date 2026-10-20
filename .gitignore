@@ -11,3 +11,6 @@ seed.production.json
 
 # Logs de scripts/dev-up.sh
 .dev-logs/
+
+# Artefactos de dotnet publish y script SQL
+publish/

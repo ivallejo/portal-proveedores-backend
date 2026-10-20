@@ -14,15 +14,87 @@ scripts/dev-up.sh
 
 Verifica las herramientas, crea el `.env` desde `.env.example` si falta (luego hay que completar SAP y SMTP), inicia SQL Server en Docker, la API en `http://localhost:5080` (aplica migraciones y carga el seed) y el frontend en `http://localhost:4200`. Ctrl+C detiene la API y el frontend. Opciones: `--api-only` (sin frontend) y `FRONT_DIR=/ruta` si el frontend está en otra carpeta. El log de la API queda en `.dev-logs/api.log`.
 
+## Stack y versiones
+
+| Componente | Versión |
+|---|---|
+| .NET / ASP.NET Core Web API | 10 LTS (`net10.0`) |
+| Entity Framework Core (SQL Server) | 10.0 |
+| SQL Server | 2022 (en desarrollo, en Docker) |
+| Autenticación | JWT Bearer |
+| Documentación de la API | OpenAPI + Swagger (Swashbuckle 10.2) |
+| Almacenamiento de adjuntos | Azure Blob Storage (`Azure.Storage.Blobs` 12.30); Azurite en desarrollo |
+| Resiliencia HTTP (SAP) | `Microsoft.Extensions.Http.Resilience` 10.10 |
+| PDF de órdenes de pago | PDFsharp 6.2 |
+| Pruebas | xUnit 2.9, NetArchTest 1.3, Testcontainers 4.15 (SQL Server y Azurite) |
+
 ## Requisitos
 
 - .NET SDK 10.
-- Docker Desktop con Docker Compose.
+- Docker Desktop con Docker Compose (SQL Server y Azurite en desarrollo; también lo usan las pruebas de integración).
 - `dotnet-ef` para aplicar migraciones.
 
-## Stack
+## Comandos
 
-ASP.NET Core Web API, Entity Framework Core 10, SQL Server 2022 en Docker, JWT y Swagger.
+```bash
+dotnet restore WebProveedores.slnx
+dotnet build WebProveedores.slnx -c Release --no-restore
+dotnet test WebProveedores.slnx -c Release --no-build      # requiere Docker para las pruebas de integración
+dotnet publish WebProveedores.Api -c Release -o publish/api --no-restore
+```
+
+**Artefacto:** `publish/api/` contiene la API lista para IIS (`WebProveedores.Api.dll` y `web.config` generado por el SDK).
+
+**Script de base de datos** (para que TI lo ejecute sin dar permisos de DDL a la aplicación). Es idempotente: se puede correr sobre una base en cualquier versión anterior. No se conecta a la base, pero necesita que `ConnectionStrings__DefaultConnection` esté definida (sirve el `.env` o cualquier valor):
+
+```bash
+dotnet ef migrations script --idempotent --project WebProveedores.Infrastructure --startup-project WebProveedores.Api -o publish/db/migraciones.sql
+```
+
+## Variables de configuración
+
+Se leen de `appsettings.json`, `appsettings.{Ambiente}.json` y variables de entorno (`Seccion__Clave`). Los valores secretos nunca van al repositorio; en local están en `.env` (plantilla en `.env.example`).
+
+| Variable | Secreto | Finalidad |
+|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | No | `Development` o `Production` |
+| `ConnectionStrings__DefaultConnection` | Sí | Conexión a SQL Server |
+| `Database__ApplyMigrationsOnStartup` | No | Aplica migraciones al arrancar (por defecto `false`; en servidores se usa el script) |
+| `Jwt__SigningKey` | Sí | Llave de firma de los tokens |
+| `Jwt__Issuer`, `Jwt__Audience`, `Jwt__AccessTokenMinutes` | No | Emisor, audiencia y duración del token |
+| `Cors__AllowedOrigins__0` | No | Origen permitido del frontend (si se publica en otro dominio) |
+| `Frontend__BaseUrl` | No | URL del portal, para los enlaces de los correos |
+| `Sap__BaseUrl`, `Sap__Client` | No | Servidor y mandante de SAP |
+| `Sap__BasicToken` | Sí | Credencial Basic (Base64) de los servicios SAP |
+| `Sap__DocumentServices` | No | Servicios SAP 01/02; hoy solo `Simulated` |
+| `Smtp__Host`, `Smtp__Port`, `Smtp__EnableSsl`, `Smtp__From`, `Smtp__Username` | No | Servidor de correo |
+| `Smtp__Password` | Sí | Contraseña del correo |
+| `Email__Mode`, `Email__TestRecipient`, `Email__AllowSendOutsideProduction` | No | Envío real, redirigido o solo log (ver [Correo](#correo)) |
+| `Seed__FilePath`, `Seed__RequireAdministrator` | No | Archivo de datos iniciales |
+| `Seed__TemporaryPassword` | Sí | Contraseña temporal de los usuarios del seed |
+| `Storage__Provider`, `Storage__Container`, `Storage__DocumentsPath` | No | Almacenamiento de adjuntos |
+| `Storage__ConnectionString` | Sí | Cuenta de Blob Storage |
+| `Security__RequireHttps`, `Security__UseForwardedHeaders` | No | HTTPS/HSTS y proxy inverso |
+| `Security__MaxFailedLogins`, `Security__LockoutMinutes`, `RateLimiting__LoginPerMinute`, `RateLimiting__SensitivePerMinute` | No | Bloqueo de cuenta y límites de solicitudes |
+
+## Integraciones externas
+
+| Integración | Finalidad | Configuración | Red |
+|---|---|---|---|
+| SAP S/4HANA (`/sap/bc/zconsruc` y servicios de pagos y facturas) | Consulta de RUC del proveedor, órdenes de pago y estado de facturas | `Sap__*` | HTTP al servidor SAP (`vhnzsds4ci` desarrollo, `vhnzsps4ci` producción, puerto 8000); requiere la red corporativa o VPN |
+| SAP servicios 01/02 (validación de documentos) | Validar OC y documentos contra SAP | `Sap__DocumentServices` | Pendiente de SAP; hoy simulados |
+| SMTP | Correos de activación, contraseña y estado de documentos | `Smtp__*`, `Email__*` | Salida al servidor SMTP (hoy Gmail, puerto 587 TLS) |
+| Azure Blob Storage | Adjuntos (XML, PDF, CDR, anexos) | `Storage__*` | HTTPS a la cuenta de almacenamiento |
+| SQL Server | Persistencia | `ConnectionStrings__DefaultConnection` | Puerto del motor (1433 por defecto) |
+
+## Despliegue en IIS
+
+- Instalar en el servidor el **ASP.NET Core Hosting Bundle** de .NET 10.
+- Copiar `publish/api/` al sitio o aplicación de IIS; el pool de aplicaciones va en «Sin código administrado».
+- Definir `ASPNETCORE_ENVIRONMENT` y los secretos como variables de entorno del pool o del sitio, no en archivos del repositorio.
+- Ejecutar `publish/db/migraciones.sql` antes de publicar una versión con cambios de esquema; la aplicación solo necesita permisos de lectura y escritura.
+- La API no arranca si la configuración es inválida: fuera de desarrollo, sin un administrador activo en el seed; en cualquier ambiente, con `Email__Mode=Redirect` sin `Email__TestRecipient`.
+- Verificar con `GET /health` (SQL Server). Swagger solo se publica en `Development`.
 
 ## Configuración local
 
@@ -135,8 +207,6 @@ Roles disponibles: `Proveedor`, `Usuario interno`, `Aprobador de área`, `Gestor
 ## Comandos útiles
 
 ```bash
-dotnet build WebProveedores.slnx --no-restore
-dotnet test WebProveedores.slnx
 dotnet format whitespace --folder
 docker compose logs -f sqlserver
 docker compose down
