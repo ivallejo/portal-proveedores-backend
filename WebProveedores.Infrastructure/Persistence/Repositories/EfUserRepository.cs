@@ -18,7 +18,7 @@ public sealed class EfUserRepository(AppDbContext db) : IUserRepository
             .SingleOrDefaultAsync(user => user.Ruc == ruc, cancellationToken);
 
     public Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken) =>
-        UserIncludes.WithAccess(db.Users).SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
+        UserIncludes.WithAccess(db.Users).Include(user => user.PasswordHistory).SingleOrDefaultAsync(user => user.Id == id, cancellationToken);
 
     public Task<UserEmail?> FindEmailByVerificationTokenAsync(string tokenHash, DateTime now, CancellationToken cancellationToken) =>
         db.UserEmails.Include(email => email.User)

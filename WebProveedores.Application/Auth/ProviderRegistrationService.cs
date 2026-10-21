@@ -80,11 +80,15 @@ internal sealed partial class ProviderRegistrationService(
         if (await uniqueness.EmailExistsAsync(email, cancellationToken) || await uniqueness.RucExistsAsync(ruc, cancellationToken))
             throw new ConflictException("Ya existe un usuario registrado con ese correo o RUC.");
 
-        var user = AppUser.Create(ruc, request.CompanyName, ruc, email, hasher.Hash(request.Password), clock.GetUtcNow().UtcDateTime);
+        var violations = PasswordPolicy.Violations(request.Password, [ruc, request.CompanyName]);
+        if (violations.Count > 0) throw new ValidationException(string.Join(" ", violations));
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        var user = AppUser.Create(ruc, request.CompanyName, ruc, email, hasher.Hash(request.Password), now);
         await MakeProviderAsync(user, cancellationToken);
         users.Add(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return AuthSupport.ToResponse(user);
+        return AuthSupport.ToResponse(user, now);
     }
 
     /// <summary>Rol de proveedor y, por defecto, todas las sociedades (el administrador puede restringirlas después).</summary>

@@ -45,6 +45,8 @@ public sealed class AppUser
     public ICollection<UserRole> UserRoles { get; private set; } = [];
     public ICollection<UserCompany> UserCompanies { get; private set; } = [];
     public ICollection<PasswordResetToken> PasswordResetTokens { get; private set; } = [];
+    /// <summary>Contraseñas anteriores (sin la actual), las más recientes según <see cref="PasswordPolicy.HistorySize"/>.</summary>
+    public ICollection<PasswordHistoryEntry> PasswordHistory { get; private set; } = [];
 
     /// <summary>
     /// Cuenta nueva. <paramref name="temporaryPassword"/>: la contraseña la definió otra persona (administrador, seed)
@@ -91,6 +93,19 @@ public sealed class AppUser
     /// <summary>Ya definió su contraseña (activó la cuenta).</summary>
     public bool IsActivated => PasswordSetAtUtc is not null;
 
+    /// <summary>La contraseña superó su vigencia (<see cref="PasswordPolicy.ValidityDays"/> días desde que se definió).</summary>
+    public bool IsPasswordExpired(DateTime now) => PasswordSetAtUtc is { } setAt && now - setAt > TimeSpan.FromDays(PasswordPolicy.ValidityDays);
+
+    /// <summary>Debe definir una contraseña nueva antes de usar el portal: es temporal o venció.</summary>
+    public bool MustChangePasswordAt(DateTime now) => MustChangePassword || IsPasswordExpired(now);
+
+    /// <summary>Usuario, documento y nombres: la contraseña no puede contenerlos.</summary>
+    public IEnumerable<string?> PasswordPersonalData => [Username, Ruc, Dni, FirstName, LastName, CompanyName];
+
+    /// <summary>Hashes que la nueva contraseña no puede repetir: la actual y las anteriores guardadas.</summary>
+    public IEnumerable<string> RecentPasswordHashes =>
+        IsActivated ? [PasswordHash, .. PasswordHistory.OrderByDescending(entry => entry.SetAtUtc).Select(entry => entry.PasswordHash)] : [];
+
     public UserStatus StatusAt(DateTime now) => !IsActive ? UserStatus.Inactive : IsLockedOut(now) ? UserStatus.Locked : UserStatus.Active;
 
     // ——— Acceso ———
@@ -121,6 +136,13 @@ public sealed class AppUser
     /// <summary>Contraseña definida por la propia persona (cambio, activación o recuperación): deja de ser temporal.</summary>
     public void SetPassword(string passwordHash, DateTime now)
     {
+        // La actual pasa al historial, que conserva solo las últimas (la nueva cuenta como una de ellas).
+        if (IsActivated)
+        {
+            PasswordHistory.Add(new PasswordHistoryEntry { UserId = Id, PasswordHash = PasswordHash, SetAtUtc = PasswordSetAtUtc!.Value });
+            foreach (var old in PasswordHistory.OrderByDescending(entry => entry.SetAtUtc).Skip(PasswordPolicy.HistorySize - 1).ToList())
+                PasswordHistory.Remove(old);
+        }
         PasswordHash = passwordHash;
         MustChangePassword = false;
         PasswordSetAtUtc = now;

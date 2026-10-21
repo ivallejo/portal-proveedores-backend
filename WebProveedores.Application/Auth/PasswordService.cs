@@ -22,18 +22,16 @@ internal sealed class PasswordService(
         var user = await users.FindTrackedByIdAsync(userId, cancellationToken);
         if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
 
-        // La sesión de cambio forzado se abrió con la contraseña temporal: no se vuelve a pedir.
-        var forcedChange = user.MustChangePassword && passwordChangeSession;
+        // La sesión de cambio forzado se abrió con la contraseña temporal o vencida: no se vuelve a pedir.
+        var now = clock.GetUtcNow().UtcDateTime;
+        var forcedChange = user.MustChangePasswordAt(now) && passwordChangeSession;
         if (!forcedChange && (string.IsNullOrEmpty(request.CurrentPassword) || !hasher.Verify(user.PasswordHash, request.CurrentPassword)))
             throw new ValidationException("La contraseña actual no es correcta.");
-        if (hasher.Verify(user.PasswordHash, request.NewPassword))
-            throw new ValidationException("La nueva contraseña debe ser distinta de la actual.");
-        if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
-            throw new ValidationException(PasswordPolicy.Description);
+        AuthSupport.EnsureValidNewPassword(user, request.NewPassword, hasher);
 
-        user.SetPassword(hasher.Hash(request.NewPassword), clock.GetUtcNow().UtcDateTime);
+        user.SetPassword(hasher.Hash(request.NewPassword), now);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return tokens.StartSession(user);
+        return tokens.StartSession(user, now);
     }
 
     public async Task<PasswordResetResponse?> RequestPasswordResetAsync(RequestPasswordResetCommand request, CancellationToken cancellationToken)
@@ -48,8 +46,6 @@ internal sealed class PasswordService(
 
     public async Task<bool> ConfirmPasswordResetAsync(ConfirmPasswordResetCommand request, PasswordTokenPurpose purpose, CancellationToken cancellationToken)
     {
-        if (!PasswordPolicy.IsSatisfiedBy(request.NewPassword))
-            throw new ValidationException(PasswordPolicy.Description);
         var ruc = request.Ruc?.Trim();
         var username = request.User?.Trim();
         if (string.IsNullOrEmpty(ruc) && string.IsNullOrEmpty(username)) return false;
@@ -59,6 +55,7 @@ internal sealed class PasswordService(
             || (!string.IsNullOrEmpty(username) && !string.Equals(resetToken.User.Username, username, StringComparison.OrdinalIgnoreCase)))
             return false;
 
+        AuthSupport.EnsureValidNewPassword(resetToken.User, request.NewPassword, hasher);
         var now = clock.GetUtcNow().UtcDateTime;
         resetToken.User.SetPassword(hasher.Hash(request.NewPassword), now);
         if (purpose == PasswordTokenPurpose.Activation) resetToken.User.ConfirmPrimaryEmail(now);

@@ -8,5 +8,5 @@ public sealed class PasswordResetConfirmRequest
     [RegularExpression(@"^\d{11}$")] public string? Ruc { get; init; }
     [MaxLength(80)] public string? User { get; init; }
     [Required] public string Token { get; init; } = string.Empty;
-    [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
+    [Required, MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
 }

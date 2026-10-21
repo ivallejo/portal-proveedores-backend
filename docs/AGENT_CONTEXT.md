@@ -286,7 +286,7 @@ Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con mi
 - Sociedades por usuario (`UserCompanies`): cada usuario trabaja con una o varias sociedades (`"companies"` en el seed; si se omite, todas). Registrar documentos solo admite sus sociedades; las bandejas de Documentos y Contabilización y el detalle se filtran por ellas (lo propio —registrado, emitido con su RUC o asignado a él— siempre es visible). El aprobador elegido debe trabajar con la sociedad del documento. El administrador ve todas. Los proveedores nuevos reciben todas. Admin: `PUT /api/admin/users/{id}`.
 - Producción: `seed.production.json` (fuera de git) sobre una base nueva. `Seed:FilePath` relativo se busca en el directorio actual y en el padre.
 - Con un archivo de seed: sociedades con su RUC, áreas y **usuarios reales**. El archivo se busca en `Seed__FilePath`, o `seed.json` en el directorio actual o en el padre. Está ignorado por git porque contiene datos personales y contraseñas temporales; la plantilla es `seed.example.json`.
-- Cada usuario se crea con una **contraseña temporal** (`temporaryPassword` del usuario o `Seed__TemporaryPassword`; mínimo 8 caracteres con mayúscula, minúscula y número) y la marca `MustChangePassword`.
+- Cada usuario se crea con una **contraseña temporal** (`temporaryPassword` del usuario o `Seed__TemporaryPassword`; debe cumplir la política de contraseñas) y la marca `MustChangePassword`.
 - Si el archivo tiene errores (rol desconocido, correo inválido, área inexistente, contraseña débil…) el arranque falla y lista todos los problemas, sin crear nada.
 - No hay usuarios de demostración en el código.
 
@@ -294,9 +294,9 @@ Los datos iniciales se cargan con `ReferenceDataSeeder` al arrancar, **no con mi
 
 Los usuarios sembrados y los creados por el administrador (`POST /api/admin/users`) deben cambiar la clave al ingresar:
 
-- El login devuelve `user.mustChangePassword = true` y un JWT con el claim `pwd_change`.
+- El login devuelve `user.mustChangePassword = true` y un JWT con el claim `pwd_change`. Lo mismo si la contraseña **venció** (más de 90 días): además `user.passwordExpired = true`.
 - Con ese claim la API responde **403 `PASSWORD_CHANGE_REQUIRED`** a todo salvo `POST /api/auth/change-password` y `GET /api/auth/me`.
-- `POST /api/auth/change-password` (`currentPassword`, `newPassword`) valida la clave actual, exige que la nueva sea distinta y cumpla la política (mínimo 8, mayúscula, minúscula y número), quita la marca y devuelve una **sesión nueva** sin el claim.
+- `POST /api/auth/change-password` (`currentPassword`, `newPassword`) valida la clave actual, exige que cumpla la política y no repita las últimas 5, quita la marca y devuelve una **sesión nueva** sin el claim.
 
 ## Endpoints de autenticación
 
@@ -346,6 +346,9 @@ Protecciones del acceso (todas con prueba o verificación HTTP):
 
 Pendiente de producción: `AllowedHosts` restringido, secretos fuera del `.env` (gestor de secretos), CORS por ambiente y auditoría de accesos.
 
+- **Política de contraseñas** (spec 004, política 3.1 de la compañía; `Domain/Identity/PasswordPolicy.cs`): mínimo 12 caracteres y 3 de 4 tipos (mayúsculas, minúsculas, números, especiales); no puede contener el usuario, RUC, DNI ni nombres/apellidos/razón social (palabras de 3 letras o más, sin tildes ni mayúsculas); no puede ser una palabra común (`CommonPasswords`, comparada también sin números ni símbolos en los extremos: «Naviera2026!» es común). El error devuelve un mensaje por regla incumplida. Se aplica en activación, recuperación, cambio, registro directo y seed.
+- **Historial:** la nueva contraseña no puede repetir ninguna de las últimas 5 (la actual y 4 anteriores en `PasswordHistory`, solo hashes).
+- **Vigencia de 90 días** (`PasswordSetAtUtc`): al vencer, el login abre la sesión de cambio obligatorio (`pwd_change`) sin pedir la contraseña actual. Las contraseñas anteriores a la política siguen válidas hasta su vencimiento.
 - Nunca se guardan contraseñas en texto plano.
 - `PasswordHasher<AppUser>` usa el formato seguro de ASP.NET Identity.
 - Los tokens se generan con bytes criptográficamente seguros.
@@ -499,7 +502,7 @@ dotnet format whitespace --folder
 Estado validado:
 
 - Build: 0 warnings, 0 errores.
-- Tests: 110 passed. Pruebas de arquitectura (`Tests/Architecture`), unitarias con EF InMemory y dobles (autenticación, bloqueo, seed, contraseñas, documentos, administración, dominio, correo, autorización por menú) y de integración contra SQL Server real con Testcontainers (`Tests/Integration`: traducción de consultas, índices únicos, migraciones). Los de integración necesitan Docker; para omitirlos: `dotnet test WebProveedores.slnx --filter "Category!=Integration"`.
+- Tests: 133 passed. Pruebas de arquitectura (`Tests/Architecture`), unitarias con EF InMemory y dobles (autenticación, bloqueo, seed, contraseñas, documentos, administración, dominio, correo, autorización por menú) y de integración contra SQL Server real con Testcontainers (`Tests/Integration`: traducción de consultas, índices únicos, migraciones). Los de integración necesitan Docker; para omitirlos: `dotnet test WebProveedores.slnx --filter "Category!=Integration"`.
 - `/health`: `Healthy`.
 - SQL Server Docker: `healthy`.
 

@@ -10,6 +10,7 @@ public sealed class EfPasswordTokenRepository(AppDbContext db, TimeProvider cloc
     {
         var now = clock.GetUtcNow().UtcDateTime;
         return db.PasswordResetTokens.Include(token => token.User).ThenInclude(user => user.Emails)
+            .Include(token => token.User).ThenInclude(user => user.PasswordHistory)
             .SingleOrDefaultAsync(token => token.TokenHash == tokenHash && token.Purpose == purpose
                 && token.UsedAtUtc == null && token.RevokedAtUtc == null && token.ExpiresAtUtc > now, cancellationToken);
     }

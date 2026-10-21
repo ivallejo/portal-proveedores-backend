@@ -16,6 +16,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<UserEmail> UserEmails => Set<UserEmail>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<PasswordHistoryEntry> PasswordHistory => Set<PasswordHistoryEntry>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<SupplierDocument> Documents => Set<SupplierDocument>();
     public DbSet<DocumentItem> DocumentItems => Set<DocumentItem>();

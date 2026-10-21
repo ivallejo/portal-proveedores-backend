@@ -188,8 +188,9 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             foreach (var code in user.Companies ?? [])
                 if (!companyCodes.Contains(code.Trim())) errors.Add($"El usuario «{label}» usa la sociedad «{code}», que no es una sociedad base ni está en «companies».");
             if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
-            if (!PasswordPolicy.IsSatisfiedBy(user.TemporaryPassword ?? fallbackPassword))
-                errors.Add($"El usuario «{label}» necesita una contraseña temporal de mínimo 8 caracteres con mayúscula, minúscula y número (en «temporaryPassword» o en Seed:TemporaryPassword).");
+            var violations = PasswordPolicy.Violations(user.TemporaryPassword ?? fallbackPassword, [user.Username, user.Ruc, user.Dni, user.FirstName, user.LastName, user.Name]);
+            if (violations.Count > 0)
+                errors.Add($"La contraseña temporal del usuario «{label}» (en «temporaryPassword» o en Seed:TemporaryPassword) no cumple la política: {string.Join(" ", violations)}");
         }
         return errors;
     }

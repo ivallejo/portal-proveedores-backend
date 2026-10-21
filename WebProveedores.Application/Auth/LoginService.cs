@@ -43,9 +43,9 @@ internal sealed class LoginService(
         }
 
         if (user.ClearFailedLogins()) await unitOfWork.SaveChangesAsync(cancellationToken);
-        return tokens.StartSession(user);
+        return tokens.StartSession(user, now);
     }
 
     public async Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        await userQueries.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user) : null;
+        await userQueries.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user, clock.GetUtcNow().UtcDateTime) : null;
 }

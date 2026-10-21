@@ -194,6 +194,28 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
     }
 
     [Fact]
+    public async Task Password_history_keeps_the_last_four_previous_hashes_in_sql()
+    {
+        var data = await SeedAsync();
+        var start = DateTime.UtcNow;
+        // Cada cambio en su propio contexto, como en la API: el historial se carga con el usuario y se recorta en SQL.
+        for (var index = 1; index <= 6; index++)
+        {
+            await using var db = sql.CreateContext();
+            var user = await new EfUserRepository(db).FindTrackedByIdAsync(data.Provider.Id, CancellationToken.None);
+            user!.SetPassword($"hash-{index}", start.AddDays(index));
+            await db.SaveChangesAsync();
+        }
+
+        await using (var read = sql.CreateContext())
+        {
+            var user = await new EfUserRepository(read).FindTrackedByIdAsync(data.Provider.Id, CancellationToken.None);
+            Assert.Equal(["hash-6", "hash-5", "hash-4", "hash-3", "hash-2"], user!.RecentPasswordHashes);
+            Assert.Equal(4, await read.PasswordHistory.CountAsync(entry => entry.UserId == data.Provider.Id));
+        }
+    }
+
+    [Fact]
     public async Task Password_token_is_found_only_while_valid_and_unused()
     {
         var data = await SeedAsync();

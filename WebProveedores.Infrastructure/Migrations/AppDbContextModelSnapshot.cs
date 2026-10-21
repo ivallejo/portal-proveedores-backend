@@ -483,6 +483,29 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("SetAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "SetAtUtc");
+
+                    b.ToTable("PasswordHistory", (string)null);
+                });
+
             modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordResetToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -780,6 +803,15 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("Area");
                 });
 
+            modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordHistoryEntry", b =>
+                {
+                    b.HasOne("WebProveedores.Domain.Identity.AppUser", null)
+                        .WithMany("PasswordHistory")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("WebProveedores.Domain.Identity.PasswordResetToken", b =>
                 {
                     b.HasOne("WebProveedores.Domain.Identity.AppUser", "User")
@@ -858,6 +890,8 @@ namespace WebProveedores.Infrastructure.Migrations
             modelBuilder.Entity("WebProveedores.Domain.Identity.AppUser", b =>
                 {
                     b.Navigation("Emails");
+
+                    b.Navigation("PasswordHistory");
 
                     b.Navigation("PasswordResetTokens");
 

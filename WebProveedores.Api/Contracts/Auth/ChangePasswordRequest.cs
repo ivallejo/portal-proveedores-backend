@@ -9,5 +9,5 @@ public sealed class ChangePasswordRequest
     /// la sesión se abrió con ella y solo permite cambiar la contraseña.
     /// </summary>
     public string? CurrentPassword { get; init; }
-    [Required, MinLength(8), MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
+    [Required, MaxLength(128)] public string NewPassword { get; init; } = string.Empty;
 }
