@@ -99,6 +99,22 @@ public sealed class SeedAndPasswordTests : IDisposable
     }
 
     [Fact]
+    public async Task Seed_does_not_validate_the_temporary_password_of_existing_users()
+    {
+        await using var db = CreateContext();
+        await File.WriteAllTextAsync(seedPath, """
+            { "users": [ { "username": "existente", "name": "Usuario Existente", "email": "existente@x.test", "role": "INTERNAL_USER", "temporaryPassword": "corta" } ] }
+            """);
+        db.Users.Add(AppUser.Create("existente", "Usuario Existente", null, "existente@x.test", "hash-original", DateTime.UtcNow));
+        await db.SaveChangesAsync();
+
+        // Una contraseña temporal que ya no cumple la política no impide arrancar si el usuario ya existe.
+        await CreateSeeder(db).SeedAsync();
+
+        Assert.Equal("hash-original", db.Users.Single().PasswordHash);
+    }
+
+    [Fact]
     public async Task Without_a_seed_file_only_the_roles_and_base_companies_are_created()
     {
         await using var db = CreateContext();

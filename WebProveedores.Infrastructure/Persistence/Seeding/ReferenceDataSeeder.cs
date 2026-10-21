@@ -49,7 +49,9 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         }
 
         var seed = Read(path);
-        var errors = Validate(seed);
+        // La contraseña temporal solo se valida para los usuarios que se van a crear: los existentes no se modifican.
+        var existingUsernames = (await db.Users.Select(user => user.Username).ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var errors = Validate(seed, existingUsernames);
         if (errors.Count > 0)
             throw new InvalidOperationException($"El archivo de seed «{path}» no es válido:{Environment.NewLine}- {string.Join(Environment.NewLine + "- ", errors)}");
 
@@ -142,7 +144,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
         }
     }
 
-    private List<string> Validate(SeedFile seed)
+    private List<string> Validate(SeedFile seed, IReadOnlySet<string> existingUsernames)
     {
         var errors = new List<string>();
         var knownRoles = SecurityCatalog.Roles.Keys.ToHashSet();
@@ -188,7 +190,9 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             foreach (var code in user.Companies ?? [])
                 if (!companyCodes.Contains(code.Trim())) errors.Add($"El usuario «{label}» usa la sociedad «{code}», que no es una sociedad base ni está en «companies».");
             if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
-            var violations = PasswordPolicy.Violations(user.TemporaryPassword ?? fallbackPassword, [user.Username, user.Ruc, user.Dni, user.FirstName, user.LastName, user.Name]);
+            var violations = existingUsernames.Contains(user.Username.Trim())
+                ? []
+                : PasswordPolicy.Violations(user.TemporaryPassword ?? fallbackPassword, [user.Username, user.Ruc, user.Dni, user.FirstName, user.LastName, user.Name]);
             if (violations.Count > 0)
                 errors.Add($"La contraseña temporal del usuario «{label}» (en «temporaryPassword» o en Seed:TemporaryPassword) no cumple la política: {string.Join(" ", violations)}");
         }
