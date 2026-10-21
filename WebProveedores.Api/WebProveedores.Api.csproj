@@ -22,4 +22,9 @@
     <ProjectReference Include="..\WebProveedores.Infrastructure\WebProveedores.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Seed de desarrollo (datos ficticios, sin contraseñas): se publica junto a la API para Seed:FilePath=seed.development.json. -->
+  <ItemGroup>
+    <None Include="..\seed.development.json" Link="seed.development.json" CopyToPublishDirectory="PreserveNewest" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+
 </Project>
