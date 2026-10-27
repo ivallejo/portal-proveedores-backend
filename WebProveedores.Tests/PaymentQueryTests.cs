@@ -76,6 +76,9 @@ public sealed class PaymentQueryTests
         Assert.Equal(ProviderRuc, fixture.Sap.LastRuc);
         Assert.Equal(["Factura", "Nota de débito"], Assert.Single(orders).Documents.Select(document => document.Type));
         Assert.Equal(("Sociedad SAP", "Transferencia bancaria"), (orders[0].CompanyName, orders[0].PaymentMethod));
+        // «Todas las sociedades»: solo las del usuario; la factura de una sociedad que no está en el catálogo no se muestra.
+        var invoices = await fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, From, To), CancellationToken.None);
+        Assert.Equal("F008-00008365", Assert.Single(invoices).Number);
     }
 
     [Fact]
@@ -87,10 +90,9 @@ public sealed class PaymentQueryTests
             fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchQuery(null, null, From, To), CancellationToken.None));
         // CxP solo tiene Naviera (1001): la orden de 1002 no se muestra.
         Assert.Empty(await fixture.Service.SearchPaymentOrdersAsync(fixture.Accounting.Id, new PaymentSearchQuery(ProviderRuc, null, From, To), CancellationToken.None));
-        // La factura de una sociedad sin RUC configurado se muestra igual; la de Naviera (RUC conocido) también.
+        // Solo la factura de Naviera (RUC conocido y asignada); la de una sociedad no identificada en el catálogo no se muestra.
         var invoices = await fixture.Service.SearchInvoicesAsync(fixture.Accounting.Id, new InvoiceSearchQuery(ProviderRuc, null, null, From, To), CancellationToken.None);
-        Assert.Equal(2, invoices.Count);
-        Assert.Equal("Naviera Transoceánica", invoices.Single(item => item.CompanyRuc == "20100126606").CompanyName);
+        Assert.Equal("Naviera Transoceánica", Assert.Single(invoices).CompanyName);
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.Service.SearchInvoicesAsync(fixture.Internal.Id, new InvoiceSearchQuery(ProviderRuc, null, null, From, To), CancellationToken.None));
     }

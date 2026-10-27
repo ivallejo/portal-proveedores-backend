@@ -67,8 +67,8 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors 
         var invoices = await sap.FindInvoicesAsync(ruc, request.From, request.To, cancellationToken);
         return invoices
             .Select(invoice => (Invoice: invoice, Company: scope.ByRuc(invoice.CompanyRuc)))
-            // Si la sociedad no se puede identificar (RUC sin configurar), la factura se muestra igual.
-            .Where(item => item.Company is null || scope.Allows(item.Company.Code))
+            // Solo las sociedades identificadas en el catálogo y autorizadas: sin RUC configurado (o inactiva), no se muestra.
+            .Where(item => item.Company is not null && scope.Allows(item.Company.Code))
             .Where(item => wantedRuc is null || item.Invoice.CompanyRuc == wantedRuc)
             .Where(item => string.IsNullOrEmpty(number) || item.Invoice.Document.Number.Contains(number, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(item => item.Invoice.IssuedAt)
