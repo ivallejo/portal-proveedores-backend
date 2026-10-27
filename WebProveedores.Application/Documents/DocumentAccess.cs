@@ -1,3 +1,4 @@
+using WebProveedores.Application.Common.Access;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
@@ -11,18 +12,12 @@ internal sealed class DocumentAccess(
     IDocumentRepository documents,
     IApproverDirectory approverDirectory,
     ICompanyReader companyReader,
-    IUserQueries users,
-    IPermissionReader permissionReader)
+    PortalActors actors)
 {
     public async Task<DocumentActor> LoadActorAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var user = await users.FindByIdAsync(userId, cancellationToken);
-        if (user is null || !user.IsActive) throw new ForbiddenException("La sesión no es válida.");
-        var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
-        var roles = user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Code).ToHashSet();
-        var companies = user.UserCompanies.Select(item => item.CompanyId).ToHashSet();
-        var permissions = await permissionReader.PermissionsOfAsync(user.Id, cancellationToken);
-        return new DocumentActor(user.Id, user.CompanyName, email, user.Ruc, user.AreaId, user.Area?.Name, roles, permissions, companies);
+        var actor = await actors.LoadAsync(userId, cancellationToken);
+        return new DocumentActor(actor.Id, actor.Name, actor.Email, actor.Ruc, actor.AreaId, actor.AreaName, actor.Roles, actor.Permissions, actor.CompanyIds);
     }
 
     /// <summary>Lo propio (registrado, emitido con su RUC o asignado a él) siempre es visible; lo demás, solo en sus sociedades.</summary>

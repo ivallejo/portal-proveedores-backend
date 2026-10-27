@@ -1,17 +1,19 @@
+using WebProveedores.Application.Common.Access;
 using WebProveedores.Application.Common.Exceptions;
-using WebProveedores.Application.Documents;
 using WebProveedores.Application.Payments.Queries;
 using WebProveedores.Application.Payments.Responses;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Domain.Access;
 
 namespace WebProveedores.Application.Payments;
 
 /// <summary>
 /// Reglas de acceso sobre las consultas de SAP: el proveedor solo ve su RUC; Cuentas por pagar y el administrador
-/// consultan el RUC que indiquen. Fuera del administrador, solo se muestran las sociedades asignadas al usuario.
+/// consultan el RUC que indiquen (personal interno con la opción de menú de la consulta). Fuera del administrador, solo se
+/// muestran las sociedades asignadas al usuario.
 /// </summary>
-internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAccess access, ICompanyReader companyReader) : IPaymentQueryService
+internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors actors, ICompanyReader companyReader) : IPaymentQueryService
 {
     /// <summary>Rango máximo por consulta, para no sobrecargar SAP.</summary>
     public const int MaxRangeDays = 3 * 366;
@@ -28,7 +30,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
 
     public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
     {
-        var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
+        var (ruc, scope) = await ResolveAsync(userId, MenuCatalog.PaymentOrders, request.Ruc, request.From, request.To, cancellationToken);
         var orders = await sap.FindPaymentOrdersAsync(ruc, request.From, request.To, cancellationToken);
         var wanted = request.CompanyCode?.Trim();
 
@@ -52,7 +54,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
 
     public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
     {
-        var (ruc, scope) = await ResolveAsync(userId, request.Ruc, request.From, request.To, cancellationToken);
+        var (ruc, scope) = await ResolveAsync(userId, MenuCatalog.InvoiceStatus, request.Ruc, request.From, request.To, cancellationToken);
         // SAP identifica la sociedad de la factura por su RUC: para filtrar, la sociedad debe tenerlo configurado.
         string? wantedRuc = null;
         if (!string.IsNullOrWhiteSpace(request.CompanyCode))
@@ -77,18 +79,18 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, DocumentAcces
             .ToArray();
     }
 
-    private async Task<(string Ruc, CompanyScope Scope)> ResolveAsync(Guid userId, string? requestedRuc, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    private async Task<(string Ruc, CompanyScope Scope)> ResolveAsync(Guid userId, string menuCode, string? requestedRuc, DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         if (from > to) throw new ValidationException("La fecha inicial no puede ser posterior a la final.");
         if (to.DayNumber - from.DayNumber > MaxRangeDays) throw new ValidationException("El rango de fechas no puede superar los 3 años.");
 
-        var actor = await access.LoadActorAsync(userId, cancellationToken);
+        var actor = await actors.LoadAsync(userId, cancellationToken);
         string ruc;
         if (actor.IsProvider && !actor.IsAdmin)
         {
             ruc = actor.Ruc ?? throw new ForbiddenException("Tu usuario no tiene un RUC asociado.");
         }
-        else if (actor.IsAdmin || actor.IsAccounting)
+        else if (actor.IsAdmin || actor.Can(menuCode))
         {
             ruc = requestedRuc?.Trim() ?? string.Empty;
             if (ruc.Length != 11 || !ruc.All(char.IsAsciiDigit)) throw new ValidationException("Ingresa el RUC del proveedor (11 dígitos).");

@@ -1,10 +1,10 @@
-using WebProveedores.Application.Documents;
+using WebProveedores.Application.Common.Access;
 using WebProveedores.Domain.Organization;
 
 namespace WebProveedores.Application.Payments;
 
 /// <summary>Sociedades del catálogo y cuáles puede ver el usuario.</summary>
-internal sealed class CompanyScope(DocumentActor actor, IReadOnlyList<Company> companies)
+internal sealed class CompanyScope(PortalActor actor, IReadOnlyList<Company> companies)
 {
     public Company? ByCode(string code) => companies.FirstOrDefault(company => company.Code == code);
 

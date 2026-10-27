@@ -1,4 +1,4 @@
-namespace WebProveedores.Application.Documents.Responses;
+namespace WebProveedores.Application.Catalog.Responses;
 
 /// <param name="CompanyCode">Sociedad a la que pertenece el área.</param>
 public sealed record AreaResponse(Guid Id, string Name, string CompanyCode, IReadOnlyList<ApproverResponse> Approvers);

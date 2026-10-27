@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebProveedores.Api.Security;
-using WebProveedores.Application.Documents;
-using WebProveedores.Application.Documents.Responses;
+using WebProveedores.Application.Catalog;
+using WebProveedores.Application.Catalog.Responses;
 
 namespace WebProveedores.Api.Controllers;
 
 [ApiController]
 [Route("api/catalog")]
 [Authorize]
-public sealed class CatalogController(IDocumentCatalogService catalog, ICurrentUser currentUser) : ControllerBase
+public sealed class CatalogController(ICatalogService catalog, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Sociedades del usuario en sesión (el administrador ve todas).</summary>
     [HttpGet("companies")]

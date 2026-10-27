@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using WebProveedores.Application.Access;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Catalog;
+using WebProveedores.Application.Common.Access;
 using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Organization;
@@ -29,6 +31,9 @@ public static class DependencyInjection
         services.AddScoped<IPermissionService, PermissionService>();
         services.AddScoped<EmailVerifications>();
         services.AddScoped<IProfileService, ProfileService>();
+
+        services.AddScoped<PortalActors>();
+        services.AddScoped<ICatalogService, CatalogService>();
 
         services.AddScoped<DocumentAccess>();
         services.AddScoped<DocumentFiles>();

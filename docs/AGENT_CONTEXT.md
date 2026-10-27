@@ -48,7 +48,7 @@ Dependencias entre proyectos: `Domain` ← `Application` ← `Infrastructure` y 
 
 - **Domain**: entidades con sus reglas (`AppUser`, `SupplierDocument`…), enums y catálogos. No depende de nada.
 - **Application** depende solo de `Domain` y de `Microsoft.Extensions.*.Abstractions` (DI y logging). No conoce EF Core, ASP.NET, JWT, `IConfiguration`, `HttpClient` ni `DataAnnotations`. La configuración llega como registros tipados (`Common/Settings`) y la hora por `TimeProvider`.
-  - `<Feature>/` (Access, Admin, Auth, Documents, Organization, Payments, Profile): todo lo que la feature ofrece. El puerto de entrada (`ILoginService`, `IDocumentQueryService`…, público), su implementación y sus piezas internas (`DocumentAccess`, `DocumentFiles`, `PasswordLinks`, `UblDocumentReader`…, todas `internal`), y sus contratos en `Commands/`, `Queries/` y `Responses/`: la entrada y salida de los casos de uso, sin atributos HTTP. La Api solo puede ver la interfaz y los contratos.
+  - `<Feature>/` (Access, Admin, Auth, Catalog, Documents, Organization, Payments, Profile): todo lo que la feature ofrece. El puerto de entrada (`ILoginService`, `IDocumentQueryService`…, público), su implementación y sus piezas internas (`DocumentAccess`, `DocumentFiles`, `PasswordLinks`, `UblDocumentReader`…, todas `internal`), y sus contratos en `Commands/`, `Queries/` y `Responses/`: la entrada y salida de los casos de uso, sin atributos HTTP. La Api solo puede ver la interfaz y los contratos.
   - `Ports/Outbound/<Persistence|Security|Notifications|Sap|Files>/`: interfaces que implementa Infrastructure. Sus datos van en `Models/`. Están centralizados porque los comparten varias features (por ejemplo, `IUserRepository` lo usan Auth, Admin y Profile); los puertos de entrada, en cambio, pertenecen cada uno a su feature.
   - `Common/Exceptions`, `Common/Settings`, `Common/Security` (`SessionClaims`, compartido por la Api y el emisor JWT).
 - **Infrastructure**: un adaptador por puerto de salida. Los repositorios EF comparten el `AppDbContext` scoped; `IUnitOfWork` confirma los cambios y traduce el índice único de documentos a `DocumentRejectedException`.
@@ -231,7 +231,9 @@ Capas:
 
 ```text
 Domain/Documents                        SupplierDocument (reglas de estado), DocumentItem, DocumentAttachment, DocumentEvent, DocumentInbox
-Application/Documents                   Puertos de entrada (IDocumentCatalogService, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
+Application/Catalog                     ICatalogService: sociedades del usuario y áreas con aprobadores (api/catalog), sin depender de Documents
+Application/Common/Access               PortalActor y PortalActors: usuario en sesión con roles, permisos y sociedades (lo usan Catalog, Payments y Documents)
+Application/Documents                   Puertos de entrada (IDocumentCatalogService: validación de la orden en SAP, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
 Application/Ports/Outbound              IDocumentRepository, IDocumentSearch, IApproverDirectory, ICompanyReader, IUnitOfWork, IFileStorage, IPdfMerger, ISapDocumentGateway
 Infrastructure                          Persistence/Repositories (Ef*), Files (AzureBlobFileStorage o LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
 Api                                     DocumentsController (api/documents), CatalogController (api/catalog), Contracts/Documents
@@ -406,7 +408,7 @@ Consultas en línea a SAP con el mismo `Sap:BaseUrl` (desarrollo `vhnzsds4ci`, p
 - `GET /api/payment-orders?from=&to=&ruc=&company=` → servicio `zconsopago` (órdenes con sus comprobantes, retención, detracción y constancias).
 - `GET /api/invoices?from=&to=&ruc=&company=&number=` → servicio `zconsfactu` (estado SAP tal cual: Recepcionado, Pagado, Documento Anulado…).
 - SAP recibe `RUC`, `fechad` y `fechah` (dd/MM/yyyy) y devuelve fechas `yyyyMMdd` («00000000» = vacía) e importes como texto. El número llega como «01-F008-…» (prefijo = tipo SUNAT).
-- Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; CxP y el administrador deben indicar `ruc`. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 3 años.
+- Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; el administrador y el personal interno con la opción de menú de la consulta (`PAYMENT_ORDERS` o `INVOICE_STATUS`; por defecto CxP) deben indicar `ruc`. No depende del módulo de documentos. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 3 años.
 - La orden trae el código de sociedad (`zbukr`); la factura solo el RUC de la sociedad (`ruc_adqui`), así que filtrar facturas por sociedad requiere que la sociedad tenga RUC en el catálogo.
 
 ## Configuración › Sociedades y Áreas

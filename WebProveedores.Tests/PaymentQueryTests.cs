@@ -183,7 +183,7 @@ public sealed class PaymentQueryTests
             fixture.Internal = User("interno", SecurityCatalog.InternalUserRole, null, naviera);
             await db.SaveChangesAsync();
 
-            fixture.Service = new PaymentQueryService(fixture.Sap, TestServices.Access(db), new EfCompanyReader(db));
+            fixture.Service = new PaymentQueryService(fixture.Sap, TestServices.Actors(db), new EfCompanyReader(db));
             return fixture;
         }
 

@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using WebProveedores.Application.Admin;
 using WebProveedores.Application.Auth;
+using WebProveedores.Application.Catalog;
+using WebProveedores.Application.Common.Access;
 using WebProveedores.Application.Common.Settings;
 using WebProveedores.Application.Documents;
 using WebProveedores.Application.Ports.Outbound.Files;
@@ -47,8 +49,12 @@ internal static class TestServices
         new(new EfUserRepository(db), new EfUserQueries(db), new EfUserUniquenessChecker(db), new EfUnitOfWork(db),
             new EmailVerifications(email, Portal, TimeProvider.System), TimeProvider.System);
 
+    public static PortalActors Actors(AppDbContext db) => new(new EfUserQueries(db), new EfPermissionReader(db));
+
+    public static ICatalogService Catalog(AppDbContext db) => new CatalogService(new EfApproverDirectory(db), new EfCompanyReader(db), Actors(db));
+
     public static DocumentAccess Access(AppDbContext db) =>
-        new(new EfDocumentRepository(db), new EfApproverDirectory(db), new EfCompanyReader(db), new EfUserQueries(db), new EfPermissionReader(db));
+        new(new EfDocumentRepository(db), new EfApproverDirectory(db), new EfCompanyReader(db), Actors(db));
 
     /// <summary>Los cinco servicios de documentos sobre las mismas dependencias.</summary>
     public static DocumentServices Documents(AppDbContext db, IFileStorage storage, IEmailSender email)
@@ -59,7 +65,7 @@ internal static class TestServices
         var files = new DocumentFiles(storage, new PdfSharpMerger(), TimeProvider.System, NullLogger<DocumentFiles>.Instance);
         var sap = new MockSapDocumentGateway();
         return new DocumentServices(
-            new DocumentCatalogService(new EfApproverDirectory(db), new EfCompanyReader(db), access, sap),
+            new DocumentCatalogService(access, sap),
             new DocumentRegistrationService(new EfDocumentRepository(db), unitOfWork, access, files, sap, notifier, TimeProvider.System),
             new DocumentQueryService(new EfDocumentSearch(db), access, storage),
             new DocumentApprovalService(unitOfWork, access, notifier, TimeProvider.System),

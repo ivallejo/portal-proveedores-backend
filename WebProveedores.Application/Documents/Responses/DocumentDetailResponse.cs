@@ -1,3 +1,4 @@
+using WebProveedores.Application.Catalog.Responses;
 using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents.Responses;

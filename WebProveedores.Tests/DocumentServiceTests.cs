@@ -252,9 +252,9 @@ public sealed class DocumentServiceTests
     {
         await using var fixture = await Fixture.CreateAsync();
 
-        var internalCompanies = await fixture.Services.Catalog.ListCompaniesAsync(fixture.Internal.Id, CancellationToken.None);
+        var internalCompanies = await TestServices.Catalog(fixture.Db).ListCompaniesAsync(fixture.Internal.Id, CancellationToken.None);
         Assert.Equal("1001", Assert.Single(internalCompanies).Code);
-        Assert.Equal(2, (await fixture.Services.Catalog.ListCompaniesAsync(fixture.Provider.Id, CancellationToken.None)).Count);
+        Assert.Equal(2, (await TestServices.Catalog(fixture.Db).ListCompaniesAsync(fixture.Provider.Id, CancellationToken.None)).Count);
 
         await Assert.ThrowsAsync<ForbiddenException>(() => fixture.Services.Registration.RegisterAsync(
             fixture.Internal.Id, Command(DocumentEntryType.WithoutPurchaseOrder, Xml("F001-00000120", issuerRuc: "20111111111"), approverId: fixture.OtherApprover.Id, companyCode: "1002"), CancellationToken.None));
