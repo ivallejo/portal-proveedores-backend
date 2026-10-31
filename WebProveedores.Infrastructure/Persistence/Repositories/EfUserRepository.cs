@@ -6,12 +6,13 @@ namespace WebProveedores.Infrastructure.Persistence.Repositories;
 
 public sealed class EfUserRepository(AppDbContext db) : IUserRepository
 {
-    public Task<AppUser?> FindForLoginAsync(string identifier, string normalizedEmail, CancellationToken cancellationToken) =>
+    public Task<AppUser?> FindForLoginAsync(string username, CancellationToken cancellationToken) =>
         db.Users
             .Include(user => user.Emails)
             .Include(user => user.Area)
             .Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)
-            .SingleOrDefaultAsync(user => user.Username == identifier || user.Ruc == identifier || user.Dni == identifier || user.Emails.Any(email => email.Email == normalizedEmail && email.VerifiedAtUtc != null), cancellationToken);
+            // El RUC es el usuario del proveedor (también para cuentas antiguas con otro usuario).
+            .SingleOrDefaultAsync(user => user.Username == username || user.Ruc == username, cancellationToken);
 
     public Task<AppUser?> FindByRucAsync(string ruc, CancellationToken cancellationToken) =>
         db.Users.Include(user => user.Emails).Include(user => user.UserRoles).ThenInclude(userRole => userRole.Role)

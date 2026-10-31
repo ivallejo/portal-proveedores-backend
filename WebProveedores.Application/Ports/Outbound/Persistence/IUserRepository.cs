@@ -5,7 +5,8 @@ namespace WebProveedores.Application.Ports.Outbound.Persistence;
 /// <summary>Usuarios con seguimiento de cambios, para modificarlos y guardar con <see cref="IUnitOfWork"/>.</summary>
 public interface IUserRepository
 {
-    Task<AppUser?> FindForLoginAsync(string identifier, string normalizedEmail, CancellationToken cancellationToken);
+    /// <summary>Cuenta por su usuario de acceso o, si es proveedor, por su RUC. El correo y el documento no sirven.</summary>
+    Task<AppUser?> FindForLoginAsync(string username, CancellationToken cancellationToken);
     Task<AppUser?> FindByRucAsync(string ruc, CancellationToken cancellationToken);
     Task<AppUser?> FindTrackedByIdAsync(Guid id, CancellationToken cancellationToken);
     /// <summary>Correo con un enlace de verificación vigente (incluye al usuario).</summary>

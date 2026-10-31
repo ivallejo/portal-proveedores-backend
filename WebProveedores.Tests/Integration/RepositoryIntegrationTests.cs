@@ -110,8 +110,10 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         }
         await using (var db = sql.CreateContext())
         {
-            var user = await new EfUserRepository(db).FindForLoginAsync(address, address, CancellationToken.None);
+            // El login busca solo por usuario, sin distinguir mayúsculas (collation de SQL Server).
+            var user = await new EfUserRepository(db).FindForLoginAsync(data.Approver.Username.ToUpperInvariant(), CancellationToken.None);
             Assert.Equal(data.Approver.Id, user?.Id);
+            Assert.Null(await new EfUserRepository(db).FindForLoginAsync(address, CancellationToken.None));
         }
     }
 
@@ -128,7 +130,9 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
             var created = await TestServices.Admin(db, new CapturingEmail()).CreateAsync(new SaveUserCommand
             {
                 Role = SecurityCatalog.AreaApproverRole,
+                DocumentType = "DNI",
                 Document = dni,
+                Username = $"ana.{dni}",
                 FirstName = "Ana",
                 LastName = "Ríos",
                 AreaId = data.Area.Id,

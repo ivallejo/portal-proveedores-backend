@@ -43,7 +43,7 @@ internal static class TestServices
     public static IAdminUserService Admin(AppDbContext db, IEmailSender email) =>
         new AdminUserService(new EfUserRepository(db), new EfUserQueries(db), new EfUserUniquenessChecker(db), new EfRoleReader(db), new EfOrganizationReader(db),
             new EfPasswordTokenRepository(db, TimeProvider.System), new EfUnitOfWork(db), Hasher, Links(db, email),
-            new EmailVerifications(email, Portal, TimeProvider.System), TimeProvider.System);
+            new EmailVerifications(email, Portal, TimeProvider.System), email, TimeProvider.System);
 
     public static ProfileService Profile(AppDbContext db, IEmailSender email) =>
         new(new EfUserRepository(db), new EfUserQueries(db), new EfUserUniquenessChecker(db), new EfUnitOfWork(db),

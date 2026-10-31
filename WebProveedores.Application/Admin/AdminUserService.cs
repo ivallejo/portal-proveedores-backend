@@ -2,6 +2,8 @@ using WebProveedores.Application.Admin.Commands;
 using WebProveedores.Application.Admin.Responses;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Identity;
+using WebProveedores.Application.Ports.Outbound.Notifications;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Persistence.Models;
 using WebProveedores.Application.Ports.Outbound.Security;
@@ -14,8 +16,8 @@ using WebProveedores.Domain.Organization;
 namespace WebProveedores.Application.Admin;
 
 /// <summary>
-/// Configuración › Usuarios. Un rol por usuario. Proveedor: RUC (10/20…) y razón social; personal interno: DNI,
-/// nombres, apellidos y área de una de sus sociedades. Al menos un correo (uno principal) y una sociedad.
+/// Configuración › Usuarios. Un rol por usuario. Proveedor: RUC (10/20…, también es su usuario) y razón social; personal
+/// interno: documento, usuario libre, nombres, apellidos y área de una de sus sociedades. Al menos un correo (uno principal) y una sociedad.
 /// La cuenta nueva se activa con un enlace al correo principal. Nunca queda el portal sin un administrador activo.
 /// </summary>
 internal sealed class AdminUserService(
@@ -29,6 +31,7 @@ internal sealed class AdminUserService(
     IPasswordHasher hasher,
     PasswordLinks passwordLinks,
     EmailVerifications verifications,
+    IEmailSender emailSender,
     TimeProvider clock) : IAdminUserService
 {
     public async Task<AdminUserPage> SearchAsync(string? search, string? role, string? status, int page, int pageSize, CancellationToken cancellationToken)
@@ -66,6 +69,8 @@ internal sealed class AdminUserService(
         var role = await FindRoleAsync(request.Role, cancellationToken);
         var isProvider = role.Code == SecurityCatalog.ProviderRole;
         var document = request.Document?.Trim() ?? string.Empty;
+        (IdentityDocumentType Type, string Number)? identity = null;
+        string username;
         string name;
         (string First, string Last)? person = null;
         if (isProvider)
@@ -74,12 +79,15 @@ internal sealed class AdminUserService(
             if (!document.StartsWith("10") && !document.StartsWith("20")) throw new ValidationException("El RUC debe empezar con 10 o 20.");
             if (await uniqueness.RucExistsAsync(document, cancellationToken) || await uniqueness.UsernameExistsAsync(document, cancellationToken))
                 throw new ConflictException("Ya existe un usuario con este documento.");
+            username = document;
             name = BusinessName(request);
         }
         else
         {
-            if (document.Length != 8 || !document.All(char.IsAsciiDigit)) throw new ValidationException("El DNI debe tener 8 dígitos.");
-            if (await uniqueness.DniExistsAsync(document, cancellationToken)) throw new ConflictException("Ya existe un usuario con este documento.");
+            identity = UserDocuments.Parse(request.DocumentType, document);
+            if (await uniqueness.DocumentExistsAsync(identity.Value.Type, identity.Value.Number, cancellationToken))
+                throw new ConflictException("Ya existe un usuario con este documento.");
+            username = await AvailableUsernameAsync(request.Username, null, cancellationToken);
             person = PersonName(request);
             name = $"{person.Value.First} {person.Value.Last}";
         }
@@ -91,8 +99,8 @@ internal sealed class AdminUserService(
         var now = Now;
         var primary = emails.Single(email => email.IsPrimary);
         // Hasta activar la cuenta tiene una contraseña aleatoria que nadie conoce.
-        var user = AppUser.Create(document, name, isProvider ? document : null, primary.Email, hasher.Hash(AuthSupport.NewOneTimeToken()), now,
-            activated: false, dni: isProvider ? null : document, emailVerified: false);
+        var user = AppUser.Create(username, name, isProvider ? document : null, primary.Email, hasher.Hash(AuthSupport.NewOneTimeToken()), now,
+            activated: false, document: identity, emailVerified: false);
         if (person is { } names) user.SetPersonName(names.First, names.Last, now);
         user.SetEmailType(user.Emails.Single().Id, primary.Type, now);
         var pending = emails.Where(email => !email.IsPrimary).Select(email => user.AddEmail(email.Email, email.Type, now)).ToList();
@@ -121,11 +129,18 @@ internal sealed class AdminUserService(
         if (deactivates && user.Id == actorId) throw new ConflictException("No puedes desactivar tu propia cuenta.");
         if ((losesAdministrator || (deactivates && IsAdministrator(user))) && user.IsActive) await EnsureAnotherAdministratorAsync(user.Id, cancellationToken);
 
+        string? newUsername = null;
         if (user.IsProvider) user.RenameBusiness(BusinessName(request), now);
         else
         {
             var (first, last) = PersonName(request);
             user.SetPersonName(first, last, now);
+            // Sin usuario en la petición se conserva el actual.
+            if (!string.IsNullOrWhiteSpace(request.Username) && !string.Equals(request.Username.Trim(), user.Username, StringComparison.Ordinal))
+            {
+                newUsername = await AvailableUsernameAsync(request.Username, user.Id, cancellationToken);
+                user.ChangeUsername(newUsername, now);
+            }
         }
         await ApplyAccessAsync(user, role, request.AreaId, request.CompanyCodes, cancellationToken);
         user.RequirePasswordChange(request.MustChangePassword, now);
@@ -145,6 +160,9 @@ internal sealed class AdminUserService(
         }, cancellationToken);
 
         foreach (var (email, token) in verificationsToSend) await verifications.SendAsync(user.CompanyName, email, token, cancellationToken);
+        if (newUsername is not null && !string.IsNullOrWhiteSpace(user.PrimaryEmail))
+            await emailSender.SendAsync(user.PrimaryEmail, "Tu usuario cambió - Portal de Proveedores",
+                EmailTemplates.UsernameChanged(user.CompanyName, newUsername), cancellationToken, isHtml: true);
         return ToDetail(user);
     }
 
@@ -341,8 +359,17 @@ internal sealed class AdminUserService(
         _ => "active",
     };
 
-    private static (string Document, string Type) DocumentOf(AppUser user) =>
-        user.IsProvider ? (user.Ruc!, "RUC") : user.Dni is { } dni ? (dni, "DNI") : (user.Username, "Usuario");
+    private static (string Document, string Type) DocumentOf(AppUser user) => UserDocuments.Of(user);
+
+    /// <summary>Usuario válido y libre (sin distinguir mayúsculas) para un interno.</summary>
+    private async Task<string> AvailableUsernameAsync(string? requested, Guid? exceptUserId, CancellationToken cancellationToken)
+    {
+        var username = requested?.Trim() ?? string.Empty;
+        if (UsernamePolicy.Violation(username) is { } violation) throw new ValidationException(violation);
+        if (await uniqueness.UsernameUsedByOtherAsync(username, exceptUserId, cancellationToken))
+            throw new ConflictException($"El usuario {username} ya está en uso.");
+        return username;
+    }
 
     private Role? RoleOf(AppUser user) => user.UserRoles.Select(item => item.Role).FirstOrDefault();
 

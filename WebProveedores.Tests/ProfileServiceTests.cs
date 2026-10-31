@@ -53,14 +53,14 @@ public sealed class ProfileServiceTests
         Assert.Equal("cobranzas@andes.test", email.Recipient);
         var token = Regex.Match(email.Body!, "emailToken=([A-Za-z0-9_-]+)").Groups[1].Value;
 
-        // Sin verificar no sirve para ingresar ni para ser principal.
+        // Sin verificar no puede ser principal (y ningún correo sirve para ingresar: solo el usuario).
         Assert.Null(await TestServices.Login(db).LoginAsync(new LoginCommand { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
         await Assert.ThrowsAsync<DomainRuleException>(() => service.MakePrimaryAsync(user.Id, added.Id, CancellationToken.None));
 
         Assert.Null(await service.VerifyEmailAsync("token-falso", CancellationToken.None));
         Assert.Equal("cobranzas@andes.test", await service.VerifyEmailAsync(token, CancellationToken.None));
         Assert.Null(await service.VerifyEmailAsync(token, CancellationToken.None));
-        Assert.NotNull(await TestServices.Login(db).LoginAsync(new LoginCommand { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
+        Assert.Null(await TestServices.Login(db).LoginAsync(new LoginCommand { Identifier = "cobranzas@andes.test", Password = "Password1" }, CancellationToken.None));
 
         var switched = await service.MakePrimaryAsync(user.Id, added.Id, CancellationToken.None);
         Assert.Equal("cobranzas@andes.test", switched.Emails.Single(item => item.IsPrimary).Email);

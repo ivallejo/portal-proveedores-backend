@@ -3,13 +3,16 @@ using System.ComponentModel.DataAnnotations;
 namespace WebProveedores.Api.Contracts.Admin;
 
 /// <summary>
-/// Alta y edición de un usuario (un solo rol). Proveedor: RUC y razón social. Personal interno: DNI, nombres,
-/// apellidos y área. El documento es el usuario de acceso: solo se indica al crear.
+/// Alta y edición de un usuario (un solo rol). Proveedor: RUC (también es su usuario) y razón social. Personal interno:
+/// documento (solo al crear), usuario libre (editable), nombres, apellidos y área.
 /// </summary>
 public sealed record SaveUserRequest
 {
     [Required, MaxLength(40)] public string Role { get; init; } = string.Empty;
-    [MaxLength(11)] public string? Document { get; init; }
+    /// <summary>DNI, CE o PASAPORTE (personal interno, solo al crear).</summary>
+    [MaxLength(20)] public string? DocumentType { get; init; }
+    [MaxLength(12)] public string? Document { get; init; }
+    [MaxLength(50)] public string? Username { get; init; }
     [MaxLength(200)] public string? BusinessName { get; init; }
     [MaxLength(100)] public string? FirstName { get; init; }
     [MaxLength(100)] public string? LastName { get; init; }

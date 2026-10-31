@@ -415,9 +415,13 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Dni")
-                        .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<string>("DocumentType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<int>("FailedLoginCount")
                         .ValueGeneratedOnAdd()
@@ -467,10 +471,6 @@ namespace WebProveedores.Infrastructure.Migrations
 
                     b.HasIndex("AreaId");
 
-                    b.HasIndex("Dni")
-                        .IsUnique()
-                        .HasFilter("[Dni] IS NOT NULL");
-
                     b.HasIndex("PasswordSetAtUtc");
 
                     b.HasIndex("Ruc")
@@ -479,6 +479,10 @@ namespace WebProveedores.Infrastructure.Migrations
 
                     b.HasIndex("Username")
                         .IsUnique();
+
+                    b.HasIndex("DocumentType", "DocumentNumber")
+                        .IsUnique()
+                        .HasFilter("[DocumentNumber] IS NOT NULL");
 
                     b.ToTable("Users", (string)null);
                 });

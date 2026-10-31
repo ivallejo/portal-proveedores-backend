@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Ports.Outbound.Security;
 using WebProveedores.Domain.Access;
+using WebProveedores.Domain.Common;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
 using WebProveedores.Infrastructure.Persistence.Seeding.Models;
@@ -182,6 +183,9 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             if (string.IsNullOrWhiteSpace(user.Email) || !user.Email.Contains('@')) errors.Add($"El usuario «{label}» no tiene un correo válido.");
             if (user.Role is null || !knownRoles.Contains(user.Role)) errors.Add($"El usuario «{label}» tiene un rol desconocido. Roles válidos: {string.Join(", ", knownRoles)}.");
             if (user.Role == SecurityCatalog.ProviderRole && !IsRuc(user.Ruc)) errors.Add($"El proveedor «{label}» necesita un RUC de 11 dígitos.");
+            if (IsRuc(user.Ruc) && user.Username?.Trim() != user.Ruc!.Trim()) errors.Add($"El usuario del proveedor «{label}» debe ser su RUC.");
+            if (!IsRuc(user.Ruc) && UsernamePolicy.Violation(user.Username) is { } usernameError) errors.Add($"Usuario «{label}»: {usernameError}");
+            if (!IsRuc(user.Ruc) && DocumentError(user) is { } documentError) errors.Add($"El usuario «{label}»: {documentError}");
             if (user.Role == SecurityCatalog.AreaApproverRole && string.IsNullOrWhiteSpace(user.Area)) errors.Add($"El aprobador «{label}» necesita un área.");
             if (!string.IsNullOrWhiteSpace(user.Area) && !areaNames.Contains(user.Area.Trim()))
                 errors.Add($"El usuario «{label}» usa el área «{user.Area}», que no está en la lista «areas».");
@@ -192,7 +196,7 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
             if (user.Companies is { Count: 0 }) errors.Add($"El usuario «{label}» tiene «companies» vacío: omítelo para asignar todas o indica al menos una.");
             var violations = existingUsernames.Contains(user.Username.Trim())
                 ? []
-                : PasswordPolicy.Violations(user.TemporaryPassword ?? fallbackPassword, [user.Username, user.Ruc, user.Dni, user.FirstName, user.LastName, user.Name]);
+                : PasswordPolicy.Violations(user.TemporaryPassword ?? fallbackPassword, [user.Username, user.Ruc, user.Dni ?? user.DocumentNumber, user.FirstName, user.LastName, user.Name]);
             if (violations.Count > 0)
                 errors.Add($"La contraseña temporal del usuario «{label}» (en «temporaryPassword» o en Seed:TemporaryPassword) no cumple la política: {string.Join(" ", violations)}");
         }
@@ -272,10 +276,8 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
                 throw new InvalidOperationException($"El rol {item.Role} no existe en la base de datos. Ejecuta primero el arranque que lo crea.");
 
             var password = item.TemporaryPassword ?? configuration["Seed:TemporaryPassword"]!;
-            var dni = string.IsNullOrWhiteSpace(item.Dni) ? null : item.Dni.Trim();
-            if (dni is not null && (dni.Length != 8 || !dni.All(char.IsAsciiDigit)))
-                throw new InvalidOperationException($"El DNI del usuario {username} debe tener 8 dígitos.");
-            var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true, dni: dni);
+            var user = AppUser.Create(username, item.Name, IsRuc(item.Ruc) ? item.Ruc : null, email, hasher.Hash(password), now, temporaryPassword: true,
+                document: IsRuc(item.Ruc) ? null : DocumentOf(item));
             if (!user.IsProvider && !string.IsNullOrWhiteSpace(item.FirstName) && !string.IsNullOrWhiteSpace(item.LastName))
                 user.SetPersonName(item.FirstName, item.LastName, now);
             user.AssignArea(string.IsNullOrWhiteSpace(item.Area) ? null : FindArea(item.Area));
@@ -288,6 +290,34 @@ public sealed class ReferenceDataSeeder(AppDbContext db, IConfiguration configur
 
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Seed de usuarios: {Created} creado(s), {Skipped} ya existían.", created, seed.Users.Count - created);
+    }
+
+    /// <summary>Documento del interno: «documentType» + «documentNumber», o «dni» (seeds anteriores). Vacío si no indica ninguno.</summary>
+    private static (IdentityDocumentType Type, string Number)? DocumentOf(SeedUser user)
+    {
+        if (!string.IsNullOrWhiteSpace(user.Dni)) return (IdentityDocumentType.Dni, IdentityDocument.Normalize(IdentityDocumentType.Dni, user.Dni));
+        if (string.IsNullOrWhiteSpace(user.DocumentType) && string.IsNullOrWhiteSpace(user.DocumentNumber)) return null;
+        IdentityDocumentType type = user.DocumentType?.Trim().ToUpperInvariant() switch
+        {
+            "DNI" => IdentityDocumentType.Dni,
+            "CE" => IdentityDocumentType.ForeignerCard,
+            "PASAPORTE" => IdentityDocumentType.Passport,
+            _ => throw new DomainRuleException("«documentType» debe ser DNI, CE o PASAPORTE."),
+        };
+        return (type, IdentityDocument.Normalize(type, user.DocumentNumber));
+    }
+
+    private static string? DocumentError(SeedUser user)
+    {
+        try
+        {
+            DocumentOf(user);
+            return null;
+        }
+        catch (DomainRuleException exception)
+        {
+            return exception.Message;
+        }
     }
 
     private static bool IsRuc(string? value) => value is { Length: 11 } && value.All(char.IsAsciiDigit);

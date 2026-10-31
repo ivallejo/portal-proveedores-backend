@@ -21,8 +21,9 @@ public sealed class AppUser
     public string? FirstName { get; private set; }
     public string? LastName { get; private set; }
     public string? Ruc { get; private set; }
-    /// <summary>DNI del personal interno (8 dígitos); es también su usuario de acceso.</summary>
-    public string? Dni { get; private set; }
+    /// <summary>Documento de identidad del personal interno (el proveedor se identifica con su RUC).</summary>
+    public IdentityDocumentType? DocumentType { get; private set; }
+    public string? DocumentNumber { get; private set; }
     public string PasswordHash { get; private set; } = string.Empty;
     public Guid? AreaId { get; private set; }
     public bool IsActive { get; private set; } = true;
@@ -53,16 +54,19 @@ public sealed class AppUser
     /// y debe cambiarla al ingresar. <paramref name="activated"/> = false: aún no definió su contraseña (registro online).
     /// </summary>
     public static AppUser Create(string username, string name, string? ruc, string email, string passwordHash, DateTime now,
-        bool temporaryPassword = false, bool activated = true, string? dni = null, bool emailVerified = true)
+        bool temporaryPassword = false, bool activated = true, (IdentityDocumentType Type, string Number)? document = null, bool emailVerified = true)
     {
         if (string.IsNullOrWhiteSpace(username)) throw new DomainRuleException("El usuario necesita un nombre de usuario.");
         if (string.IsNullOrWhiteSpace(email)) throw new DomainRuleException("El usuario necesita un correo.");
+        // El usuario del proveedor es su RUC: lo arman el alta, el registro y el seed (hay cuentas antiguas con otro usuario).
+        if (!string.IsNullOrWhiteSpace(ruc) && document is not null) throw new DomainRuleException("El proveedor se identifica con su RUC, no con otro documento.");
         var user = new AppUser
         {
             Username = username.Trim(),
             CompanyName = name.Trim(),
             Ruc = string.IsNullOrWhiteSpace(ruc) ? null : ruc.Trim(),
-            Dni = string.IsNullOrWhiteSpace(dni) ? null : dni.Trim(),
+            DocumentType = document?.Type,
+            DocumentNumber = document is { } doc ? IdentityDocument.Normalize(doc.Type, doc.Number) : null,
             PasswordHash = passwordHash,
             CreatedAtUtc = now,
             PasswordSetAtUtc = activated ? now : null,
@@ -100,7 +104,7 @@ public sealed class AppUser
     public bool MustChangePasswordAt(DateTime now) => MustChangePassword || IsPasswordExpired(now);
 
     /// <summary>Usuario, documento y nombres: la contraseña no puede contenerlos.</summary>
-    public IEnumerable<string?> PasswordPersonalData => [Username, Ruc, Dni, FirstName, LastName, CompanyName];
+    public IEnumerable<string?> PasswordPersonalData => [Username, Ruc, DocumentNumber, FirstName, LastName, CompanyName];
 
     /// <summary>Hashes que la nueva contraseña no puede repetir: la actual y las anteriores guardadas.</summary>
     public IEnumerable<string> RecentPasswordHashes =>
@@ -193,6 +197,15 @@ public sealed class AppUser
     {
         if (!IsProvider) throw new DomainRuleException("Solo un proveedor tiene razón social.");
         CompanyName = businessName.Trim();
+        UpdatedAtUtc = now;
+    }
+
+    /// <summary>Nuevo usuario de acceso del personal interno (el del proveedor es su RUC y no cambia).</summary>
+    public void ChangeUsername(string username, DateTime now)
+    {
+        if (IsProvider) throw new DomainRuleException("El usuario del proveedor es su RUC: no se puede cambiar.");
+        if (UsernamePolicy.Violation(username) is { } violation) throw new DomainRuleException(violation);
+        Username = username.Trim();
         UpdatedAtUtc = now;
     }
 

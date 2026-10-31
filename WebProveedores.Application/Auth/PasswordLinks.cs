@@ -41,7 +41,7 @@ internal sealed class PasswordLinks(
         });
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Los proveedores se identifican con el RUC; el personal interno, con su usuario (DNI).
+        // Los proveedores se identifican con el RUC; el personal interno, con su usuario.
         var who = user.IsProvider ? $"ruc={Uri.EscapeDataString(user.Ruc!)}" : $"user={Uri.EscapeDataString(user.Username)}";
         if (purpose == PasswordTokenPurpose.Activation)
         {

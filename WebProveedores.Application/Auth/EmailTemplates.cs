@@ -24,6 +24,14 @@ internal static class EmailTemplates
         activationUrl,
         showValue: false);
 
+    public static string UsernameChanged(string name, string username) => Layout(
+        $"Hola, {Encode(name)}",
+        string.Empty,
+        "El administrador cambió tu usuario de acceso al Portal de Proveedores. Desde ahora ingresa con este usuario y tu misma contraseña.",
+        "Tu nuevo usuario",
+        username,
+        "Si no reconoces este cambio, comunícate con el administrador del portal.");
+
     public static string PasswordReset(string companyName, string resetUrl) => Layout(
         $"Hola, {Encode(companyName)}",
         string.Empty,

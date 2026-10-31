@@ -4,6 +4,9 @@ public sealed record ProfileResponse(
     string Username,
     bool IsProvider,
     string? Ruc,
+    /// <summary>RUC, DNI, CE o PASAPORTE (o «Usuario» si un interno antiguo no tiene documento).</summary>
+    string DocumentType,
+    string Document,
     string DisplayName,
     string? BusinessName,
     string? FirstName,

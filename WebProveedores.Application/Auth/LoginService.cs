@@ -23,7 +23,8 @@ internal sealed class LoginService(
     public async Task<AuthResponse?> LoginAsync(LoginCommand request, CancellationToken cancellationToken)
     {
         var identifier = request.Identifier.Trim();
-        var user = await users.FindForLoginAsync(identifier, identifier.ToLowerInvariant(), cancellationToken);
+        // Solo con el usuario: el del proveedor es su RUC; el correo y el documento no sirven para ingresar.
+        var user = await users.FindForLoginAsync(identifier, cancellationToken);
         if (user is null || !user.IsActive)
         {
             dummyHash ??= hasher.Hash(Guid.CreateVersion7().ToString("N"));

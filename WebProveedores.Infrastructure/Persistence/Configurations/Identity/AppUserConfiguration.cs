@@ -15,8 +15,9 @@ internal sealed class AppUserConfiguration : IEntityTypeConfiguration<AppUser>
         entity.HasIndex(user => user.AreaId);
         entity.Property(user => user.Username).HasMaxLength(80).IsRequired();
         entity.Property(user => user.CompanyName).HasMaxLength(200).IsRequired();
-        entity.Property(user => user.Dni).HasMaxLength(8);
-        entity.HasIndex(user => user.Dni).IsUnique().HasFilter("[Dni] IS NOT NULL");
+        entity.Property(user => user.DocumentType).HasConversion<string>().HasMaxLength(20);
+        entity.Property(user => user.DocumentNumber).HasMaxLength(IdentityDocument.MaxLength);
+        entity.HasIndex(user => new { user.DocumentType, user.DocumentNumber }).IsUnique().HasFilter("[DocumentNumber] IS NOT NULL");
         entity.Ignore(user => user.IsActivated);
         entity.Property(user => user.FirstName).HasMaxLength(100);
         entity.Property(user => user.LastName).HasMaxLength(100);

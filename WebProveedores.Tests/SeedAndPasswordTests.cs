@@ -43,6 +43,9 @@ public sealed class SeedAndPasswordTests : IDisposable
         Assert.Equal(PasswordVerificationResult.Success, new PasswordHasher<AppUser>().VerifyHashedPassword(approver, approver.PasswordHash, "Temporal_Comun_1"));
         var own = await db.Users.SingleAsync(user => user.Username == "rocio.medina");
         Assert.Equal(PasswordVerificationResult.Success, new PasswordHasher<AppUser>().VerifyHashedPassword(own, own.PasswordHash, "Propia_Clave_9"));
+        // «dni» se sigue aceptando (DNI); «documentType» + «documentNumber» para los demás.
+        Assert.Equal((IdentityDocumentType.Dni, "45678123"), (approver.DocumentType, approver.DocumentNumber));
+        Assert.Equal((IdentityDocumentType.ForeignerCard, "X0012345"), (own.DocumentType, own.DocumentNumber));
         Assert.Equal(2, await db.Users.CountAsync());
         // Las sociedades base traen su RUC real; el archivo agrega otras.
         Assert.Equal("20522163890", (await db.Companies.SingleAsync(company => company.Code == "1001")).Ruc);
@@ -85,7 +88,9 @@ public sealed class SeedAndPasswordTests : IDisposable
               "users": [
                 { "username": "a", "name": "A", "email": "sin-arroba", "role": "INVENTADO" },
                 { "username": "b", "name": "B", "email": "b@x.test", "role": "AREA_APPROVER", "area": "Otra", "temporaryPassword": "corta" },
-                { "username": "c", "name": "C", "email": "c@x.test", "role": "PROVIDER", "ruc": "123", "temporaryPassword": "Valida_Clave_1" } ] }
+                { "username": "c", "name": "C", "email": "c@x.test", "role": "PROVIDER", "ruc": "123", "temporaryPassword": "Valida_Clave_1" },
+                { "username": "proveedor.x", "name": "D", "email": "d@x.test", "role": "PROVIDER", "ruc": "20100000001", "temporaryPassword": "Valida_Clave_1" },
+                { "username": "persona.e", "name": "E", "email": "e@x.test", "role": "INTERNAL_USER", "documentType": "LICENCIA", "documentNumber": "1", "temporaryPassword": "Valida_Clave_1" } ] }
             """);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => CreateSeeder(db).SeedAsync());
@@ -95,6 +100,9 @@ public sealed class SeedAndPasswordTests : IDisposable
         Assert.Contains("«Otra»", exception.Message);
         Assert.Contains("contraseña temporal", exception.Message);
         Assert.Contains("RUC de 11 dígitos", exception.Message);
+        Assert.Contains("debe ser su RUC", exception.Message);
+        Assert.Contains("DNI, CE o PASAPORTE", exception.Message);
+        Assert.Contains("entre 4 y 50", exception.Message);
         Assert.Empty(db.Users);
     }
 
@@ -187,8 +195,8 @@ public sealed class SeedAndPasswordTests : IDisposable
           "companies": [ { "code": "2001", "name": "Sociedad adicional", "ruc": "20000000001" } ],
           "areas": [{ "name": "Finanzas", "company": "1001" }, { "name": "Logística", "company": "1003", "description": "Abastecimiento" }],
           "users": [
-            { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas", "companies": ["1001", "1003"] },
-            { "username": "rocio.medina", "name": "Rocío Medina", "email": "rocio@ejemplo.test", "role": "INTERNAL_USER", "temporaryPassword": "Propia_Clave_9" }
+            { "username": "maria.torres", "name": "María Torres", "email": "maria@ejemplo.test", "role": "AREA_APPROVER", "area": "Finanzas", "companies": ["1001", "1003"], "dni": "45678123" },
+            { "username": "rocio.medina", "name": "Rocío Medina", "email": "rocio@ejemplo.test", "role": "INTERNAL_USER", "temporaryPassword": "Propia_Clave_9", "documentType": "CE", "documentNumber": "x0012345" }
           ]
         }
         """;

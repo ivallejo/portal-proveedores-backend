@@ -29,18 +29,71 @@ public sealed class AdminUserServiceTests
         Assert.Equal((SecurityCatalog.AreaApproverRole, "active", false), (created.Role, created.Status, created.IsActivated));
         Assert.All(created.Emails, email => Assert.False(email.IsVerified));
         var activation = fixture.Email.Sent.Single(mail => mail.Recipient == "maria.torres@ejemplo.test");
-        Assert.Matches("user=45678123(&amp;|&)activationToken=", activation.Body);
+        Assert.Matches("user=maria.torres(&amp;|&)activationToken=", activation.Body);
+        Assert.Contains("Tu usuario es maria.torres", activation.Body);
         Assert.Contains(fixture.Email.Sent, mail => mail.Recipient == "mtorres@personal.test" && mail.Body.Contains("emailToken="));
 
         var token = Regex.Match(activation.Body, "activationToken=([A-Za-z0-9_-]+)").Groups[1].Value;
         var passwords = TestServices.Passwords(fixture.Db, fixture.Email);
         Assert.False(await passwords.ConfirmPasswordResetAsync(Confirm(token, user: "99999999"), PasswordTokenPurpose.Activation, CancellationToken.None));
-        Assert.True(await passwords.ConfirmPasswordResetAsync(Confirm(token, user: "45678123"), PasswordTokenPurpose.Activation, CancellationToken.None));
+        Assert.True(await passwords.ConfirmPasswordResetAsync(Confirm(token, user: "maria.torres"), PasswordTokenPurpose.Activation, CancellationToken.None));
 
         var detail = await fixture.Service.GetAsync(created.Id, CancellationToken.None);
         Assert.True(detail!.IsActivated);
         Assert.True(detail.Emails.Single(email => email.IsPrimary).IsVerified);
-        Assert.NotNull(await TestServices.Login(fixture.Db).LoginAsync(new LoginCommand { Identifier = "45678123", Password = "Nueva_Clave1" }, CancellationToken.None));
+        // Solo se ingresa con el usuario: ni el DNI ni el correo sirven.
+        var login = TestServices.Login(fixture.Db);
+        Assert.NotNull(await login.LoginAsync(new LoginCommand { Identifier = "maria.torres", Password = "Nueva_Clave1" }, CancellationToken.None));
+        Assert.Null(await login.LoginAsync(new LoginCommand { Identifier = "45678123", Password = "Nueva_Clave1" }, CancellationToken.None));
+        Assert.Null(await login.LoginAsync(new LoginCommand { Identifier = "maria.torres@ejemplo.test", Password = "Nueva_Clave1" }, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("DNI", "1234", "maria.torres", "8 dígitos")]
+    [InlineData("CE", "AB-12", "maria.torres", "carné de extranjería")]
+    [InlineData("PASAPORTE", "1234567890123", "maria.torres", "pasaporte")]
+    [InlineData("RUC", "45678123", "maria.torres", "tipo de documento")]
+    [InlineData("DNI", "45678123", "mt", "entre 4 y 50")]
+    [InlineData("DNI", "45678123", "maria torres", "solo puede tener")]
+    [InlineData("DNI", "45678123", "maria@torres", "solo puede tener")]
+    [InlineData("DNI", "45678123", "20100126606", "RUC")]
+    public async Task Internal_document_and_username_follow_their_rules(string type, string number, string username, string expected)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var request = Internal(number, fixture.Finanzas.Id, Mail("nuevo@ejemplo.test", primary: true)) with { DocumentType = type, Username = username };
+
+        var error = await Assert.ThrowsAsync<ValidationException>(() => fixture.Service.CreateAsync(request, CancellationToken.None));
+
+        Assert.Contains(expected, error.Message);
+    }
+
+    [Fact]
+    public async Task Username_and_document_are_unique_and_the_username_can_change()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var created = await fixture.Service.CreateAsync(
+            Internal("X1234567", fixture.Finanzas.Id, Mail("ana@ejemplo.test", primary: true)) with { DocumentType = "CE", Username = "ana.rios" }, CancellationToken.None);
+        Assert.Equal(("X1234567", "CE", "ana.rios"), (created.Document, created.DocumentType, created.Username));
+
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateAsync(
+            Internal("40000099", fixture.Finanzas.Id, Mail("otra@ejemplo.test", primary: true)) with { Username = "ANA.RIOS" }, CancellationToken.None));
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.CreateAsync(
+            Internal("x1234567", fixture.Finanzas.Id, Mail("otra@ejemplo.test", primary: true)) with { DocumentType = "CE", Username = "otra.persona" }, CancellationToken.None));
+        // El mismo número con otro tipo de documento sí se acepta.
+        await fixture.Service.CreateAsync(
+            Internal("X1234567", fixture.Finanzas.Id, Mail("pasaporte@ejemplo.test", primary: true)) with { DocumentType = "PASAPORTE", Username = "con.pasaporte" }, CancellationToken.None);
+
+        var stored = fixture.Db.UserEmails.Single(email => email.Email == "ana@ejemplo.test");
+        fixture.Email.Sent.Clear();
+        var updated = await fixture.Service.UpdateAsync(Guid.NewGuid(), created.Id,
+            Edit(SecurityCatalog.AreaApproverRole, fixture.Finanzas.Id, Existing(stored)) with { Username = "arios" }, CancellationToken.None);
+
+        Assert.Equal(("arios", "X1234567"), (updated!.Username, updated.Document));
+        var notice = Assert.Single(fixture.Email.Sent);
+        Assert.Equal("ana@ejemplo.test", notice.Recipient);
+        Assert.Contains("arios", notice.Body);
+        await Assert.ThrowsAsync<ConflictException>(() => fixture.Service.UpdateAsync(Guid.NewGuid(), created.Id,
+            Edit(SecurityCatalog.AreaApproverRole, fixture.Finanzas.Id, Existing(stored)) with { Username = "con.pasaporte" }, CancellationToken.None));
     }
 
     [Theory]
@@ -56,7 +109,9 @@ public sealed class AdminUserServiceTests
         var request = new SaveUserCommand
         {
             Role = role,
+            DocumentType = "DNI",
             Document = document,
+            Username = "maria.torres",
             BusinessName = "Proveedor S.A.C.",
             FirstName = "María",
             LastName = "Torres",
@@ -167,7 +222,9 @@ public sealed class AdminUserServiceTests
     private static SaveUserCommand Internal(string dni, Guid areaId, params UserEmailData[] emails) => new()
     {
         Role = SecurityCatalog.AreaApproverRole,
+        DocumentType = "DNI",
         Document = dni,
+        Username = "maria.torres",
         FirstName = "María",
         LastName = "Torres Vega",
         AreaId = areaId,

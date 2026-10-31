@@ -18,7 +18,7 @@ public sealed class EfUserQueries(AppDbContext db) : IUserQueries
         {
             var term = filter.Search.Trim();
             query = query.Where(user => user.Username.Contains(term) || user.CompanyName.Contains(term)
-                || (user.Ruc != null && user.Ruc.Contains(term)) || (user.Dni != null && user.Dni.Contains(term))
+                || (user.Ruc != null && user.Ruc.Contains(term)) || (user.DocumentNumber != null && user.DocumentNumber.Contains(term))
                 || user.Emails.Any(email => email.Email.Contains(term)));
         }
         if (!string.IsNullOrWhiteSpace(filter.RoleCode))

@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Text.RegularExpressions;
 using WebProveedores.Application.Auth;
 using WebProveedores.Application.Common.Exceptions;
+using WebProveedores.Application.Common.Identity;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Profile.Commands;
 using WebProveedores.Application.Profile.Responses;
@@ -139,6 +140,8 @@ internal sealed partial class ProfileService(
         user.Username,
         user.IsProvider,
         user.Ruc,
+        UserDocuments.Of(user).Type,
+        UserDocuments.Of(user).Document,
         user.CompanyName,
         user.IsProvider ? user.CompanyName : null,
         user.IsProvider ? null : user.FirstName ?? user.CompanyName,

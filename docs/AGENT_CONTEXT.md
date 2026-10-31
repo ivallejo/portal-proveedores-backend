@@ -60,7 +60,7 @@ Puertos de persistencia (segregados por consumidor):
 |---|---|
 | `IUserRepository` | Usuarios con seguimiento, para modificarlos (login, RUC, por id, enlace de verificación, alta) |
 | `IUserQueries` | Consultas sin seguimiento: por id, búsqueda paginada, contadores, otro administrador activo |
-| `IUserUniquenessChecker` | DNI, RUC, correo y usuario no repetidos |
+| `IUserUniquenessChecker` | Documento, RUC, correo y usuario (sin distinguir mayúsculas) no repetidos |
 | `IPasswordTokenRepository` | Enlaces de activación y recuperación |
 | `IRoleReader` · `IPermissionReader` · `IAccessRepository` | Roles para asignar · permisos efectivos · administración de roles y menús |
 | `ICompanyReader` · `IOrganizationReader` · `IOrganizationRepository` | Sociedades activas · listados y edición de sociedades y áreas · altas y unicidad |
@@ -485,14 +485,14 @@ GET   /api/admin/users/{id}/password-links      # historial: vigente, usado, ree
 ```
 
 Reglas:
-- **Un rol por usuario.** Proveedor: RUC de 11 dígitos que empieza con 10 o 20 y razón social. Personal interno: DNI de 8 dígitos (es su usuario de acceso), nombres, apellidos y área (opcional solo para el administrador); el área debe ser de una de sus sociedades.
+- **Un rol por usuario.** Proveedor: RUC de 11 dígitos que empieza con 10 o 20 y razón social. Personal interno (spec 006): documento (`DNI` de 8 dígitos, `CE` o `PASAPORTE` alfanumérico hasta 12; único por tipo y número; solo al crear), usuario libre (`Domain/Identity/UsernamePolicy`: 4 a 50 caracteres, letras, números, `.`, `_`, `-`, sin `@` ni 11 dígitos; editable, con aviso por correo), nombres, apellidos y área (opcional solo para el administrador); el área debe ser de una de sus sociedades.
 - El documento no se edita, y no se cambia una cuenta de proveedor a interna ni al revés.
 - Al menos una sociedad (las inactivas no se asignan, pero quien ya las tiene las conserva) y al menos un correo, con exactamente un principal. Los correos nuevos reciben un enlace de verificación; el principal de una cuenta activada debe estar verificado. Activar la cuenta verifica el correo principal.
 - Estado: Activo, Inactivo o Bloqueado (bloqueo temporal por intentos fallidos; no se asigna a mano).
 - «Solicitar cambio de contraseña en el próximo inicio» = `MustChangePassword`: al ingresar se abre `/contrasena-temporal`.
 - Un administrador no puede desactivarse ni quitarse su rol, y nunca queda el portal sin un administrador activo (409).
 - `PasswordLinks` emite los enlaces (24 h) y reemplaza los anteriores del mismo tipo. El enlace identifica la cuenta con `ruc=` (proveedor) o `user=` (personal interno); `PasswordResetConfirmRequest` (Api) acepta `ruc` o `user`.
-- El login acepta usuario, RUC, DNI o un correo verificado. En el seed, el personal interno puede tener `dni`, `firstName` y `lastName`.
+- El login acepta solo el usuario (o el RUC del proveedor, que es su usuario); el correo y el documento no sirven. En el seed, el personal interno puede tener `documentType` + `documentNumber` (o `dni`, atajo de DNI), `firstName` y `lastName`; el usuario del proveedor debe ser su RUC.
 
 ## Calidad validada
 
