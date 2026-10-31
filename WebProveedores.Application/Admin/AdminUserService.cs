@@ -377,7 +377,7 @@ internal sealed class AdminUserService(
     {
         var (document, type) = DocumentOf(user);
         var role = RoleOf(user);
-        return new AdminUserSummary(user.Id, user.CompanyName, user.PrimaryEmail, user.IsProvider, document, type, role?.Code, role?.Name,
+        return new AdminUserSummary(user.Id, user.Username, user.CompanyName, user.PrimaryEmail, user.IsProvider, document, type, role?.Code, role?.Name,
             user.Area?.Name, user.UserCompanies.Select(item => item.Company.Code).Order().ToArray(), StatusCode(user.StatusAt(Now)), user.IsActivated);
     }
 
