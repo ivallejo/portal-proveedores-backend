@@ -36,7 +36,8 @@ internal sealed class PasswordService(
 
     public async Task<PasswordResetResponse?> RequestPasswordResetAsync(RequestPasswordResetCommand request, CancellationToken cancellationToken)
     {
-        var user = await users.FindByRucAsync(request.Ruc.Trim(), cancellationToken);
+        // La misma búsqueda del login: usuario o, para el proveedor, su RUC.
+        var user = await users.FindForLoginAsync(request.Identifier.Trim(), cancellationToken);
         var email = user is null ? null : AuthSupport.PrimaryEmail(user);
         if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(email)) return null;
 
