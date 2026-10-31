@@ -60,6 +60,30 @@ public sealed class SeedAndPasswordTests : IDisposable
     }
 
     [Fact]
+    public async Task Seed_areas_take_several_companies_and_repeated_names_become_one_area()
+    {
+        await using var db = CreateContext();
+        await File.WriteAllTextAsync(seedPath, """
+            { "areas": [
+                { "name": "Compras", "companies": ["1001", "1003"] },
+                { "name": "Finanzas", "company": "1001" },
+                { "name": "Finanzas", "company": "1007", "description": "Tesorería" } ],
+              "users": [
+                { "username": "ana.rios", "name": "Ana Ríos", "email": "ana@ejemplo.test", "role": "AREA_APPROVER", "area": "1007:Finanzas" },
+                { "username": "luis.paz", "name": "Luis Paz", "email": "luis@ejemplo.test", "role": "AREA_APPROVER", "area": "Compras" } ] }
+            """);
+
+        await CreateSeeder(db, "Seed:TemporaryPassword", "Temporal_Comun_1").SeedAsync();
+
+        var areas = await db.Areas.Include(area => area.Companies).ThenInclude(item => item.Company).OrderBy(area => area.Name).ToListAsync();
+        Assert.Equal(["Compras", "Finanzas"], areas.Select(area => area.Name));
+        Assert.Equal(["1001", "1003"], areas[0].CompanyCodes);
+        Assert.Equal(["1001", "1007"], areas[1].CompanyCodes);
+        Assert.Equal("Tesorería", areas[1].Description);
+        Assert.Equal(areas[1].Id, (await db.Users.SingleAsync(user => user.Username == "ana.rios")).AreaId);
+    }
+
+    [Fact]
     public async Task Seed_never_modifies_existing_users_or_overwrites_a_company_ruc()
     {
         await using var db = CreateContext();
