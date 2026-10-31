@@ -9,7 +9,7 @@ internal static class AuthRequestMappings
 
     public static ChangePasswordCommand ToCommand(this ChangePasswordRequest request) => new() { CurrentPassword = request.CurrentPassword, NewPassword = request.NewPassword };
 
-    public static RequestPasswordResetCommand ToCommand(this PasswordResetRequest request) => new() { Ruc = request.Ruc };
+    public static RequestPasswordResetCommand ToCommand(this PasswordResetRequest request) => new() { Identifier = string.IsNullOrWhiteSpace(request.Identifier) ? request.Ruc ?? string.Empty : request.Identifier };
 
     public static ConfirmPasswordResetCommand ToCommand(this PasswordResetConfirmRequest request) => new() { Ruc = request.Ruc, User = request.User, Token = request.Token, NewPassword = request.NewPassword };
 

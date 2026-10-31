@@ -53,8 +53,8 @@ public sealed class AuthController(
     }
 
     /// <summary>
-    /// Responde siempre lo mismo, exista o no el RUC, y sin devolver el correo (ni siquiera ofuscado),
-    /// para que no sirva para averiguar qué RUC tienen cuenta.
+    /// Responde siempre lo mismo, exista o no la cuenta (RUC o usuario), y sin devolver el correo (ni siquiera ofuscado),
+    /// para que no sirva para averiguar qué cuentas existen.
     /// </summary>
     [HttpPost("password-reset/request")]
     [AllowAnonymous]
