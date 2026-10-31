@@ -166,13 +166,30 @@ public sealed class AuthServiceTests
         var emailSender = new FakeEmailSender();
         var service = TestServices.Passwords(db, emailSender);
 
-        var response = await service.RequestPasswordResetAsync(new RequestPasswordResetCommand { Ruc = user.Ruc! }, CancellationToken.None);
+        var response = await service.RequestPasswordResetAsync(new RequestPasswordResetCommand { Identifier = user.Ruc! }, CancellationToken.None);
 
         Assert.NotNull(response);
         Assert.Equal("req*****demo.test", response.MaskedEmail);
         Assert.Equal(PasswordTokenPurpose.PasswordReset, db.PasswordResetTokens.Single().Purpose);
         Assert.Equal("request@demo.test", emailSender.Recipient);
         Assert.Contains("resetToken=", emailSender.Body);
+    }
+
+    [Fact]
+    public async Task RequestPasswordResetAsync_accepts_the_username_of_internal_staff()
+    {
+        await using var db = CreateContext();
+        var user = AppUser.Create("ana.rios", "Ana Ríos", null, "ana@demo.test", TestServices.Hasher.Hash("Password1"), DateTime.UtcNow);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var emailSender = new FakeEmailSender();
+        var service = TestServices.Passwords(db, emailSender);
+
+        Assert.NotNull(await service.RequestPasswordResetAsync(new RequestPasswordResetCommand { Identifier = " ana.rios " }, CancellationToken.None));
+        Assert.Equal("ana@demo.test", emailSender.Recipient);
+        Assert.Matches("user=ana.rios(&amp;|&)resetToken=", emailSender.Body);
+        // El correo no sirve para identificarse (como en el login).
+        Assert.Null(await service.RequestPasswordResetAsync(new RequestPasswordResetCommand { Identifier = "ana@demo.test" }, CancellationToken.None));
     }
 
     [Fact]
