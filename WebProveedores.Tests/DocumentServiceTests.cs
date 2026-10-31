@@ -370,7 +370,8 @@ public sealed class DocumentServiceTests
             db.Roles.AddRange(roles.Values);
             TestMenus.Seed(db, roles);
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica", Ruc = CompanyRuc };
-            var finance = new Area { Code = "FINANZAS", Name = "Finanzas", Company = naviera, CompanyId = naviera.Id };
+            var finance = new Area { Code = "FINANZAS", Name = "Finanzas" };
+            finance.SetCompanies([naviera]);
             db.Areas.Add(finance);
             // Petrolera sin RUC: el receptor del XML no se valida para ella.
             var petrolera = new Company { Code = "1002", Name = "Petrolera Transoceánica" };

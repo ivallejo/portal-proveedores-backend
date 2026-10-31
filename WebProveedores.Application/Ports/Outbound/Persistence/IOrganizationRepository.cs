@@ -9,6 +9,11 @@ public interface IOrganizationRepository
     Task<bool> CompanyRucExistsAsync(string ruc, Guid? exceptId, CancellationToken cancellationToken);
     void AddCompany(Company company);
 
-    Task<bool> AreaCodeExistsAsync(Guid companyId, string code, Guid? exceptId, CancellationToken cancellationToken);
+    /// <summary>La clave del área es única en todo el portal.</summary>
+    Task<bool> AreaCodeExistsAsync(string code, Guid? exceptId, CancellationToken cancellationToken);
+    /// <summary>Usuarios del área que no tienen ninguna de estas sociedades (quedarían fuera al quitar las demás).</summary>
+    Task<IReadOnlyList<string>> AreaUsersOutsideCompaniesAsync(Guid areaId, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken);
+    /// <summary>Documentos del área pendientes de aprobación en estas sociedades.</summary>
+    Task<int> PendingApprovalsAsync(Guid areaId, IReadOnlyCollection<Guid> companyIds, CancellationToken cancellationToken);
     void AddArea(Area area);
 }

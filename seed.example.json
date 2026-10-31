@@ -8,9 +8,9 @@
   // { "code": "2001", "name": "Otra sociedad S.A.", "ruc": "20xxxxxxxxx", "billingEmail": "facturacion@ejemplo.test" }
   "companies": [],
 
-  // Cada área pertenece a una sociedad; si un nombre se repite entre sociedades, el usuario lo indica como «1001:Finanzas».
+  // Cada área indica sus sociedades en «companies» (o una sola en «company»); el nombre es único y el usuario lo indica por nombre.
   "areas": [
-    { "name": "Finanzas", "company": "1001", "description": "Tesorería y pagos." },
+    { "name": "Finanzas", "companies": ["1001", "1003"], "description": "Tesorería y pagos." },
     { "name": "Contabilidad", "company": "1001" }
   ],
 
