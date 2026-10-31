@@ -2,5 +2,6 @@ namespace WebProveedores.Application.Auth.Commands;
 
 public sealed record RequestPasswordResetCommand
 {
-    public string Ruc { get; init; } = string.Empty;
+    /// <summary>RUC del proveedor o usuario del personal interno.</summary>
+    public string Identifier { get; init; } = string.Empty;
 }
