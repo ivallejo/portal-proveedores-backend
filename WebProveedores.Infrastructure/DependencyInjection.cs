@@ -63,6 +63,7 @@ public static class DependencyInjection
             services.AddSingleton<IFileStorage, LocalFileStorage>();
         }
         services.AddSingleton<IPdfMerger, PdfSharpMerger>();
+        services.AddSingleton<ISpreadsheetWriter, ClosedXmlSpreadsheetWriter>();
 
         // SAP: consulta de proveedores real, con reintentos y corte de circuito; servicios 01/02 según Sap:DocumentServices.
         services.AddSingleton(SapSettings.From(configuration));

@@ -36,4 +36,30 @@ public sealed class PaymentsController(IPaymentQueryService payments, ICurrentUs
         [FromQuery] string? number,
         CancellationToken cancellationToken) =>
         Ok(await payments.SearchInvoicesAsync(currentUser.Id, new InvoiceSearchQuery(ruc, company, number, from, to), cancellationToken));
+
+    /// <summary>Excel de la búsqueda de órdenes de pago: una fila por comprobante pagado.</summary>
+    [HttpGet("payment-orders/export")]
+    [Authorize(Policy = Policies.PaymentOrdersView)]
+    public async Task<IActionResult> ExportPaymentOrders(
+        [FromQuery, Required] DateOnly from,
+        [FromQuery, Required] DateOnly to,
+        [FromQuery] string? ruc,
+        [FromQuery] string? company,
+        CancellationToken cancellationToken) =>
+        Excel(await payments.ExportPaymentOrdersAsync(currentUser.Id, new PaymentSearchQuery(ruc, company, from, to), cancellationToken));
+
+    /// <summary>Excel de la búsqueda de estado de facturas.</summary>
+    [HttpGet("invoices/export")]
+    [Authorize(Policy = Policies.InvoicesView)]
+    public async Task<IActionResult> ExportInvoices(
+        [FromQuery, Required] DateOnly from,
+        [FromQuery, Required] DateOnly to,
+        [FromQuery] string? ruc,
+        [FromQuery] string? company,
+        [FromQuery] string? number,
+        CancellationToken cancellationToken) =>
+        Excel(await payments.ExportInvoicesAsync(currentUser.Id, new InvoiceSearchQuery(ruc, company, number, from, to), cancellationToken));
+
+    private FileContentResult Excel(ExportFileResponse file) =>
+        File(file.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.FileName);
 }

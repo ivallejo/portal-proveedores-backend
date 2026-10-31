@@ -120,7 +120,7 @@ WebProveedores.Infrastructure/
 ├── Security/          JwtTokenIssuer, JwtSettings, IdentityPasswordHasher
 ├── Email/             EmailSettings, EmailMode, SmtpEmailSender, RedirectingEmailSender, LogEmailSender
 ├── Sap/               SapProviderClient, SapPaymentsClient, MockSapDocumentGateway, settings, Dtos/ (formato JSON de SAP)
-├── Files/             AzureBlobFileStorage o LocalFileStorage (Storage:Provider), PdfSharpMerger; Migration/StorageMigration
+├── Files/             AzureBlobFileStorage o LocalFileStorage (Storage:Provider), PdfSharpMerger, ClosedXmlSpreadsheetWriter; Migration/StorageMigration
 └── Migrations/
 
 WebProveedores.Api/
@@ -235,7 +235,7 @@ Application/Catalog                     ICatalogService: sociedades del usuario 
 Application/Common/Access               PortalActor y PortalActors: usuario en sesión con roles, permisos y sociedades (lo usan Catalog, Payments y Documents)
 Application/Documents                   Puertos de entrada (IDocumentCatalogService: validación de la orden en SAP, IDocumentRegistrationService, IDocumentQueryService, IDocumentApprovalService, IDocumentAccountingService), sus implementaciones, DocumentAccess, DocumentFiles, DocumentNotifier, DocumentMapper, UblDocumentReader (XML UBL 2.1 sin DTD), plantillas de correo, Commands y Responses
 Application/Ports/Outbound              IDocumentRepository, IDocumentSearch, IApproverDirectory, ICompanyReader, IUnitOfWork, IFileStorage, IPdfMerger, ISapDocumentGateway
-Infrastructure                          Persistence/Repositories (Ef*), Files (AzureBlobFileStorage o LocalFileStorage, PdfSharpMerger), Sap (MockSapDocumentGateway)
+Infrastructure                          Persistence/Repositories (Ef*), Files (AzureBlobFileStorage o LocalFileStorage, PdfSharpMerger, ClosedXmlSpreadsheetWriter), Sap (MockSapDocumentGateway)
 Api                                     DocumentsController (api/documents), CatalogController (api/catalog), Contracts/Documents
 ```
 
@@ -408,7 +408,8 @@ Consultas en línea a SAP con el mismo `Sap:BaseUrl` (desarrollo `vhnzsds4ci`, p
 - `GET /api/payment-orders?from=&to=&ruc=&company=` → servicio `zconsopago` (órdenes con sus comprobantes, retención, detracción y constancias).
 - `GET /api/invoices?from=&to=&ruc=&company=&number=` → servicio `zconsfactu` (estado SAP tal cual: Recepcionado, Pagado, Documento Anulado…).
 - SAP recibe `RUC`, `fechad` y `fechah` (dd/MM/yyyy) y devuelve fechas `yyyyMMdd` («00000000» = vacía) e importes como texto. El número llega como «01-F008-…» (prefijo = tipo SUNAT).
-- Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; el administrador y el personal interno con la opción de menú de la consulta (`PAYMENT_ORDERS` o `INVOICE_STATUS`; por defecto CxP) deben indicar `ruc`. No depende del módulo de documentos. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 3 años.
+- Acceso (`PaymentQueryService`, política `Payments.View`): el proveedor siempre consulta su RUC; el administrador y el personal interno con la opción de menú de la consulta (`PAYMENT_ORDERS` o `INVOICE_STATUS`; por defecto CxP) deben indicar `ruc`. No depende del módulo de documentos. Fuera del administrador solo se ven las sociedades asignadas. Rango máximo 1 mes (31 días contando ambos extremos, `MaxRangeDays`).
+- Excel: `GET /api/payment-orders/export` e `/api/invoices/export` con los mismos parámetros y reglas; columnas en `Payments/PaymentSpreadsheets` (orden de pago: una fila por comprobante pagado), archivo con `ISpreadsheetWriter` (ClosedXML).
 - La orden trae el código de sociedad (`zbukr`); la factura solo el RUC de la sociedad (`ruc_adqui`), así que filtrar facturas por sociedad requiere que la sociedad tenga RUC en el catálogo.
 
 ## Configuración › Sociedades y Áreas

@@ -4,11 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Payments;
 using WebProveedores.Application.Payments.Queries;
+using WebProveedores.Application.Ports.Outbound.Files;
+using WebProveedores.Application.Ports.Outbound.Files.Models;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Application.Ports.Outbound.Sap.Models;
 using WebProveedores.Domain.Access;
 using WebProveedores.Domain.Identity;
 using WebProveedores.Domain.Organization;
+using WebProveedores.Infrastructure.Files;
 using WebProveedores.Infrastructure.Persistence;
 using WebProveedores.Infrastructure.Persistence.Repositories;
 using WebProveedores.Infrastructure.Sap;
@@ -18,7 +21,8 @@ namespace WebProveedores.Tests;
 public sealed class PaymentQueryTests
 {
     private const string ProviderRuc = "20100000001";
-    private static readonly DateOnly From = new(2026, 1, 1);
+    // Rango máximo: 31 días contando ambos extremos.
+    private static readonly DateOnly From = new(2026, 9, 5);
     private static readonly DateOnly To = new(2026, 10, 5);
 
     // Formato real de zconsopago (datos ficticios).
@@ -45,7 +49,7 @@ public sealed class PaymentQueryTests
         var handler = new StubHandler(PaymentsJson);
         var orders = await Client(handler).FindPaymentOrdersAsync(ProviderRuc, From, To, CancellationToken.None);
 
-        Assert.Contains("/sap/bc/zconsopago?sap-client=200&RUC=20100000001&fechad=01%2F01%2F2026&fechah=05%2F10%2F2026", handler.LastUrl);
+        Assert.Contains("/sap/bc/zconsopago?sap-client=200&RUC=20100000001&fechad=05%2F09%2F2026&fechah=05%2F10%2F2026", handler.LastUrl);
         Assert.Equal("Basic", handler.LastAuthorization);
         var order = Assert.Single(orders);
         Assert.Equal(("1002", 426.43m, "T", new DateOnly(2026, 5, 21)), (order.CompanyCode, order.Total, order.PaymentMethodCode, order.PaidAt!.Value));
@@ -114,6 +118,59 @@ public sealed class PaymentQueryTests
         Assert.Equal("F008-00008365", Assert.Single(byNumber).Number);
     }
 
+    [Fact]
+    public async Task Range_is_at_most_one_month_counting_both_ends()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        Assert.NotEmpty(await fixture.Service.SearchInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 31)), CancellationToken.None));
+        var tooLong = await Assert.ThrowsAsync<ValidationException>(() =>
+            fixture.Service.SearchPaymentOrdersAsync(fixture.Provider.Id, new PaymentSearchQuery(null, null, new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 31)), CancellationToken.None));
+        Assert.Equal("El rango de fechas no puede superar 1 mes (31 días).", tooLong.Message);
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            fixture.Service.ExportInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, new DateOnly(2026, 9, 30), new DateOnly(2026, 10, 31)), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Export_has_one_row_per_paid_document_and_the_same_access_rules()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var file = await fixture.Service.ExportPaymentOrdersAsync(fixture.Provider.Id, new PaymentSearchQuery("20999999999", null, From, To), CancellationToken.None);
+
+        Assert.Equal("ordenes-de-pago_20100000001_2026-09-05_2026-10-05.xlsx", file.FileName);
+        var sheet = fixture.Spreadsheets.Last!;
+        Assert.Equal(19, sheet.Columns.Count);
+        Assert.Equal([("20260521-GIO02", "F008-00002578", 228.92m), ("20260521-GIO02", "F008-00010601", 197.51m)],
+            sheet.Rows.Select(row => ((string)row[0]!, (string)row[10]!, (decimal)row[16]!)));
+
+        var invoices = await fixture.Service.ExportInvoicesAsync(fixture.Provider.Id, new InvoiceSearchQuery(null, null, null, From, To), CancellationToken.None);
+        Assert.Equal("estado-de-facturas_20100000001_2026-09-05_2026-10-05.xlsx", invoices.FileName);
+        var row = Assert.Single(fixture.Spreadsheets.Last!.Rows);
+        Assert.Equal(["F008-00008365", "Sí", "No", "Pagado"], new[] { row[0], row[7], row[8], row[9] });
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.Service.ExportInvoicesAsync(fixture.Internal.Id, new InvoiceSearchQuery(ProviderRuc, null, null, From, To), CancellationToken.None));
+    }
+
+    [Fact]
+    public void ClosedXml_writer_keeps_text_as_text_and_formats_dates_and_amounts()
+    {
+        var sheet = new Spreadsheet("Hoja",
+            [new("RUC"), new("Fecha", SpreadsheetFormat.Date), new("Importe", SpreadsheetFormat.Amount)],
+            [["00012345678", new DateOnly(2026, 10, 5), 1234.5m], [null, null, null]]);
+
+        using var workbook = new ClosedXML.Excel.XLWorkbook(new MemoryStream(new ClosedXmlSpreadsheetWriter().Write(sheet)));
+        var worksheet = workbook.Worksheet("Hoja");
+
+        Assert.Equal("RUC", worksheet.Cell(1, 1).GetString());
+        Assert.True(worksheet.Cell(1, 1).Style.Font.Bold);
+        Assert.Equal("00012345678", worksheet.Cell(2, 1).GetString());
+        Assert.Equal(new DateTime(2026, 10, 5), worksheet.Cell(2, 2).GetDateTime());
+        Assert.Equal(("dd/mm/yyyy", "#,##0.00"), (worksheet.Cell(2, 2).Style.NumberFormat.Format, worksheet.Cell(2, 3).Style.NumberFormat.Format));
+        Assert.Equal(1234.5, worksheet.Cell(2, 3).GetDouble());
+        Assert.True(worksheet.Cell(3, 1).IsEmpty());
+    }
+
     private static SapPaymentsClient Client(StubHandler handler) =>
         new(new HttpClient(handler), new SapSettings("http://sap.invalid", "200", "test-token"));
 
@@ -148,12 +205,25 @@ public sealed class PaymentQueryTests
         }
     }
 
+    /// <summary>Guarda la última hoja armada en lugar de generar el Excel.</summary>
+    private sealed class RecordingSpreadsheets : ISpreadsheetWriter
+    {
+        public Spreadsheet? Last { get; private set; }
+
+        public byte[] Write(Spreadsheet sheet)
+        {
+            Last = sheet;
+            return [];
+        }
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         private Fixture(AppDbContext db) => Db = db;
 
         public AppDbContext Db { get; }
         public RecordingSap Sap { get; } = new();
+        public RecordingSpreadsheets Spreadsheets { get; } = new();
         public IPaymentQueryService Service { get; private set; } = null!;
         public AppUser Provider { get; private set; } = null!;
         public AppUser Accounting { get; private set; } = null!;
@@ -185,7 +255,7 @@ public sealed class PaymentQueryTests
             fixture.Internal = User("interno", SecurityCatalog.InternalUserRole, null, naviera);
             await db.SaveChangesAsync();
 
-            fixture.Service = new PaymentQueryService(fixture.Sap, TestServices.Actors(db), new EfCompanyReader(db));
+            fixture.Service = new PaymentQueryService(fixture.Sap, TestServices.Actors(db), new EfCompanyReader(db), fixture.Spreadsheets);
             return fixture;
         }
 

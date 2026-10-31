@@ -2,6 +2,7 @@ using WebProveedores.Application.Common.Access;
 using WebProveedores.Application.Common.Exceptions;
 using WebProveedores.Application.Payments.Queries;
 using WebProveedores.Application.Payments.Responses;
+using WebProveedores.Application.Ports.Outbound.Files;
 using WebProveedores.Application.Ports.Outbound.Persistence;
 using WebProveedores.Application.Ports.Outbound.Sap;
 using WebProveedores.Domain.Access;
@@ -13,10 +14,11 @@ namespace WebProveedores.Application.Payments;
 /// consultan el RUC que indiquen (personal interno con la opción de menú de la consulta). Fuera del administrador, solo se
 /// muestran las sociedades asignadas al usuario.
 /// </summary>
-internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors actors, ICompanyReader companyReader) : IPaymentQueryService
+internal sealed class PaymentQueryService(
+    ISapPaymentsGateway sap, PortalActors actors, ICompanyReader companyReader, ISpreadsheetWriter spreadsheets) : IPaymentQueryService
 {
-    /// <summary>Rango máximo por consulta, para no sobrecargar SAP.</summary>
-    public const int MaxRangeDays = 3 * 366;
+    /// <summary>Rango máximo por consulta (1 mes), contando ambos extremos, para no sobrecargar SAP.</summary>
+    public const int MaxRangeDays = 31;
 
     private static readonly IReadOnlyDictionary<string, string> DocumentTypes = new Dictionary<string, string>
     {
@@ -28,13 +30,34 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors 
         ["14"] = "Recibo de servicios públicos",
     };
 
-    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PaymentOrderResponse>> SearchPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken) =>
+        (await FindPaymentOrdersAsync(userId, request, cancellationToken)).Orders;
+
+    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken) =>
+        (await FindInvoicesAsync(userId, request, cancellationToken)).Invoices;
+
+    public async Task<ExportFileResponse> ExportPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
+    {
+        var (ruc, orders) = await FindPaymentOrdersAsync(userId, request, cancellationToken);
+        return new ExportFileResponse(FileName("ordenes-de-pago", ruc, request.From, request.To), spreadsheets.Write(PaymentSpreadsheets.PaymentOrders(orders)));
+    }
+
+    public async Task<ExportFileResponse> ExportInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
+    {
+        var (ruc, invoices) = await FindInvoicesAsync(userId, request, cancellationToken);
+        return new ExportFileResponse(FileName("estado-de-facturas", ruc, request.From, request.To), spreadsheets.Write(PaymentSpreadsheets.Invoices(invoices)));
+    }
+
+    private static string FileName(string prefix, string ruc, DateOnly from, DateOnly to) =>
+        $"{prefix}_{ruc}_{from:yyyy-MM-dd}_{to:yyyy-MM-dd}.xlsx";
+
+    private async Task<(string Ruc, IReadOnlyList<PaymentOrderResponse> Orders)> FindPaymentOrdersAsync(Guid userId, PaymentSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, MenuCatalog.PaymentOrders, request.Ruc, request.From, request.To, cancellationToken);
         var orders = await sap.FindPaymentOrdersAsync(ruc, request.From, request.To, cancellationToken);
         var wanted = request.CompanyCode?.Trim();
 
-        return orders
+        return (ruc, orders
             .Where(order => scope.Allows(order.CompanyCode) && (string.IsNullOrEmpty(wanted) || order.CompanyCode == wanted))
             .OrderByDescending(order => order.PaidAt)
             .Select(order =>
@@ -49,10 +72,10 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors 
                         document.Document.Number, DocumentType(document.Document.TypeCode), document.IssuedAt, document.Amount,
                         document.Retention, document.Detraction, document.Paid, document.RetentionDocument, document.DetractionCertificate, document.DetractionRate)).ToArray());
             })
-            .ToArray();
+            .ToArray());
     }
 
-    public async Task<IReadOnlyList<InvoiceStatusResponse>> SearchInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
+    private async Task<(string Ruc, IReadOnlyList<InvoiceStatusResponse> Invoices)> FindInvoicesAsync(Guid userId, InvoiceSearchQuery request, CancellationToken cancellationToken)
     {
         var (ruc, scope) = await ResolveAsync(userId, MenuCatalog.InvoiceStatus, request.Ruc, request.From, request.To, cancellationToken);
         // SAP identifica la sociedad de la factura por su RUC: para filtrar, la sociedad debe tenerlo configurado.
@@ -65,7 +88,7 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors 
         var number = request.Number?.Trim().ToUpperInvariant();
 
         var invoices = await sap.FindInvoicesAsync(ruc, request.From, request.To, cancellationToken);
-        return invoices
+        return (ruc, invoices
             .Select(invoice => (Invoice: invoice, Company: scope.ByRuc(invoice.CompanyRuc)))
             // Solo las sociedades identificadas en el catálogo y autorizadas: sin RUC configurado (o inactiva), no se muestra.
             .Where(item => item.Company is not null && scope.Allows(item.Company.Code))
@@ -76,13 +99,13 @@ internal sealed class PaymentQueryService(ISapPaymentsGateway sap, PortalActors 
                 item.Invoice.Document.Number, DocumentType(item.Invoice.Document.TypeCode), item.Invoice.ProviderRuc,
                 item.Company?.Code, item.Company?.Name, item.Invoice.CompanyRuc, item.Invoice.Amount, item.Invoice.Currency,
                 item.Invoice.IssuedAt, item.Invoice.HasDetraction, item.Invoice.HasRetention, item.Invoice.Status))
-            .ToArray();
+            .ToArray());
     }
 
     private async Task<(string Ruc, CompanyScope Scope)> ResolveAsync(Guid userId, string menuCode, string? requestedRuc, DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         if (from > to) throw new ValidationException("La fecha inicial no puede ser posterior a la final.");
-        if (to.DayNumber - from.DayNumber > MaxRangeDays) throw new ValidationException("El rango de fechas no puede superar los 3 años.");
+        if (to.DayNumber - from.DayNumber + 1 > MaxRangeDays) throw new ValidationException("El rango de fechas no puede superar 1 mes (31 días).");
 
         var actor = await actors.LoadAsync(userId, cancellationToken);
         string ruc;

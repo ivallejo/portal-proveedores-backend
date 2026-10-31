@@ -26,6 +26,7 @@ Verifica las herramientas, crea el `.env` desde `.env.example` si falta (luego h
 | Almacenamiento de adjuntos | Azure Blob Storage (`Azure.Storage.Blobs` 12.30); Azurite en desarrollo |
 | Resiliencia HTTP (SAP) | `Microsoft.Extensions.Http.Resilience` 10.10 |
 | PDF de órdenes de pago | PDFsharp 6.2 |
+| Excel de órdenes de pago y estado de facturas | ClosedXML 0.105 |
 | Pruebas | xUnit 2.9, NetArchTest 1.3, Testcontainers 4.15 (SQL Server y Azurite) |
 
 ## Requisitos
