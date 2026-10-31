@@ -30,6 +30,6 @@ public sealed class EfApproverDirectory(AppDbContext db) : IApproverDirectory
             user.Emails.Where(email => email.IsActive).OrderByDescending(email => email.IsPrimary).Select(email => email.Email).FirstOrDefault() ?? string.Empty,
             user.AreaId!.Value,
             user.Area!.Name,
-            user.Area.Company.Code,
+            user.Area.Companies.Select(item => item.Company.Code).ToList(),
             user.UserCompanies.Select(userCompany => userCompany.Company.Code).ToList());
 }

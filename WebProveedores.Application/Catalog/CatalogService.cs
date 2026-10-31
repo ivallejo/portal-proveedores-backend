@@ -20,12 +20,12 @@ internal sealed class CatalogService(IApproverDirectory approverDirectory, IComp
     {
         var approvers = await approverDirectory.ListApproversAsync(cancellationToken);
         return approvers
-            .GroupBy(approver => (approver.AreaId, approver.AreaName, approver.AreaCompanyCode))
+            .GroupBy(approver => (approver.AreaId, approver.AreaName))
             .OrderBy(group => group.Key.AreaName)
             .Select(group => new AreaResponse(
                 group.Key.AreaId,
                 group.Key.AreaName,
-                group.Key.AreaCompanyCode,
+                group.First().AreaCompanyCodes,
                 group.OrderBy(item => item.Name).Select(item => new ApproverResponse(item.UserId, item.Name, item.Email, item.CompanyCodes)).ToArray()))
             .ToArray();
     }
