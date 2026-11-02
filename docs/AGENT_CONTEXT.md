@@ -427,7 +427,7 @@ PUT   /api/admin/areas/{id}
 PATCH /api/admin/areas/{id}/status              # desactivar: ya no se asigna a nuevos usuarios; los actuales la conservan
 ```
 
-- Cada área pertenece a una sociedad (`Area.CompanyId`); su clave (`Area.CodeFor`) es única dentro de la sociedad. En el seed: `{ "name", "company", "description" }`; un usuario indica el área por nombre o, si se repite entre sociedades, como `CÓDIGO:Nombre`.
+- Un área está en una o más sociedades (`AreaCompany`, tabla `AreaCompanies`; spec 007); su clave (`Area.CodeFor`) es única en todo el portal. Al quitar sociedades, `OrganizationService` rechaza el cambio si algún usuario del área queda sin sociedad en común o si hay documentos del área pendientes de aprobación en ellas. El área de un usuario debe compartir al menos una sociedad con él. En el seed: `{ "name", "companies": [...], "description" }` (`company` sigue aceptado; nombres repetidos se unen); un usuario indica el área por su nombre (`CÓDIGO:Nombre` sigue aceptado).
 - No se elimina nada: solo se activa o desactiva.
 - El correo de facturación de la sociedad va **en copia** de los avisos al proveedor (rechazo y observación). `IEmailSender` acepta `copyTo`; en modo Redirect las copias no salen y se indican en el aviso del correo de prueba.
 

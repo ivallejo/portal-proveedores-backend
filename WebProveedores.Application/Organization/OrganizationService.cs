@@ -62,17 +62,19 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         var term = search?.Trim();
         return (await reader.ListAreasAsync(cancellationToken))
             .Where(item => active is null || item.Area.IsActive == active)
-            .Where(item => companyId is null || item.Area.CompanyId == companyId)
-            .Where(item => string.IsNullOrEmpty(term) || Contains(item.Area.Name, term) || Contains(item.Area.Description, term) || Contains(item.Area.Company.Name, term))
-            .OrderBy(item => item.Area.Company.Code).ThenBy(item => item.Area.Name)
+            .Where(item => companyId is null || item.Area.HasCompany(companyId.Value))
+            .Where(item => string.IsNullOrEmpty(term) || Contains(item.Area.Name, term) || Contains(item.Area.Description, term)
+                || item.Area.Companies.Any(company => Contains(company.Company.Name, term) || Contains(company.Company.Code, term)))
+            .OrderBy(item => item.Area.Name)
             .Select(ToResponse)
             .ToArray();
     }
 
     public async Task<AreaAdminResponse> CreateAreaAsync(SaveAreaCommand request, CancellationToken cancellationToken)
     {
-        var (company, name, code, description) = await ValidateAreaAsync(request, null, cancellationToken);
-        var area = new Area { Code = code, Name = name, Description = description, CompanyId = company.Id, Company = company };
+        var (companies, name, code, description) = await ValidateAreaAsync(request, null, cancellationToken);
+        var area = new Area { Code = code, Name = name, Description = description };
+        area.SetCompanies(companies);
         organization.AddArea(area);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return ToResponse(new AreaSummary(area, 0));
@@ -81,8 +83,10 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
     public async Task<AreaAdminResponse> UpdateAreaAsync(Guid id, SaveAreaCommand request, CancellationToken cancellationToken)
     {
         var area = await reader.FindAreaAsync(id, cancellationToken) ?? throw new NotFoundException("El área no existe.");
-        var (company, name, code, description) = await ValidateAreaAsync(request, id, cancellationToken);
-        (area.Name, area.Code, area.Description, area.CompanyId, area.Company) = (name, code, description, company.Id, company);
+        var (companies, name, code, description) = await ValidateAreaAsync(request, area, cancellationToken);
+        await EnsureCompaniesCanBeRemovedAsync(area, companies, cancellationToken);
+        (area.Name, area.Code, area.Description) = (name, code, description);
+        area.SetCompanies(companies);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await AreaResponseAsync(id, cancellationToken);
     }
@@ -114,19 +118,38 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         return (code, name, ruc, email);
     }
 
-    private async Task<(Company Company, string Name, string Code, string? Description)> ValidateAreaAsync(SaveAreaCommand request, Guid? id, CancellationToken cancellationToken)
+    private async Task<(IReadOnlyList<Company> Companies, string Name, string Code, string? Description)> ValidateAreaAsync(SaveAreaCommand request, Area? current, CancellationToken cancellationToken)
     {
-        var company = await reader.FindCompanyAsync(request.CompanyId, cancellationToken) ?? throw new ValidationException("Selecciona la sociedad.");
         var name = request.Name.Trim();
         if (name.Length == 0) throw new ValidationException("Ingresa el nombre del área.");
         var code = Area.CodeFor(name);
         if (code.Length == 0) throw new ValidationException("El nombre del área debe tener letras o números.");
-        if (await organization.AreaCodeExistsAsync(company.Id, code, id, cancellationToken)) throw new ConflictException("Esta sociedad ya tiene un área con ese nombre.");
-        // Al crear o mover un área, la sociedad debe estar activa; editar un área existente de una sociedad inactiva se permite.
-        var current = id is { } areaId ? await reader.FindAreaAsync(areaId, cancellationToken) : null;
-        if (!company.IsActive && current?.CompanyId != company.Id) throw new ValidationException($"La sociedad {company.Name} está inactiva.");
+        if (request.CompanyIds.Count == 0) throw new ValidationException("Selecciona al menos una sociedad.");
+        var companies = new List<Company>();
+        foreach (var companyId in request.CompanyIds.Distinct())
+        {
+            var company = await reader.FindCompanyAsync(companyId, cancellationToken) ?? throw new ValidationException("Una de las sociedades seleccionadas no es válida.");
+            // Una sociedad inactiva no se agrega, pero el área que ya la tiene la conserva.
+            if (!company.IsActive && current?.HasCompany(company.Id) != true) throw new ValidationException($"La sociedad {company.Name} está inactiva.");
+            companies.Add(company);
+        }
+        if (await organization.AreaCodeExistsAsync(code, current?.Id, cancellationToken)) throw new ConflictException($"Ya existe un área llamada {name}.");
         var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
-        return (company, name, code, description);
+        return (companies, name, code, description);
+    }
+
+    /// <summary>Quitar sociedades no puede dejar usuarios del área sin sociedad en común ni documentos pendientes sin aprobador.</summary>
+    private async Task EnsureCompaniesCanBeRemovedAsync(Area area, IReadOnlyList<Company> companies, CancellationToken cancellationToken)
+    {
+        var removed = area.Companies.Where(item => companies.All(company => company.Id != item.CompanyId)).ToList();
+        if (removed.Count == 0) return;
+        var names = string.Join(", ", removed.Select(item => item.Company.Name));
+        var outside = await organization.AreaUsersOutsideCompaniesAsync(area.Id, companies.Select(company => company.Id).ToArray(), cancellationToken);
+        if (outside.Count > 0)
+            throw new ConflictException($"No se puede quitar {names}: {string.Join(", ", outside)} quedaría(n) sin sociedades en común con el área. Cambia primero sus sociedades o su área.");
+        var pending = await organization.PendingApprovalsAsync(area.Id, removed.Select(item => item.CompanyId).ToArray(), cancellationToken);
+        if (pending > 0)
+            throw new ConflictException($"No se puede quitar {names}: el área tiene {pending} documento(s) pendiente(s) de aprobación en esa sociedad.");
     }
 
     private async Task<CompanyAdminResponse> CompanyResponseAsync(Guid id, CancellationToken cancellationToken) =>
@@ -139,7 +162,10 @@ internal sealed partial class OrganizationService(IOrganizationReader reader, IO
         item.Company.Id, item.Company.Code, item.Company.Name, item.Company.Ruc, item.Company.BillingEmail, item.Company.IsActive, item.AreaCount, item.UserCount);
 
     private static AreaAdminResponse ToResponse(AreaSummary item) => new(
-        item.Area.Id, item.Area.Name, item.Area.Description, item.Area.CompanyId, item.Area.Company.Code, item.Area.Company.Name, item.Area.IsActive, item.UserCount);
+        item.Area.Id, item.Area.Name, item.Area.Description,
+        item.Area.Companies.OrderBy(company => company.Company.Code)
+            .Select(company => new AreaCompanyResponse(company.CompanyId, company.Company.Code, company.Company.Name, company.Company.IsActive)).ToArray(),
+        item.Area.IsActive, item.UserCount);
 
     private static bool Contains(string? value, string term) => value?.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
 

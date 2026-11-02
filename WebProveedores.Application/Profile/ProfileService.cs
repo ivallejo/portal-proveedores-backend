@@ -148,7 +148,10 @@ internal sealed partial class ProfileService(
         user.IsProvider ? null : user.LastName ?? string.Empty,
         user.UserRoles.Where(item => item.Role.IsActive).Select(item => item.Role.Name).Order().ToArray(),
         user.Area?.Name,
-        user.Area?.Company?.Name,
+        // Las sociedades del área que el usuario también tiene.
+        user.Area is { } area
+            ? string.Join(", ", area.Companies.Where(item => user.UserCompanies.Any(company => company.CompanyId == item.CompanyId)).Select(item => item.Company.Name).Order())
+            : null,
         user.UserCompanies.Select(item => new ProfileCompanyResponse(item.Company.Code, item.Company.Name, item.Company.Ruc, item.Company.IsActive))
             .OrderBy(item => item.Code).ToArray(),
         user.Emails.OrderByDescending(item => item.IsPrimary).ThenBy(item => item.CreatedAtUtc)

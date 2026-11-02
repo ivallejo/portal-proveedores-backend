@@ -7,5 +7,5 @@ internal static class OrganizationRequestMappings
 {
     public static SaveCompanyCommand ToCommand(this CompanyRequest request) => new() { Code = request.Code, Name = request.Name, Ruc = request.Ruc, BillingEmail = request.BillingEmail };
 
-    public static SaveAreaCommand ToCommand(this AreaRequest request) => new() { CompanyId = request.CompanyId, Name = request.Name, Description = request.Description };
+    public static SaveAreaCommand ToCommand(this AreaRequest request) => new() { CompanyIds = request.CompanyIds, Name = request.Name, Description = request.Description };
 }

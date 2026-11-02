@@ -617,9 +617,6 @@ namespace WebProveedores.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -637,10 +634,25 @@ namespace WebProveedores.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyId", "Code")
+                    b.HasIndex("Code")
                         .IsUnique();
 
                     b.ToTable("Areas", (string)null);
+                });
+
+            modelBuilder.Entity("WebProveedores.Domain.Organization.AreaCompany", b =>
+                {
+                    b.Property<Guid>("AreaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("AreaId", "CompanyId");
+
+                    b.HasIndex("CompanyId");
+
+                    b.ToTable("AreaCompanies", (string)null);
                 });
 
             modelBuilder.Entity("WebProveedores.Domain.Organization.Company", b =>
@@ -838,13 +850,21 @@ namespace WebProveedores.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WebProveedores.Domain.Organization.Area", b =>
+            modelBuilder.Entity("WebProveedores.Domain.Organization.AreaCompany", b =>
                 {
+                    b.HasOne("WebProveedores.Domain.Organization.Area", "Area")
+                        .WithMany("Companies")
+                        .HasForeignKey("AreaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("WebProveedores.Domain.Organization.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Area");
 
                     b.Navigation("Company");
                 });
@@ -906,6 +926,8 @@ namespace WebProveedores.Infrastructure.Migrations
 
             modelBuilder.Entity("WebProveedores.Domain.Organization.Area", b =>
                 {
+                    b.Navigation("Companies");
+
                     b.Navigation("Users");
                 });
 #pragma warning restore 612, 618

@@ -53,8 +53,8 @@ internal sealed class AdminUserService(
             .Select(role => new AdminRoleOption(role.Code, role.Name, role.Description, role.Code == SecurityCatalog.ProviderRole, role.IsActive))
             .ToArray();
         var areas = (await organization.ListAreasAsync(cancellationToken))
-            .Select(item => new AdminAreaOption(item.Area.Id, item.Area.Name, item.Area.Company.Code, item.Area.Company.Name, item.Area.IsActive))
-            .OrderBy(area => area.CompanyCode).ThenBy(area => area.Name).ToArray();
+            .Select(item => new AdminAreaOption(item.Area.Id, item.Area.Name, item.Area.CompanyCodes.ToArray(), item.Area.IsActive))
+            .OrderBy(area => area.Name).ToArray();
         var companies = (await organization.ListCompaniesAsync(cancellationToken))
             .Select(item => new AdminCompanyOption(item.Company.Code, item.Company.Name, item.Company.Ruc, item.Company.IsActive))
             .OrderBy(company => company.Code).ToArray();
@@ -236,8 +236,9 @@ internal sealed class AdminUserService(
             {
                 area = await organization.FindAreaAsync(value, cancellationToken) ?? throw new ValidationException("El área seleccionada no es válida.");
                 if (!area.IsActive && user.AreaId != area.Id) throw new ValidationException("El área seleccionada está inactiva.");
-                if (companies.All(company => company.Id != area.CompanyId))
-                    throw new ValidationException($"El área {area.Name} es de {area.Company.Name}: asigna también esa sociedad.");
+                if (!companies.Any(company => area.HasCompany(company.Id)))
+                    throw new ValidationException(
+                        $"El área {area.Name} no está en las sociedades del usuario: asígnale alguna de estas: {string.Join(", ", area.Companies.Select(item => item.Company.Name).Order())}.");
             }
             // El administrador puede no pertenecer a un área; el resto del personal interno, sí.
             else if (role.Code != SecurityCatalog.AdministratorRole) throw new ValidationException("Selecciona el área.");

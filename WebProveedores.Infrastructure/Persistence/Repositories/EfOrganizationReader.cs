@@ -12,7 +12,7 @@ public sealed class EfOrganizationReader(AppDbContext db) : IOrganizationReader
             .Select(company => new
             {
                 Company = company,
-                Areas = db.Areas.Count(area => area.CompanyId == company.Id),
+                Areas = db.Set<AreaCompany>().Count(item => item.CompanyId == company.Id),
                 Users = db.Set<UserCompany>().Count(item => item.CompanyId == company.Id),
             })
             .ToListAsync(cancellationToken))
@@ -24,12 +24,12 @@ public sealed class EfOrganizationReader(AppDbContext db) : IOrganizationReader
 
     public async Task<IReadOnlyList<AreaSummary>> ListAreasAsync(CancellationToken cancellationToken) =>
         (await db.Areas
-            .Include(area => area.Company)
+            .Include(area => area.Companies).ThenInclude(item => item.Company)
             .Select(area => new { Area = area, Users = db.Users.Count(user => user.AreaId == area.Id) })
             .ToListAsync(cancellationToken))
         .Select(row => new AreaSummary(row.Area, row.Users))
         .ToArray();
 
     public Task<Area?> FindAreaAsync(Guid id, CancellationToken cancellationToken) =>
-        db.Areas.Include(area => area.Company).SingleOrDefaultAsync(area => area.Id == id, cancellationToken);
+        db.Areas.Include(area => area.Companies).ThenInclude(item => item.Company).SingleOrDefaultAsync(area => area.Id == id, cancellationToken);
 }

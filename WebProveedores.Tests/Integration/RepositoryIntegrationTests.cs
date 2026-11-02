@@ -192,9 +192,17 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         var area = (await reader.ListAreasAsync(CancellationToken.None)).Single(item => item.Area.Id == data.Area.Id);
 
         Assert.Equal((1, 3), (naviera.AreaCount, naviera.UserCount));
-        Assert.Equal((data.Naviera.Code, 1), (area.Area.Company.Code, area.UserCount));
-        Assert.True(await repository.AreaCodeExistsAsync(data.Naviera.Id, data.Area.Code, null, CancellationToken.None));
-        Assert.False(await repository.AreaCodeExistsAsync(data.Ultratag.Id, data.Area.Code, null, CancellationToken.None));
+        Assert.Equal([data.Naviera.Code], area.Area.CompanyCodes);
+        Assert.Equal(1, area.UserCount);
+        Assert.True(await repository.AreaCodeExistsAsync(data.Area.Code, null, CancellationToken.None));
+        Assert.False(await repository.AreaCodeExistsAsync(data.Area.Code, data.Area.Id, CancellationToken.None));
+        // El aprobador solo tiene Naviera: si el área quedara solo en Ultratag, quedaría fuera.
+        Assert.Equal([data.Approver.CompanyName], await repository.AreaUsersOutsideCompaniesAsync(data.Area.Id, [data.Ultratag.Id], CancellationToken.None));
+        Assert.Empty(await repository.AreaUsersOutsideCompaniesAsync(data.Area.Id, [data.Naviera.Id], CancellationToken.None));
+
+        await AddPendingApprovalAsync(data, $"F001-{Random.Shared.Next(10_000_000, 99_999_999)}");
+        Assert.Equal(1, await repository.PendingApprovalsAsync(data.Area.Id, [data.Naviera.Id], CancellationToken.None));
+        Assert.Equal(0, await repository.PendingApprovalsAsync(data.Area.Id, [data.Ultratag.Id], CancellationToken.None));
     }
 
     [Fact]
@@ -255,6 +263,19 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         await new EfUnitOfWork(db).SaveChangesAsync(CancellationToken.None);
     }
 
+    private async Task AddPendingApprovalAsync(SeedData data, string number)
+    {
+        await using var db = sql.CreateContext();
+        var tracked = await db.Companies.SingleAsync(item => item.Id == data.Naviera.Id);
+        var document = SupplierDocument.Register(
+            new DocumentData(number, DocumentEntryType.WithoutPurchaseOrder, "Factura", data.Ruc, "Proveedor de prueba", null, Currency.PEN, 100m, 18m, 118m, "Servicio", new DateOnly(2026, 10, 1), "Validado"),
+            tracked, data.Provider.Id, "Proveedor (proveedor)", DateTime.UtcNow, "Validado en SUNAT",
+            approver: new ApproverAssignment(data.Area.Id, data.Area.Name, data.Approver.Id, data.Approver.CompanyName, "aprobador@ejemplo.test"));
+        document.AddItem("Servicio", 1, 100m, 100m);
+        new EfDocumentRepository(db).Add(document);
+        await new EfUnitOfWork(db).SaveChangesAsync(CancellationToken.None);
+    }
+
     /// <summary>Datos propios de cada prueba: sociedades, área, roles y usuarios con un RUC único.</summary>
     private async Task<SeedData> SeedAsync()
     {
@@ -269,7 +290,8 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
 
         var naviera = new Company { Code = $"N{suffix[..6]}", Name = $"Naviera {suffix}" };
         var ultratag = new Company { Code = $"U{suffix[..6]}", Name = $"Ultratag {suffix}" };
-        var area = new Area { Code = $"AREA_{suffix}", Name = $"Área {suffix}", Company = naviera, CompanyId = naviera.Id };
+        var area = new Area { Code = $"AREA_{suffix}", Name = $"Área {suffix}" };
+        area.SetCompanies([naviera]);
         db.Companies.AddRange(naviera, ultratag);
         db.Areas.Add(area);
 

@@ -101,7 +101,7 @@ public sealed class AdminUserServiceTests
     [InlineData("AREA_APPROVER", "1234", "8 dígitos")]
     [InlineData("AREA_APPROVER", "45678123", "Selecciona el área", false)]
     [InlineData("AREA_APPROVER", "45678123", "al menos una sociedad", true, "")]
-    [InlineData("AREA_APPROVER", "45678123", "asigna también esa sociedad", true, "1002")]
+    [InlineData("AREA_APPROVER", "45678123", "no está en las sociedades del usuario", true, "1002")]
     [InlineData("AREA_APPROVER", "45678123", "al menos un correo", true, "1001", false)]
     public async Task Create_enforces_the_rules(string role, string document, string expected, bool withArea = true, string company = "1001", bool withEmail = true)
     {
@@ -264,7 +264,8 @@ public sealed class AdminUserServiceTests
             TestMenus.Seed(db, roles);
             var naviera = new Company { Code = "1001", Name = "Naviera Transoceánica" };
             db.Companies.AddRange(naviera, new Company { Code = "1002", Name = "Petrolera Transoceánica" });
-            fixture.Finanzas = new Area { Code = "FINANZAS", Name = "Finanzas", Company = naviera, CompanyId = naviera.Id };
+            fixture.Finanzas = new Area { Code = "FINANZAS", Name = "Finanzas" };
+            fixture.Finanzas.SetCompanies([naviera]);
             db.Areas.Add(fixture.Finanzas);
 
             AppUser Admin(string username, string email)
