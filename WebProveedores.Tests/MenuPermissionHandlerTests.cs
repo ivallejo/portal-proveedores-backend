@@ -41,6 +41,7 @@ public sealed class MenuPermissionHandlerTests
     {
         public Guid Id { get; } = Guid.NewGuid();
         public bool IsPasswordChangeSession => false;
+        public DateTime SessionStartedAtUtc { get; } = DateTime.UtcNow;
     }
 
     private sealed class FakePermissions(params string[] codes) : IPermissionService

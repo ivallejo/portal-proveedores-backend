@@ -47,6 +47,15 @@ internal sealed class LoginService(
         return tokens.StartSession(user, now);
     }
 
+    public async Task<AuthResponse?> RenewAsync(Guid userId, DateTime sessionStartedAtUtc, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        if (now - sessionStartedAtUtc > SessionLimits.MaxDuration) return null;
+        var user = await users.FindTrackedByIdAsync(userId, cancellationToken);
+        if (user is null || !user.IsActive || user.IsLockedOut(now)) return null;
+        return tokens.StartSession(user, now, sessionStartedAtUtc);
+    }
+
     public async Task<UserResponse?> GetCurrentUserAsync(Guid userId, CancellationToken cancellationToken) =>
         await userQueries.FindByIdAsync(userId, cancellationToken) is { } user ? AuthSupport.ToResponse(user, clock.GetUtcNow().UtcDateTime) : null;
 }

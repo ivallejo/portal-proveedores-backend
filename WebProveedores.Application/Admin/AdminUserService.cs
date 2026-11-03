@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using WebProveedores.Application.Admin.Commands;
 using WebProveedores.Application.Admin.Responses;
 using WebProveedores.Application.Auth;
@@ -32,6 +33,7 @@ internal sealed class AdminUserService(
     PasswordLinks passwordLinks,
     EmailVerifications verifications,
     IEmailSender emailSender,
+    ILogger<AdminUserService> logger,
     TimeProvider clock) : IAdminUserService
 {
     public async Task<AdminUserPage> SearchAsync(string? search, string? role, string? status, int page, int pageSize, CancellationToken cancellationToken)
@@ -109,9 +111,11 @@ internal sealed class AdminUserService(
         users.Add(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await passwordLinks.SendAsync(user, PasswordTokenPurpose.Activation, cancellationToken);
-        foreach (var (email, token) in tokens) await verifications.SendAsync(user.CompanyName, email, token, cancellationToken);
-        return ToDetail(user);
+        // El usuario ya quedó guardado: si un correo falla se avisa (se reenvía desde Seguridad), no se informa un error.
+        var sent = await TrySendAsync(() => passwordLinks.SendAsync(user, PasswordTokenPurpose.Activation, cancellationToken), "activación", user);
+        foreach (var (email, token) in tokens)
+            sent &= await TrySendAsync(() => verifications.SendAsync(user.CompanyName, email, token, cancellationToken), "verificación", user);
+        return ToDetail(user) with { EmailsSent = sent };
     }
 
     public async Task<AdminUserDetail?> UpdateAsync(Guid actorId, Guid id, SaveUserCommand request, CancellationToken cancellationToken)
@@ -159,11 +163,13 @@ internal sealed class AdminUserService(
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
 
-        foreach (var (email, token) in verificationsToSend) await verifications.SendAsync(user.CompanyName, email, token, cancellationToken);
+        var sent = true;
+        foreach (var (email, token) in verificationsToSend)
+            sent &= await TrySendAsync(() => verifications.SendAsync(user.CompanyName, email, token, cancellationToken), "verificación", user);
         if (newUsername is not null && !string.IsNullOrWhiteSpace(user.PrimaryEmail))
-            await emailSender.SendAsync(user.PrimaryEmail, "Tu usuario cambió - Portal de Proveedores",
-                EmailTemplates.UsernameChanged(user.CompanyName, newUsername), cancellationToken, isHtml: true);
-        return ToDetail(user);
+            sent &= await TrySendAsync(() => emailSender.SendAsync(user.PrimaryEmail, "Tu usuario cambió - Portal de Proveedores",
+                EmailTemplates.UsernameChanged(user.CompanyName, newUsername), cancellationToken, isHtml: true), "cambio de usuario", user);
+        return ToDetail(user) with { EmailsSent = sent };
     }
 
     public async Task<AdminUserDetail?> SetStatusAsync(Guid actorId, Guid id, SetUserStatusCommand request, CancellationToken cancellationToken)
@@ -361,6 +367,21 @@ internal sealed class AdminUserService(
     };
 
     private static (string Document, string Type) DocumentOf(AppUser user) => UserDocuments.Of(user);
+
+    /// <summary>Envía un correo posterior al guardado; si falla lo registra y devuelve falso en lugar de lanzar.</summary>
+    private async Task<bool> TrySendAsync(Func<Task> send, string kind, AppUser user)
+    {
+        try
+        {
+            await send();
+            return true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "No se pudo enviar el correo de {Kind} del usuario {Username}", kind, user.Username);
+            return false;
+        }
+    }
 
     /// <summary>Usuario válido y libre (sin distinguir mayúsculas) para un interno.</summary>
     private async Task<string> AvailableUsernameAsync(string? requested, Guid? exceptUserId, CancellationToken cancellationToken)

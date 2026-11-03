@@ -20,9 +20,10 @@ internal static class AuthSupport
     }
 
     /// <summary>Sesión nueva: con contraseña temporal o vencida solo sirve para cambiarla.</summary>
-    public static AuthResponse StartSession(this ITokenIssuer tokens, AppUser user, DateTime now)
+    /// <param name="sessionStartedAtUtc">Inicio de la sesión; vacío al ingresar (empieza ahora).</param>
+    public static AuthResponse StartSession(this ITokenIssuer tokens, AppUser user, DateTime now, DateTime? sessionStartedAtUtc = null)
     {
-        var token = tokens.Issue(user, passwordChangeOnly: user.MustChangePasswordAt(now));
+        var token = tokens.Issue(user, passwordChangeOnly: user.MustChangePasswordAt(now), sessionStartedAtUtc ?? now);
         return new AuthResponse(token.Value, token.ExpiresAtUtc, ToResponse(user, now));
     }
 
