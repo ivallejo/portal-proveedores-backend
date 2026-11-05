@@ -193,6 +193,38 @@ public sealed class AuthServiceTests
     }
 
     [Fact]
+    public async Task RenewAsync_keeps_the_session_start_and_stops_after_the_limit_or_when_inactive()
+    {
+        await using var db = CreateContext();
+        var user = CreateUser("20523682795", "renew-user", "Proveedor Renovación", "renew@demo.test", activated: true);
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 3, 8, 0, 0, TimeSpan.Zero));
+        var service = TestServices.Login(db, clock);
+
+        var login = await service.LoginAsync(new LoginCommand { Identifier = "renew-user", Password = "Password1" }, CancellationToken.None);
+        var started = SessionStart(login!.AccessToken);
+        Assert.Equal(clock.GetUtcNow().UtcDateTime, started);
+
+        clock.Advance(TimeSpan.FromHours(11));
+        var renewed = await service.RenewAsync(user.Id, started, CancellationToken.None);
+        Assert.NotNull(renewed);
+        Assert.Equal(started, SessionStart(renewed.AccessToken));
+
+        // Pasado el tope de 12 horas desde el ingreso hay que volver a ingresar.
+        clock.Advance(TimeSpan.FromHours(2));
+        Assert.Null(await service.RenewAsync(user.Id, started, CancellationToken.None));
+
+        user.SetActive(false, DateTime.UtcNow);
+        await db.SaveChangesAsync();
+        Assert.Null(await service.RenewAsync(user.Id, clock.GetUtcNow().UtcDateTime, CancellationToken.None));
+    }
+
+    private static DateTime SessionStart(string token) =>
+        DateTimeOffset.FromUnixTimeSeconds(long.Parse(new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token)
+            .Claims.Single(claim => claim.Type == WebProveedores.Application.Common.Security.SessionClaims.StartedAt).Value)).UtcDateTime;
+
+    [Fact]
     public async Task ValidateRucAsync_rejects_existing_user_before_calling_sap()
     {
         await using var db = CreateContext();

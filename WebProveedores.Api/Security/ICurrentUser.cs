@@ -8,4 +8,7 @@ public interface ICurrentUser
 
     /// <summary>La sesión se abrió con una contraseña temporal y solo sirve para cambiarla.</summary>
     bool IsPasswordChangeSession { get; }
+
+    /// <summary>Cuándo se ingresó (claim de inicio; en tokens anteriores al claim, el momento actual).</summary>
+    DateTime SessionStartedAtUtc { get; }
 }

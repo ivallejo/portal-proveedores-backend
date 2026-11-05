@@ -98,6 +98,12 @@ public sealed class AuthController(
     public async Task<ActionResult<AuthResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
         Ok(await passwords.ChangePasswordAsync(currentUser.Id, currentUser.IsPasswordChangeSession, request.ToCommand(), cancellationToken));
 
+    /// <summary>Token nuevo para la misma sesión; 401 si la cuenta ya no está activa o la sesión superó su tope.</summary>
+    [HttpPost("renew")]
+    [Authorize]
+    public async Task<ActionResult<AuthResponse>> Renew(CancellationToken cancellationToken) =>
+        await login.RenewAsync(currentUser.Id, currentUser.SessionStartedAtUtc, cancellationToken) is { } session ? Ok(session) : Unauthorized();
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<UserResponse>> Me(CancellationToken cancellationToken) =>

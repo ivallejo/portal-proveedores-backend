@@ -11,7 +11,7 @@ namespace WebProveedores.Infrastructure.Security;
 
 public sealed class JwtTokenIssuer(JwtSettings settings, TimeProvider clock) : ITokenIssuer
 {
-    public IssuedToken Issue(AppUser user, bool passwordChangeOnly)
+    public IssuedToken Issue(AppUser user, bool passwordChangeOnly, DateTime sessionStartedAtUtc)
     {
         var expires = clock.GetUtcNow().UtcDateTime.AddMinutes(settings.AccessTokenMinutes);
         var email = user.Emails.FirstOrDefault(item => item.IsPrimary && item.IsActive)?.Email ?? user.Emails.FirstOrDefault(item => item.IsActive)?.Email ?? string.Empty;
@@ -21,6 +21,7 @@ public sealed class JwtTokenIssuer(JwtSettings settings, TimeProvider clock) : I
             new(ClaimTypes.Email, email),
             new(SessionClaims.Username, user.Username),
             new(SessionClaims.Ruc, user.Ruc ?? string.Empty),
+            new(SessionClaims.StartedAt, new DateTimeOffset(DateTime.SpecifyKind(sessionStartedAtUtc, DateTimeKind.Utc)).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
         };
         // Con la contraseña temporal solo se permite cambiarla: la API lo exige leyendo este claim.
         if (passwordChangeOnly) claims.Add(new Claim(SessionClaims.PasswordChangeOnly, "1"));

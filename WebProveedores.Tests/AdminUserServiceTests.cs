@@ -48,6 +48,20 @@ public sealed class AdminUserServiceTests
         Assert.Null(await login.LoginAsync(new LoginCommand { Identifier = "maria.torres@ejemplo.test", Password = "Nueva_Clave1" }, CancellationToken.None));
     }
 
+    [Fact]
+    public async Task User_is_created_even_if_the_activation_email_fails()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var service = TestServices.Admin(fixture.Db, new FailingEmailSender());
+
+        var created = await service.CreateAsync(Internal("45678123", fixture.Finanzas.Id, Mail("maria@ejemplo.test", primary: true)), CancellationToken.None);
+
+        Assert.False(created.EmailsSent);
+        Assert.NotNull(await fixture.Service.GetAsync(created.Id, CancellationToken.None));
+        // El enlace de activación quedó pendiente y se puede reenviar desde Seguridad.
+        Assert.True((await fixture.Service.CreateAsync(Internal("45678124", fixture.Finanzas.Id, Mail("ana@ejemplo.test", primary: true)) with { Username = "ana.rios" }, CancellationToken.None)).EmailsSent);
+    }
+
     [Theory]
     [InlineData("DNI", "1234", "maria.torres", "8 dígitos")]
     [InlineData("CE", "AB-12", "maria.torres", "carné de extranjería")]
@@ -298,4 +312,11 @@ internal sealed class CapturingEmailSender : IEmailSender
         Sent.Add((recipient, body));
         return Task.CompletedTask;
     }
+}
+
+/// <summary>Simula un SMTP caído.</summary>
+internal sealed class FailingEmailSender : IEmailSender
+{
+    public Task SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken, bool isHtml = false, IReadOnlyList<string>? copyTo = null, IReadOnlyList<EmailAttachment>? attachments = null) =>
+        throw new InvalidOperationException("SMTP no disponible");
 }

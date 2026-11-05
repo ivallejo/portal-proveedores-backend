@@ -18,4 +18,6 @@ public sealed record AdminUserDetail(
     bool IsActivated,
     bool MustChangePassword,
     DateTime CreatedAtUtc,
-    DateTime UpdatedAtUtc);
+    DateTime UpdatedAtUtc,
+    /// <summary>Falso si algún correo de esta operación (activación, verificación, cambio de usuario) no se pudo enviar.</summary>
+    bool EmailsSent = true);

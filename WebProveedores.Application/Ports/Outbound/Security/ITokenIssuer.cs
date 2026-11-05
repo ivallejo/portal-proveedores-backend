@@ -7,5 +7,6 @@ namespace WebProveedores.Application.Ports.Outbound.Security;
 public interface ITokenIssuer
 {
     /// <param name="passwordChangeOnly">La sesión solo sirve para cambiar la contraseña temporal.</param>
-    IssuedToken Issue(AppUser user, bool passwordChangeOnly);
+    /// <param name="sessionStartedAtUtc">Cuándo se ingresó; al renovar se conserva el del token anterior.</param>
+    IssuedToken Issue(AppUser user, bool passwordChangeOnly, DateTime sessionStartedAtUtc);
 }

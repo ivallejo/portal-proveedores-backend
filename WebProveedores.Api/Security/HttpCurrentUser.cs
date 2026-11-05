@@ -15,4 +15,10 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
             : throw new ForbiddenException("La sesión no es válida.");
 
     public bool IsPasswordChangeSession => Principal.HasClaim(SessionClaims.PasswordChangeOnly, "1");
+
+    // Los tokens emitidos antes de existir el claim (duran 30 minutos) cuentan su sesión desde ahora.
+    public DateTime SessionStartedAtUtc =>
+        long.TryParse(Principal.FindFirstValue(SessionClaims.StartedAt), out var seconds)
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime
+            : DateTime.UtcNow;
 }
