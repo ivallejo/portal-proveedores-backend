@@ -1,6 +1,7 @@
 using WebProveedores.Application.Documents.Commands;
 using WebProveedores.Application.Documents.Responses;
 using WebProveedores.Application.Ports.Outbound.Sap;
+using WebProveedores.Domain.Documents;
 
 namespace WebProveedores.Application.Documents;
 
@@ -10,7 +11,8 @@ internal sealed class DocumentCatalogService(DocumentAccess access, ISapDocument
     {
         var actor = await access.LoadActorAsync(userId, cancellationToken);
         var company = await access.RequireCompanyAsync(actor, request.CompanyCode, cancellationToken);
-        var order = await sap.ValidateOrderAsync(company.Code, request.OrderType, request.Number.Trim().ToUpperInvariant(), cancellationToken);
-        return order is null ? null : new OrderValidationResponse(order.Number, order.Type, order.Description, order.Balance);
+        var delivery = OrderDelivery.Resolve(request.OrderType, request.DeliveryType);
+        var order = await sap.ValidateOrderAsync(company.Code, request.OrderType, delivery, request.Number.Trim().ToUpperInvariant(), cancellationToken);
+        return order is null ? null : new OrderValidationResponse(order.Number, order.Type, order.Delivery, order.Description, order.Balance);
     }
 }

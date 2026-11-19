@@ -18,7 +18,7 @@ internal static class DocumentMapper
         document.Id, document.Number, document.EntryType, document.DocumentType, document.ProviderRuc, document.ProviderName, document.ProviderEmail,
         document.Currency, document.Subtotal, document.Igv, document.Amount, document.Concept, document.IssuedAt, document.RegisteredAtUtc,
         document.RegisteredByName, ToResponse(document.Company), document.Status, document.RejectedBy, document.AreaName, document.ApproverName,
-        document.ApproverEmail, document.ApprovedAtUtc, document.ApprovalReferenceType, document.ApprovalReference, document.OrderType,
+        document.ApproverEmail, document.ApprovedAtUtc, document.ApprovalReferenceType, document.ApprovalReference, document.OrderType, document.DeliveryType,
         document.OrderNumber, document.OrderBalance, document.OrderDescription, document.Validation,
         document.Items.OrderBy(item => item.LineNumber).Select(item => new DocumentItemResponse(item.Description, item.Quantity, item.UnitPrice, item.Amount)).ToArray(),
         document.Attachments.OrderBy(item => item.Kind).ThenBy(item => item.FileName).Select(item => new AttachmentResponse(item.Id, item.Kind, item.FileName, item.SizeBytes)).ToArray(),

@@ -38,6 +38,28 @@ public sealed class DocumentServiceTests
     }
 
     [Fact]
+    public async Task RegisterAsync_validates_a_carrier_for_service_orders_delivered_to_the_warehouse()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        // El carrier de almacén no es una orden «a bordo», y viceversa.
+        var onBoard = await Assert.ThrowsAsync<DocumentRejectedException>(() => fixture.Services.Registration.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000111"), orderNumber: "CR-2026-00527"), CancellationToken.None));
+        Assert.Contains("la orden de compra", onBoard.Message);
+        var warehouseWithOrder = await Assert.ThrowsAsync<DocumentRejectedException>(() => fixture.Services.Registration.RegisterAsync(
+            fixture.Provider.Id, Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000111"), orderNumber: "4500012873", delivery: DeliveryType.Warehouse), CancellationToken.None));
+        Assert.Contains("el carrier", warehouseWithOrder.Message);
+
+        var result = await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id,
+            Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000111"), orderNumber: "cr-2026-00527", delivery: DeliveryType.Warehouse), CancellationToken.None);
+
+        Assert.Equal(DeliveryType.Warehouse, result.DeliveryType);
+        Assert.Equal("CR-2026-00527", result.OrderNumber);
+        Assert.Null((await fixture.Services.Registration.RegisterAsync(fixture.Provider.Id,
+            Command(DocumentEntryType.WithPurchaseOrder, Xml("F001-00000112"), orderNumber: "CR-2026-00418", orderType: OrderType.Goods), CancellationToken.None)).DeliveryType);
+    }
+
+    [Fact]
     public async Task RegisterAsync_with_order_goes_to_accounting_and_rejects_unknown_orders()
     {
         await using var fixture = await Fixture.CreateAsync();
@@ -49,6 +71,7 @@ public sealed class DocumentServiceTests
 
         Assert.Equal(DocumentStatus.PendingAccounting, result.Status);
         Assert.Equal("4500012873", result.OrderNumber);
+        Assert.Equal(DeliveryType.OnBoard, result.DeliveryType);
         Assert.Equal("Orden validada en SAP", result.History[0].Title);
         // El intento con la orden inválida no debe dejar archivos guardados.
         Assert.Equal(3, fixture.Storage.Files.Count);
@@ -290,11 +313,12 @@ public sealed class DocumentServiceTests
 
     private static RegisterElectronicDocumentCommand Command(
         DocumentEntryType entryType, string xml, Guid? approverId = null, string? orderNumber = null, bool includeCdr = true,
-        IReadOnlyList<UploadedFile>? extras = null, string companyCode = "1001")
+        IReadOnlyList<UploadedFile>? extras = null, string companyCode = "1001",
+        OrderType orderType = OrderType.Service, DeliveryType? delivery = null)
     {
         var number = xml.Split("<cbc:ID>")[1].Split('<')[0];
         return new RegisterElectronicDocumentCommand(
-            entryType, companyCode, orderNumber is null ? null : OrderType.Service, orderNumber, approverId,
+            entryType, companyCode, orderNumber is null ? null : orderType, orderNumber is null ? null : delivery, orderNumber, approverId,
             File($"{number}.xml", xml), File($"{number}.pdf", "%PDF-1.4 prueba"),
             includeCdr ? File($"R-{number}.zip", "PK prueba") : null,
             extras ?? []);

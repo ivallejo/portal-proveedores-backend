@@ -6,6 +6,7 @@ public sealed record RegisterElectronicDocumentCommand(
     DocumentEntryType EntryType,
     string CompanyCode,
     OrderType? OrderType,
+    DeliveryType? DeliveryType,
     string? OrderNumber,
     Guid? ApproverId,
     UploadedFile? Xml,

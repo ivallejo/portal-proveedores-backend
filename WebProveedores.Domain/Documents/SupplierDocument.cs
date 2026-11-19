@@ -42,6 +42,8 @@ public sealed class SupplierDocument
     public string? ApprovalReference { get; private set; }
 
     public OrderType? OrderType { get; private set; }
+    /// <summary>Solo en órdenes de servicio: a bordo o en almacén.</summary>
+    public DeliveryType? DeliveryType { get; private set; }
     public string? OrderNumber { get; private set; }
     public decimal? OrderBalance { get; private set; }
     public string? OrderDescription { get; private set; }
@@ -72,6 +74,8 @@ public sealed class SupplierDocument
             throw new DomainRuleException("Solo los documentos sin orden de compra pasan por aprobación.");
         if (order is not null && data.EntryType != DocumentEntryType.WithPurchaseOrder)
             throw new DomainRuleException("Solo los documentos con orden de compra llevan orden.");
+        if (order is not null && OrderDelivery.Resolve(order.Type, order.Delivery) != order.Delivery)
+            throw new DomainRuleException("Una orden de servicio necesita su tipo de entrega, y una de bien no lo lleva.");
 
         var document = new SupplierDocument
         {
@@ -95,6 +99,7 @@ public sealed class SupplierDocument
             Company = company,
             Status = approver is null ? DocumentStatus.PendingAccounting : DocumentStatus.PendingApproval,
             OrderType = order?.Type,
+            DeliveryType = order?.Delivery,
             OrderNumber = order?.Number,
             OrderBalance = order?.Balance,
             OrderDescription = order?.Description,

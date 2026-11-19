@@ -255,8 +255,8 @@ Endpoints (JWT obligatorio, enums en texto):
 |---|---|---|
 | GET | `/api/catalog/companies` | Sociedades activas |
 | GET | `/api/catalog/areas` | Áreas con sus aprobadores activos |
-| POST | `/api/documents/orders/validate` | Servicio 01: valida la orden (422 si no existe) |
-| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `OrderType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
+| POST | `/api/documents/orders/validate` | Servicio 01: valida la orden (422 si no existe); `deliveryType` (`OnBoard` por defecto, `Warehouse` = N° de carrier) solo con `Service` |
+| POST | `/api/documents` | Registro Con OC / Sin OC (multipart: `EntryType`, `CompanyCode`, `OrderType`, `DeliveryType`, `OrderNumber`, `ApproverId`, `Xml`, `Pdf`, `Cdr`, `Extras[]`) |
 | POST | `/api/documents/special` | Documento especial (multipart, solo `INTERNAL_USER` o admin) |
 | GET | `/api/documents?inbox=Approvals\|Accounting\|Mine&ruc&status&page&pageSize` | Bandejas con `countsByStatus` para los KPI |
 | GET | `/api/documents/{id}` | Detalle con ítems, adjuntos e historial |

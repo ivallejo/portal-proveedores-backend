@@ -257,7 +257,7 @@ public sealed class RepositoryIntegrationTests(SqlServerFixture sql)
         var document = SupplierDocument.Register(
             new DocumentData(number, DocumentEntryType.WithPurchaseOrder, "Factura", data.Ruc, "Proveedor de prueba", null, Currency.PEN, 100m, 18m, 118m, "Servicio", new DateOnly(2026, 10, 1), "Validado"),
             tracked, data.Provider.Id, "Proveedor (proveedor)", DateTime.UtcNow, "Validado en SAP",
-            order: new PurchaseOrderInfo(OrderType.Service, "4500012873", 18450m, "Mantenimiento"));
+            order: new PurchaseOrderInfo(OrderType.Service, "4500012873", 18450m, "Mantenimiento", DeliveryType.OnBoard));
         document.AddItem("Servicio", 1, 100m, 100m);
         repository.Add(document);
         await new EfUnitOfWork(db).SaveChangesAsync(CancellationToken.None);

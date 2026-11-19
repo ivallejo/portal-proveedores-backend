@@ -300,6 +300,10 @@ namespace WebProveedores.Infrastructure.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<string>("DeliveryType")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<string>("DocumentType")
                         .IsRequired()
                         .HasMaxLength(80)

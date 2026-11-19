@@ -37,6 +37,7 @@ internal sealed class SupplierDocumentConfiguration : IEntityTypeConfiguration<S
         entity.Property(document => document.ApprovalReferenceType).HasConversion<string>().HasMaxLength(10);
         entity.Property(document => document.ApprovalReference).HasMaxLength(30);
         entity.Property(document => document.OrderType).HasConversion<string>().HasMaxLength(10);
+        entity.Property(document => document.DeliveryType).HasConversion<string>().HasMaxLength(10);
         entity.Property(document => document.OrderNumber).HasMaxLength(20);
         entity.Property(document => document.OrderBalance).HasPrecision(18, 2);
         entity.Property(document => document.OrderDescription).HasMaxLength(300);
