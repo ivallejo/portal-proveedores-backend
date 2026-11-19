@@ -9,7 +9,34 @@ public sealed class SupplierDocumentTests
 {
     private static readonly Company Naviera = new() { Code = "1001", Name = "Naviera Transoceánica" };
     private static readonly ApproverAssignment Approver = new(Guid.CreateVersion7(), "Finanzas", Guid.CreateVersion7(), "María Torres", "mtorres@test.pe");
-    private static readonly PurchaseOrderInfo Order = new(OrderType.Service, "4500012873", 18450m, "Mantenimiento");
+    private static readonly PurchaseOrderInfo Order = new(OrderType.Service, "4500012873", 18450m, "Mantenimiento", DeliveryType.OnBoard);
+
+    [Fact]
+    public void Delivery_type_applies_only_to_service_orders()
+    {
+        Assert.Null(OrderDelivery.Resolve(OrderType.Goods, null));
+        Assert.Throws<DomainRuleException>(() => OrderDelivery.Resolve(OrderType.Goods, DeliveryType.Warehouse));
+        Assert.Equal(DeliveryType.OnBoard, OrderDelivery.Resolve(OrderType.Service, null));
+        Assert.Equal(DeliveryType.Warehouse, OrderDelivery.Resolve(OrderType.Service, DeliveryType.Warehouse));
+
+        Assert.True(OrderDelivery.IsCarrier(OrderType.Goods, null));
+        Assert.True(OrderDelivery.IsCarrier(OrderType.Service, DeliveryType.Warehouse));
+        Assert.False(OrderDelivery.IsCarrier(OrderType.Service, DeliveryType.OnBoard));
+    }
+
+    [Fact]
+    public void Register_keeps_the_delivery_type_and_rejects_inconsistent_orders()
+    {
+        var warehouse = Register(DocumentEntryType.WithPurchaseOrder,
+            order: new PurchaseOrderInfo(OrderType.Service, "CR-2026-00527", 9860m, "Almacenaje", DeliveryType.Warehouse));
+        Assert.Equal(DeliveryType.Warehouse, warehouse.DeliveryType);
+        Assert.Null(Register(DocumentEntryType.WithPurchaseOrder, order: new PurchaseOrderInfo(OrderType.Goods, "CR-2026-00418", 1m, "Repuestos")).DeliveryType);
+
+        Assert.Throws<DomainRuleException>(() => Register(DocumentEntryType.WithPurchaseOrder,
+            order: new PurchaseOrderInfo(OrderType.Service, "4500012873", 1m, "Sin entrega")));
+        Assert.Throws<DomainRuleException>(() => Register(DocumentEntryType.WithPurchaseOrder,
+            order: new PurchaseOrderInfo(OrderType.Goods, "CR-2026-00418", 1m, "Repuestos", DeliveryType.OnBoard)));
+    }
 
     [Fact]
     public void Register_routes_each_entry_type_to_its_first_status()

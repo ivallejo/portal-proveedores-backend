@@ -6,5 +6,6 @@ public sealed record ValidateOrderCommand
 {
     public string CompanyCode { get; init; } = string.Empty;
     public OrderType OrderType { get; init; }
+    public DeliveryType? DeliveryType { get; init; }
     public string Number { get; init; } = string.Empty;
 }

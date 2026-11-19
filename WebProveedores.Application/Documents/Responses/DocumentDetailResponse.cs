@@ -29,6 +29,7 @@ public sealed record DocumentDetailResponse(
     ApprovalReferenceType? ApprovalReferenceType,
     string? ApprovalReference,
     OrderType? OrderType,
+    DeliveryType? DeliveryType,
     string? OrderNumber,
     decimal? OrderBalance,
     string? OrderDescription,

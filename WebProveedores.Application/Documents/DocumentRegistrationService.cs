@@ -59,8 +59,10 @@ internal sealed class DocumentRegistrationService(
         {
             if (command.OrderType is null || string.IsNullOrWhiteSpace(command.OrderNumber))
                 throw new ValidationException("Indica el tipo y el número de la orden.");
-            order = await sap.ValidateOrderAsync(company.Code, command.OrderType.Value, command.OrderNumber.Trim().ToUpperInvariant(), cancellationToken)
-                ?? throw new DocumentRejectedException("SAP no encontró la orden para la sociedad seleccionada o ya no tiene saldo por facturar.");
+            var delivery = OrderDelivery.Resolve(command.OrderType.Value, command.DeliveryType);
+            var kind = OrderDelivery.IsCarrier(command.OrderType.Value, delivery) ? "el carrier" : "la orden de compra";
+            order = await sap.ValidateOrderAsync(company.Code, command.OrderType.Value, delivery, command.OrderNumber.Trim().ToUpperInvariant(), cancellationToken)
+                ?? throw new DocumentRejectedException($"SAP no encontró {kind} para la sociedad seleccionada o ya no tiene saldo por facturar.");
         }
 
         // Sin OC (flujo 02): el proveedor elige área y aprobador; el usuario interno registra directo a contabilización
@@ -85,7 +87,7 @@ internal sealed class DocumentRegistrationService(
             "Documento validado en SAP y SUNAT");
         var document = SupplierDocument.Register(
             data, company, actor.Id, actor.RegistrationLabel, now, "Documento validado en SAP y SUNAT",
-            order is null ? null : new PurchaseOrderInfo(order.Type, order.Number, order.Balance, order.Description),
+            order is null ? null : new PurchaseOrderInfo(order.Type, order.Number, order.Balance, order.Description, order.Delivery),
             approver is null ? null : new ApproverAssignment(approver.AreaId, approver.AreaName, approver.UserId, approver.Name, approver.Email));
         foreach (var line in electronic.Lines)
             document.AddItem(line.Description, line.Quantity, line.UnitPrice, line.Amount);
